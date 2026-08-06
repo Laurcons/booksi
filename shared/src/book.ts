@@ -23,7 +23,11 @@ export const CALENDAR_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export const calendarDateSchema = z
   .string()
-  .regex(CALENDAR_DATE_PATTERN, "Expected a calendar date as YYYY-MM-DD");
+  .regex(CALENDAR_DATE_PATTERN, "Expected a calendar date as YYYY-MM-DD")
+  // Carried into the generated OpenAPI schema. Without it, tooling invents a
+  // string that merely satisfies the pattern — "5843-15-01" and the like,
+  // which teaches a reader the wrong shape.
+  .meta({ examples: ["2026-08-06"] });
 
 /** A cleared form field arrives as `""`; the column stores NULL. */
 const nullableText = (max: number) =>

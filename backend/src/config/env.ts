@@ -20,6 +20,15 @@ export const envSchema = z.object({
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
 
   WEB_ORIGIN: z.string().url(),
+
+  /**
+   * Swagger UI. Absent means "on outside production" — the useful default
+   * either way, so nobody has to set it to work locally.
+   */
+  ENABLE_DOCS: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
