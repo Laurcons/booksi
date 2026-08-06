@@ -1,60 +1,45 @@
-import { GENRE_LABEL, GENRE_SPINE_COLOR, type Book } from "../data/types";
-import { progress } from "../data/stats";
+import { GENRE_LABEL } from "@bookcsi/shared";
+import type { BookWithCover } from "../lib/covers";
+import { progressLabel, progressRatio } from "../lib/progress";
+import { shelfRows, spineColor, spineHeight, spineWidth } from "../lib/shelf";
 import { StatusPill } from "./StatusPill";
 
-const BOOKS_PER_ROW = 21;
+/**
+ * S8.2 — the shelf. docs/DESIGN.md §Raftul: the only light surface in the app,
+ * a warm wooden plank with pastel spines, and it works precisely by contrast
+ * with everything else.
+ *
+ * The geometry lives in `lib/shelf.ts` rather than here — thickness from the
+ * page count, deterministic jitter, the pastel ramp — because it is arithmetic
+ * with rules behind it, and arithmetic buried in JSX is arithmetic nobody
+ * checks. What is left in this file is the drawing.
+ */
+export function Shelf({ books }: { books: BookWithCover[] }) {
+  const rows = shelfRows(books);
 
-/** Spine thickness comes from the page count — §S8.2 */
-const MIN_WIDTH = 20;
-const MAX_WIDTH = 56;
-const DEFAULT_WIDTH = 32; // books with no page count
-
-function spineWidth(totalPages: number | null): number {
-  if (!totalPages) return DEFAULT_WIDTH;
-  const w = MIN_WIDTH + (totalPages / 750) * (MAX_WIDTH - MIN_WIDTH);
-  return Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w)));
-}
-
-/** Deterministic jitter so the shelf looks hand-stacked, not generated. */
-function jitter(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 997;
-  return h / 997;
-}
-
-function spineHeight(book: Book): number {
-  const fromPages = ((book.totalPages ?? 320) / 750) * 26;
-  return Math.round(178 + fromPages + jitter(book.id) * 20);
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
-  return rows;
-}
-
-export function Shelf({ books }: { books: Book[] }) {
   return (
     <section>
       <div className="mb-5 flex items-baseline justify-between">
         <h2 className="font-display text-2xl text-ink">
           Raftul <em className="text-accent">tău</em>
         </h2>
-        <p className="text-sm text-ink-3">
-          {books.length} cărți în bibliotecă
-        </p>
+        <p className="text-sm text-ink-3">{books.length} cărți în bibliotecă</p>
       </div>
 
       <div className="rounded-xl border border-line bg-surface-1 px-6 py-8 sm:px-10">
-        {chunk(books, BOOKS_PER_ROW).map((row, i) => (
-          <ShelfRow key={i} books={row} last={i === Math.ceil(books.length / BOOKS_PER_ROW) - 1} />
+        {rows.map((row, index) => (
+          <ShelfRow
+            key={row[0]?.id ?? index}
+            books={row}
+            last={index === rows.length - 1}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function ShelfRow({ books, last }: { books: Book[]; last: boolean }) {
+function ShelfRow({ books, last }: { books: BookWithCover[]; last: boolean }) {
   return (
     <div className={last ? "" : "mb-9"}>
       <div className="relative flex items-end gap-[3px] pl-3">
@@ -67,10 +52,10 @@ function ShelfRow({ books, last }: { books: Book[]; last: boolean }) {
   );
 }
 
-function Spine({ book }: { book: Book }) {
+function Spine({ book }: { book: BookWithCover }) {
   const width = spineWidth(book.totalPages);
   const height = spineHeight(book);
-  const base = GENRE_SPINE_COLOR[book.genre];
+  const base = spineColor(book.genre);
 
   return (
     <div className="group relative">
@@ -113,8 +98,8 @@ function Spine({ book }: { book: Book }) {
 }
 
 /** Hover detail. A shelf you cannot read is decoration, not a library. */
-function SpineCard({ book }: { book: Book }) {
-  const p = progress(book);
+function SpineCard({ book }: { book: BookWithCover }) {
+  const ratio = progressRatio(book);
 
   return (
     <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-4 w-64 -translate-x-1/2 rounded-xl border border-line bg-surface-3 p-3 opacity-0 shadow-2xl transition-opacity duration-150 group-hover:opacity-100">
@@ -134,7 +119,9 @@ function SpineCard({ book }: { book: Book }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-sm text-ink">{book.title}</p>
           <p className="mt-0.5 truncate text-xs text-ink-3">{book.author}</p>
-          <p className="mt-1.5 text-[11px] text-ink-3">{GENRE_LABEL[book.genre]}</p>
+          {book.genre && (
+            <p className="mt-1.5 text-[11px] text-ink-3">{GENRE_LABEL[book.genre]}</p>
+          )}
           <div className="mt-2">
             <StatusPill status={book.status} />
           </div>
@@ -153,13 +140,11 @@ function SpineCard({ book }: { book: Book }) {
             {/* No page count means no percentage — §D4 */}
             <div
               className="h-full rounded-full bg-accent"
-              style={{ width: p ? `${p * 100}%` : 0 }}
+              style={{ width: ratio === null ? 0 : `${ratio * 100}%` }}
             />
           </div>
           <p className="tabular mt-1.5 text-[11px] text-ink-3">
-            {p
-              ? `pag. ${book.pagesRead} din ${book.totalPages} — ${Math.round(p * 100)}%`
-              : `pag. ${book.pagesRead}`}
+            {progressLabel(book)}
           </p>
         </div>
       )}
@@ -170,11 +155,11 @@ function SpineCard({ book }: { book: Book }) {
 function Stars({ value }: { value: number }) {
   return (
     <span className="flex gap-0.5" aria-label={`${value} din 5 stele`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <svg key={i} width="12" height="12" viewBox="0 0 24 24" aria-hidden>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <svg key={star} width="12" height="12" viewBox="0 0 24 24" aria-hidden>
           <path
             d="m12 2.5 2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.6 6.1 20.7l1.2-6.6-4.8-4.6 6.6-.9L12 2.5Z"
-            fill={i <= value ? "var(--color-accent)" : "var(--color-line)"}
+            fill={star <= value ? "var(--color-accent)" : "var(--color-line)"}
           />
         </svg>
       ))}

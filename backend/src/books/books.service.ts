@@ -42,6 +42,14 @@ type BookWriteData = {
   finishedOn?: Date | null;
 };
 
+/**
+ * Either kind of write. `CreateBookInput` is assignable to `UpdateBookInput`
+ * — the second is the first, partialised — so the helpers below type-checked
+ * while claiming to take only updates. Naming the union says what is true, and
+ * stops a reader concluding that `create` was passing the wrong thing.
+ */
+type BookWriteInput = CreateBookInput | UpdateBookInput;
+
 const DEFAULT_STATUS: Status = "WISHLIST";
 
 /** The status S3.1's view and S3.3's total are both defined by. */
@@ -249,7 +257,7 @@ export class BooksService {
   }
 }
 
-function writeData(input: UpdateBookInput): BookWriteData {
+function writeData(input: BookWriteInput): BookWriteData {
   return {
     title: input.title,
     author: input.author,
@@ -291,7 +299,7 @@ function toDecimal(
 }
 
 function providedDate(
-  input: UpdateBookInput,
+  input: BookWriteInput,
   key: "purchasedOn" | "startedOn" | "finishedOn",
 ): Date | null | undefined {
   return key in input ? fromCalendarDate(input[key] ?? null) : undefined;

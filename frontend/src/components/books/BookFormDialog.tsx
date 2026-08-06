@@ -428,6 +428,21 @@ function toFormValues(book: Book): BookFormValues {
 
 type RatingValue = BookFormValues["rating"];
 
+/**
+ * The fields this dialog renders, which is the list both payload builders walk.
+ *
+ * Reading it off `EMPTY` rather than writing it twice means a field cannot be
+ * added to the form and forgotten here. Walking *this* rather than the
+ * payload's own keys is also what lets the two functions below drop a runtime
+ * type guard they used to need: the API's type runs ahead of the form — Sprint
+ * 2 opened `pagesRead`, `rating` and `paidPrice` for writing before there were
+ * inputs for them — so `Object.keys(payload)` was a `string[]` that had to be
+ * narrowed back down before it could index anything.
+ */
+type FormField = keyof BookFormValues & keyof CreateBookInput;
+
+const FORM_FIELDS = Object.keys(EMPTY) as FormField[];
+
 /** The edit payload: exactly the fields the user changed, nothing else. */
 function onlyDirty(
   payload: CreateBookInput,
@@ -435,13 +450,8 @@ function onlyDirty(
 ): Partial<CreateBookInput> {
   const changed: Record<string, unknown> = {};
 
-  // The payload is typed by the API, and the API runs ahead of this form:
-  // Sprint 2 opened `pagesRead`, `rating` and `paidPrice` for writing before
-  // there were inputs for them. The transform above emits only the fields this
-  // dialog renders, so those keys never turn up at runtime — the guard is what
-  // tells the compiler that, and it keeps holding as later sprints add more.
-  for (const key of Object.keys(payload)) {
-    if (isFormField(key) && dirtyFields[key]) {
+  for (const key of FORM_FIELDS) {
+    if (dirtyFields[key]) {
       changed[key] = payload[key];
     }
   }
@@ -449,22 +459,24 @@ function onlyDirty(
   return changed;
 }
 
-const FORM_FIELDS = Object.keys(EMPTY) as (keyof BookFormValues)[];
-
-function isFormField(key: string): key is keyof BookFormValues {
-  return (FORM_FIELDS as string[]).includes(key);
-}
-
 /**
  * The create payload drops every empty field instead of sending `null`. The
  * difference matters for the three dates: an explicit `null` tells the API the
  * user cleared the field on purpose, which would suppress the automatic stamp
  * that S1.5 asks for.
+ *
+ * Deliberately *not* the same rule as `onlyDirty`. Dropping everything
+ * untouched would work too — the API defaults a new book to `WISHLIST` on page
+ * zero, so the row would come out identical — but a create request that names
+ * the status and the page count says on the wire what the book is, instead of
+ * leaving a reader to go and look up what the server would have assumed.
  */
 function onlyFilled(payload: CreateBookInput): CreateBookInput {
   const filled: Record<string, unknown> = {};
 
-  for (const [key, value] of Object.entries(payload)) {
+  for (const key of FORM_FIELDS) {
+    const value = payload[key];
+
     if (value !== null && value !== undefined && value !== "") {
       filled[key] = value;
     }

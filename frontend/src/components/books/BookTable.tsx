@@ -1,10 +1,5 @@
 import { useState, type ReactNode } from "react";
-import {
-  STATUS_LABEL,
-  type Book,
-  type BookSort,
-  type ListBooksQuery,
-} from "@bookcsi/shared";
+import type { Book, BookSort, ListBooksQuery } from "@bookcsi/shared";
 import { usePurchaseBook, useUpdateBook } from "../../api/books";
 import {
   progressLabel,
@@ -12,7 +7,8 @@ import {
   progressShortLabel,
   showsProgressBar,
 } from "../../lib/progress";
-import { NEXT_STATUS, NEXT_STATUS_LABEL, STATUS_COLOR } from "../../lib/status";
+import { NEXT_STATUS, NEXT_STATUS_LABEL } from "../../lib/status";
+import { StatusPill } from "../StatusPill";
 import { CoverThumb } from "./CoverThumb";
 import { StarRating } from "./StarRating";
 import { StartReadingDialog } from "./StartReadingDialog";
@@ -252,27 +248,6 @@ function Pages({ book }: { book: Book }) {
         </span>
       )}
       <span className="text-ink-2">{progressShortLabel(book)}</span>
-    </span>
-  );
-}
-
-/**
- * The pill always carries its label — status is never conveyed by color alone
- * (docs/DESIGN.md §Statusuri).
- */
-function StatusPill({ status }: { status: Book["status"] }) {
-  const color = STATUS_COLOR[status];
-
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-medium"
-      style={{
-        color,
-        backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
-      }}
-    >
-      <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} />
-      {STATUS_LABEL[status]}
     </span>
   );
 }

@@ -1,10 +1,10 @@
-import type { Book } from "../data/types";
+import type { Book } from "@bookcsi/shared";
 import {
   averageRating,
   booksFinished,
   booksReading,
   totalPagesRead,
-} from "../data/stats";
+} from "../lib/stats";
 
 interface Props {
   books: Book[];

@@ -1,13 +1,21 @@
-import type { Book } from "../data/types";
-import { progress } from "../data/stats";
+import type { BookWithCover } from "../lib/covers";
+import { progressLabel, progressRatio } from "../lib/progress";
 
 /**
  * A small strip so the page has somewhere to go after the shelf. The progress
  * bar shows only for books that are being read — §S2.2.
+ *
+ * The percentage comes from `lib/progress.ts`, the same place the table reads
+ * it: this file used to compute its own, from a `progress()` that disagreed
+ * with the table's about a zero page count and formatted the label a second
+ * time by hand.
  */
-export function CurrentlyReading({ books }: { books: Book[] }) {
-  const reading = books.filter((b) => b.status === "READING");
-  if (reading.length === 0) return null;
+export function CurrentlyReading({ books }: { books: BookWithCover[] }) {
+  const reading = books.filter((book) => book.status === "READING");
+
+  if (reading.length === 0) {
+    return null;
+  }
 
   return (
     <section>
@@ -17,7 +25,8 @@ export function CurrentlyReading({ books }: { books: Book[] }) {
 
       <div className="grid gap-4 sm:grid-cols-3">
         {reading.map((book) => {
-          const p = progress(book);
+          const ratio = progressRatio(book);
+
           return (
             <article
               key={book.id}
@@ -38,15 +47,14 @@ export function CurrentlyReading({ books }: { books: Book[] }) {
 
                 <div className="mt-auto">
                   <div className="h-1 overflow-hidden rounded-full bg-surface-0">
+                    {/* No page count means no percentage — §D4 */}
                     <div
                       className="h-full rounded-full bg-accent"
-                      style={{ width: p ? `${p * 100}%` : 0 }}
+                      style={{ width: ratio === null ? 0 : `${ratio * 100}%` }}
                     />
                   </div>
                   <p className="tabular mt-1.5 text-[11px] text-ink-3">
-                    {p
-                      ? `${Math.round(p * 100)}% — pag. ${book.pagesRead} din ${book.totalPages}`
-                      : `pag. ${book.pagesRead}`}
+                    {progressLabel(book)}
                   </p>
                 </div>
               </div>

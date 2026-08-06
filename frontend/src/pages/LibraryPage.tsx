@@ -9,10 +9,10 @@ import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
 import { plural } from "../lib/plural";
 
 /**
- * Sprint 1 — the library, for real. This page used to render the fixtures in
- * `data/books.ts`; those stay in the repo because the shelf (S8.2) and the
- * stats bar (S8.1) are still designed against them, but nothing on this screen
- * is a mock any more.
+ * Sprint 1 — the library, for real. This page used to render a fixture; that
+ * moved to `fixtures/books.ts`, where the shelf (S8.2) and the stats bar (S8.1)
+ * still read it while they wait for Sprint 8, but nothing on this screen is a
+ * mock any more.
  *
  * S1.6 needs no code of its own: the list comes from the API on every visit,
  * so the library is the same on any browser or device and there is no local

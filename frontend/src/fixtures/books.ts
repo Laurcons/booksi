@@ -1,17 +1,65 @@
-import type { Book } from "./types";
+import type { Genre, Status } from "@bookcsi/shared";
+import type { BookWithCover } from "../lib/covers";
 
 /**
- * Mock data. Titles, authors, page counts and covers come from Open Library;
- * covers were downloaded once into public/coperti/ rather than fetched at
- * render time, matching the Sprint 4 caching criteria.
+ * The design fixture: 63 books with covers, used by the screens Sprint 8 will
+ * build — the shelf (S8.2) and the stats bar (S8.1) — while they have no API to
+ * read from yet. Nothing the user can reach renders these.
  *
- * Status, rating and pagesRead are invented — they are user-input fields and
- * could never come from an external API. A few books deliberately carry no
- * page count and no cover, which is the §D4 / §S4.3 case.
+ * It used to live in `src/data/`, beside a private `Book` type, a private
+ * `Genre` union of eight values and a second copy of the label and colour maps.
+ * That parallel model is what this file exists without: the fixture is now
+ * `BookWithCover`, the same book the API returns, so a change to the contract
+ * breaks the mock at compile time instead of letting it drift.
  *
- * Generated file — see scratchpad/gen-books.mjs.
+ * Titles, authors, page counts and covers come from Open Library; covers were
+ * downloaded once into `public/coperti/` rather than fetched at render time,
+ * matching the Sprint 4 caching criteria. Status, rating and `pagesRead` are
+ * invented — they are user input and could never come from an external API. A
+ * few books deliberately carry no page count and no cover, which is the §D4 /
+ * §S4.3 case.
  */
-export const BOOKS: Book[] = [
+
+/**
+ * What the generated data actually holds. The fields a real book has and a
+ * design fixture has no opinion about — the ISBN, the two prices, the dates a
+ * status transition would have stamped — are filled in below rather than
+ * written out 63 times.
+ */
+interface FixtureBook {
+  id: string;
+  title: string;
+  author: string;
+  genre: Genre;
+  totalPages: number | null;
+  pagesRead: number;
+  status: Status;
+  rating: number | null;
+  favorite: boolean;
+  cover: string | null;
+  finishedOn?: string;
+}
+
+/** Fixed, not `new Date()`: a fixture that changes by the day is not a fixture. */
+const ADDED_ON = "2026-01-15T09:00:00.000Z";
+
+function toBook(fixture: FixtureBook): BookWithCover {
+  return {
+    ...fixture,
+    isbn: null,
+    estimatedPrice: null,
+    paidPrice: null,
+    purchasedOn: null,
+    // S1.5 stamps these on a real transition. The fixture only claims the one
+    // it has an opinion about.
+    startedOn: null,
+    finishedOn: fixture.finishedOn ?? null,
+    createdAt: ADDED_ON,
+    updatedAt: ADDED_ON,
+  };
+}
+
+const FIXTURES: FixtureBook[] = [
   {
     "id": "1",
     "title": "Fourth Wing",
@@ -820,3 +868,5 @@ export const BOOKS: Book[] = [
     "finishedOn": "2026-05-12"
   }
 ];
+
+export const BOOKS: BookWithCover[] = FIXTURES.map(toBook);
