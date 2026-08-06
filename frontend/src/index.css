@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Self-hosted fonts, no CDN — see ARCHITECTURE.md */
+@import "@fontsource-variable/inter";
+@import "@fontsource/playfair-display/400.css";
+@import "@fontsource/playfair-display/500.css";
+@import "@fontsource/playfair-display/700.css";
+@import "@fontsource/playfair-display/400-italic.css";
+
+/* Design tokens from docs/DESIGN.md */
+@theme {
+  --color-surface-0: #120d0a;
+  --color-surface-1: #1a1310;
+  --color-surface-2: #241a15;
+  --color-surface-3: #2e221b;
+  --color-line: #3b2c23;
+
+  --color-ink: #f5efe6;
+  --color-ink-2: #c9bfb2;
+  --color-ink-3: #8c8177;
+
+  --color-accent: #e3b04b;
+  --color-accent-hover: #f0c468;
+  --color-accent-quiet: #4a3a1e;
+
+  /* Status colors are reserved — never reused as chart series */
+  --color-status-wishlist: #9085e9;
+  --color-status-purchased: #3987e5;
+  --color-status-reading: #c98500;
+  --color-status-finished: #199e70;
+  --color-status-abandoned: #8c8177;
+
+  /* The shelf — the only light surface in the app */
+  --color-wood: #d9c3a5;
+  --color-wood-edge: #b0906a;
+  --color-wood-deep: #8a6d4d;
+
+  --font-display: "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-surface-0);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Money and page counts must align on the decimal separator */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

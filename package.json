@@ -1,0 +1,24 @@
+{
+  "name": "bookcsi",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "build:shared": "npm run build --workspace shared",
+    "dev:api": "npm run build:shared && npm run start:dev --workspace backend",
+    "dev:web": "npm run dev --workspace frontend",
+    "build": "npm run build:shared && npm run build --workspace backend && npm run build --workspace frontend",
+    "test": "npm run test --workspace backend"
+  },
+  "allowScripts": {
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true
+  }
+}

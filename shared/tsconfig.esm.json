@@ -1,0 +1,23 @@
+{
+  // A second emit of the same sources, as real ES modules.
+  //
+  // Nest needs CommonJS; Vite needs ESM. With CJS only, `export * from
+  // "./enums"` compiles to `__exportStar`, and Vite's dev server cannot see
+  // through it to the names being re-exported — importing a *value* (not just
+  // a type) from this package fails in the browser with "does not provide an
+  // export named …". The production build hid it, because Rollup analyses CJS
+  // more deeply than the dev server does.
+  //
+  // Hence the `exports` map in package.json: `require` gets `dist/`, `import`
+  // gets `dist/esm/`, one set of sources behind both.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist/esm",
+    // The types ship with the CommonJS build; a second copy would only be one
+    // more thing that can disagree with the first.
+    "declaration": false,
+    "declarationMap": false
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "module": "node16",
+    "moduleResolution": "node16",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "target": "ES2023",
+    "types": ["node"],
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    // Not incremental: `nest build` wipes outDir, so a surviving
+    // tsconfig.tsbuildinfo makes tsc consider the build up to date and emit
+    // nothing at all.
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"]
+}

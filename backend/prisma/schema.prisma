@@ -1,0 +1,117 @@
+// Schema as specified in docs/ARCHITECTURE.md. Sprint 0 only reads and writes
+// `User`, but the rest is created up front so the first migration matches the
+// documented model instead of growing by accretion.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  googleId  String   @unique
+  email     String   @unique
+  name      String?
+  avatarUrl String?  @db.Text
+  createdAt DateTime @default(now())
+
+  books    Book[]
+  settings Settings?
+}
+
+enum Status {
+  WISHLIST
+  PURCHASED
+  READING
+  FINISHED
+  ABANDONED
+}
+
+enum Genre {
+  FICTION
+  SCIFI
+  FANTASY
+  THRILLER
+  ROMANCE
+  HISTORICAL
+  MEMOIR
+  NONFICTION
+  SELF_HELP
+  BUSINESS
+  SCIENCE
+  PHILOSOPHY
+  PSYCHOLOGY
+  POETRY
+  COMICS_MANGA
+  CHILDREN_YA
+  OTHER
+}
+
+model Book {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // identity (user-input or Open Library)
+  title        String
+  author       String?
+  isbn         String? // NOT unique — see D13
+  totalPages   Int? // frequently absent — see D4
+  genre        Genre?
+  olEditionKey String?
+
+  // state (user-input)
+  status    Status  @default(WISHLIST)
+  favorite  Boolean @default(false)
+  pagesRead Int     @default(0)
+  rating    Int? // 1-5
+
+  // money
+  estimatedPrice Decimal? @db.Decimal(10, 2)
+  paidPrice      Decimal? @db.Decimal(10, 2)
+
+  // dates (system-generated, user-overridable — see D1)
+  purchasedOn DateTime? @db.Date
+  startedOn   DateTime? @db.Date
+  finishedOn  DateTime? @db.Date
+
+  // system
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  manuallyEditedFields Json? // field names protected from refresh — see S4.4
+
+  cover Cover?
+
+  @@index([userId, status])
+  @@index([userId, finishedOn])
+  @@index([userId, purchasedOn])
+}
+
+enum CoverSource {
+  OPEN_LIBRARY
+  UPLOAD
+}
+
+model Cover {
+  bookId String @id
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  data      Bytes       @db.LongBlob
+  mimeType  String
+  source    CoverSource
+  createdAt DateTime    @default(now())
+}
+
+model Settings {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  monthlyBudget Decimal? @db.Decimal(10, 2)
+  yearlyBudget  Decimal? @db.Decimal(10, 2)
+  currency      String   @default("RON")
+}
