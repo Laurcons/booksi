@@ -39,6 +39,7 @@ const bookFormSchema = z
     status: statusSchema,
     pagesRead: z.string(),
     rating: z.union([z.enum(["1", "2", "3", "4", "5"]), z.literal("")]),
+    estimatedPrice: z.string(),
     paidPrice: z.string(),
     purchasedOn: z.string(),
     startedOn: z.string(),
@@ -57,17 +58,26 @@ const bookFormSchema = z
     // haven't opened it yet" is genuinely page zero.
     pagesRead: values.pagesRead.trim() === "" ? 0 : Number(values.pagesRead),
     rating: ratingFor(values.status, values.rating),
-    // S2.4. Comma is what a Romanian keyboard produces for a decimal; the API
-    // wants a JSON number either way.
-    paidPrice:
-      values.paidPrice.trim() === ""
-        ? null
-        : Number(values.paidPrice.replace(",", ".")),
+    // S3.2 — the user's own guess; Open Library publishes no prices. A separate
+    // field from what was paid, and §D6 is the reason: only the second one
+    // feeds the Sprint 6 budget.
+    estimatedPrice: toMoney(values.estimatedPrice),
+    // S2.4.
+    paidPrice: toMoney(values.paidPrice),
     purchasedOn: blankToNull(values.purchasedOn),
     startedOn: blankToNull(values.startedOn),
     finishedOn: blankToNull(values.finishedOn),
   }))
   .pipe(createBookSchema);
+
+/**
+ * Both prices, in and out of the same box. Comma is what a Romanian keyboard
+ * produces for a decimal; the API wants a JSON number either way, and an empty
+ * field is a price nobody has decided on rather than a zero.
+ */
+function toMoney(value: string): number | null {
+  return value.trim() === "" ? null : Number(value.replace(",", "."));
+}
 
 /**
  * S2.3. The stars are only offered on a status that can hold a rating, so on
@@ -100,6 +110,7 @@ const EMPTY: BookFormValues = {
   status: "WISHLIST",
   pagesRead: "",
   rating: "",
+  estimatedPrice: "",
   paidPrice: "",
   purchasedOn: "",
   startedOn: "",
@@ -220,13 +231,16 @@ export function BookFormDialog({
 
           {/* Sprint 2 — where the book has got to, what it was worth, what it
               cost. Grouped away from the identity fields above because these
-              change over a book's life while the title and the ISBN do not. */}
+              change over a book's life while the title and the ISBN do not.
+              Sprint 3 puts the estimate beside the paid price rather than off
+              on a wishlist-only screen: §D6's two numbers only mean anything
+              next to each other. */}
           <div className="sm:col-span-2">
             <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
               Progres și evaluare
             </h3>
 
-            <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <div className="mt-4 grid gap-5 sm:grid-cols-3">
               <Field
                 label="Pagina la care am ajuns"
                 error={errors.pagesRead}
@@ -238,6 +252,22 @@ export function BookFormDialog({
                   min={0}
                   className={INPUT}
                   inputMode="numeric"
+                />
+              </Field>
+
+              {/* S3.2 — optional, and it stays visible after the purchase: it
+                  is what the paid price gets compared against. */}
+              <Field
+                label="Cât cred că va costa"
+                error={errors.estimatedPrice}
+                hint="lei"
+              >
+                <input
+                  {...register("estimatedPrice")}
+                  type="text"
+                  className={INPUT}
+                  inputMode="decimal"
+                  autoComplete="off"
                 />
               </Field>
 
@@ -387,6 +417,8 @@ function toFormValues(book: Book): BookFormValues {
     // reads as "nothing recorded yet" instead of as a measurement.
     pagesRead: book.pagesRead === 0 ? "" : String(book.pagesRead),
     rating: book.rating === null ? "" : (String(book.rating) as RatingValue),
+    estimatedPrice:
+      book.estimatedPrice === null ? "" : book.estimatedPrice.toFixed(2),
     paidPrice: book.paidPrice === null ? "" : book.paidPrice.toFixed(2),
     purchasedOn: book.purchasedOn ?? "",
     startedOn: book.startedOn ?? "",

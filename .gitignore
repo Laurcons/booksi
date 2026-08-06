@@ -10,6 +10,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# end-to-end run artefacts (traces and screenshots of failures)
+test-results/
+playwright-report/
+
 # logs
 npm-debug.log*
 *.log

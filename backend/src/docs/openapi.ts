@@ -7,6 +7,7 @@ import {
   createBookSchema,
   isbnDuplicateSchema,
   updateBookSchema,
+  wishlistSummarySchema,
 } from "@bookcsi/shared";
 
 /**
@@ -29,9 +30,9 @@ import {
  * Schema". Request bodies must therefore be documented from the **input**
  * side, which is also the correct side: it describes what a client may send.
  *
- * The response schemas (`bookSchema`, `authUserSchema`, `isbnDuplicateSchema`)
- * carry no transforms, so both sides are equivalent for them; `"output"` is
- * the honest label for what the API emits.
+ * The response schemas (`bookSchema`, `authUserSchema`, `isbnDuplicateSchema`,
+ * `wishlistSummarySchema`) carry no transforms, so both sides are equivalent
+ * for them; `"output"` is the honest label for what the API emits.
  */
 
 /** Errors are part of the contract, so they are modelled like everything else. */
@@ -59,6 +60,7 @@ export type SchemaName =
   | "CreateBookInput"
   | "UpdateBookInput"
   | "IsbnDuplicate"
+  | "WishlistSummary"
   | "ValidationError"
   | "HttpError";
 
@@ -68,6 +70,7 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   CreateBookInput: toOpenApiSchema(createBookSchema, "input"),
   UpdateBookInput: toOpenApiSchema(updateBookSchema, "input"),
   IsbnDuplicate: toOpenApiSchema(isbnDuplicateSchema, "output"),
+  WishlistSummary: toOpenApiSchema(wishlistSummarySchema, "output"),
   ValidationError: toOpenApiSchema(validationErrorSchema, "output"),
   HttpError: toOpenApiSchema(httpErrorSchema, "output"),
 };
@@ -113,7 +116,9 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .addTag(
       "books",
       "Biblioteca: creare, listare, editare, ștergere (Sprint 1), plus " +
-        "pagini citite, rating și suma plătită (Sprint 2)",
+        "pagini citite, rating și suma plătită (Sprint 2) și wishlist-ul — " +
+        "vedere filtrată, preț estimat, total și cumpărare într-un click " +
+        "(Sprint 3)",
     )
     .build();
 

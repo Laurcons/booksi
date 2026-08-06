@@ -47,7 +47,7 @@ const storedBook = {
   manuallyEditedFields: { fields: ["title"] },
 };
 
-describe("books routes (Sprints 1–2)", () => {
+describe("books routes (Sprints 1–3)", () => {
   let app: INestApplication;
   let authService: AuthService;
 
@@ -60,6 +60,7 @@ describe("books routes (Sprints 1–2)", () => {
       findFirst: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
+      aggregate: jest.fn(),
     },
   };
 
@@ -252,11 +253,8 @@ describe("books routes (Sprints 1–2)", () => {
     });
 
     it("rejects fields that belong to later sprints", async () => {
-      // estimatedPrice is S3.2, favorite is S5.2. Silently dropping them would
-      // look like the API accepted the value.
-      await as("post", "/books")
-        .send({ title: "Dune", estimatedPrice: 59.9 })
-        .expect(400);
+      // favorite is S5.2. Silently dropping it would look like the API
+      // accepted the value.
       await as("post", "/books")
         .send({ title: "Dune", favorite: true })
         .expect(400);
@@ -528,9 +526,264 @@ describe("books routes (Sprints 1–2)", () => {
       await as("patch", "/books/book-1").send({ paidPrice: -5 }).expect(400);
     });
 
-    it("still refuses the wishlist estimate, which is S3.2", async () => {
-      // §D6 keeps the two prices apart; only one of them is open for writing.
-      await as("patch", "/books/book-1").send({ estimatedPrice: 59.9 }).expect(400);
+  });
+
+  describe("estimatedPrice (S3.2)", () => {
+    beforeEach(() => {
+      prisma.book.findFirst.mockResolvedValue(storedBook);
+      prisma.book.update.mockResolvedValue(storedBook);
+    });
+
+    it("stores the estimate as an exact decimal", async () => {
+      await as("patch", "/books/book-1").send({ estimatedPrice: 59.9 }).expect(200);
+
+      expect(writtenData(prisma.book.update).estimatedPrice).toEqual(
+        new Prisma.Decimal("59.90"),
+      );
+    });
+
+    it("keeps it apart from what was actually paid (§D6)", async () => {
+      // One request, two different numbers, two different columns — the whole
+      // reason they are not one field.
+      await as("patch", "/books/book-1")
+        .send({ estimatedPrice: 59.9, paidPrice: 45 })
+        .expect(200);
+
+      const data = writtenData(prisma.book.update);
+      expect(data.estimatedPrice).toEqual(new Prisma.Decimal("59.90"));
+      expect(data.paidPrice).toEqual(new Prisma.Decimal("45.00"));
+    });
+
+    it("takes the estimate at creation too", async () => {
+      prisma.book.create.mockResolvedValue(storedBook);
+
+      await as("post", "/books")
+        .send({ title: "Dune", estimatedPrice: 59.9 })
+        .expect(201);
+
+      expect(writtenData(prisma.book.create).estimatedPrice).toEqual(
+        new Prisma.Decimal("59.90"),
+      );
+    });
+
+    it("lets a book sit in the wishlist with no price at all", async () => {
+      prisma.book.create.mockResolvedValue(storedBook);
+
+      await as("post", "/books").send({ title: "Dune" }).expect(201);
+
+      expect(writtenData(prisma.book.create).estimatedPrice).toBeUndefined();
+    });
+
+    it("lets the estimate be cleared", async () => {
+      await as("patch", "/books/book-1").send({ estimatedPrice: null }).expect(200);
+
+      expect(writtenData(prisma.book.update).estimatedPrice).toBeNull();
+    });
+
+    it("rejects a third decimal or a negative estimate", async () => {
+      await as("patch", "/books/book-1").send({ estimatedPrice: 12.345 }).expect(400);
+      await as("patch", "/books/book-1").send({ estimatedPrice: -5 }).expect(400);
+    });
+
+    it("does not tie the estimate to the wishlist status", async () => {
+      // storedBook is READING. Keeping the estimate after the purchase is what
+      // gives the paid price something to be compared against.
+      await as("patch", "/books/book-1").send({ estimatedPrice: 59.9 }).expect(200);
+
+      expect(writtenData(prisma.book.update).status).toBeUndefined();
+    });
+  });
+
+  describe("GET /books?status= (S3.1)", () => {
+    it("narrows the library to the wishlist", async () => {
+      prisma.book.findMany.mockResolvedValue([]);
+
+      await as("get", "/books?status=WISHLIST").expect(200);
+
+      expect(prisma.book.findMany.mock.calls[0][0].where).toEqual({
+        userId: "user-1",
+        status: "WISHLIST",
+      });
+    });
+
+    it("returns the whole library when the filter is absent", async () => {
+      prisma.book.findMany.mockResolvedValue([]);
+
+      await as("get", "/books").expect(200);
+
+      expect(prisma.book.findMany.mock.calls[0][0].where).toEqual({
+        userId: "user-1",
+      });
+    });
+
+    it("still sorts inside the filtered view", async () => {
+      prisma.book.findMany.mockResolvedValue([]);
+
+      await as("get", "/books?status=WISHLIST&sort=title&order=asc").expect(200);
+
+      const call = prisma.book.findMany.mock.calls[0][0];
+      expect(call.where.status).toBe("WISHLIST");
+      expect(call.orderBy).toEqual([{ title: "asc" }, { id: "asc" }]);
+    });
+
+    it("rejects a status that is not one of the five", async () => {
+      await as("get", "/books?status=BORROWED").expect(400);
+    });
+  });
+
+  describe("GET /books/wishlist-summary (S3.3)", () => {
+    const aggregated = (
+      total: string | null,
+      priced: number,
+      count: number,
+    ) => ({
+      _sum: { estimatedPrice: total === null ? null : new Prisma.Decimal(total) },
+      _count: { _all: count, estimatedPrice: priced },
+    });
+
+    it("reports the total together with how much of the list it covers", async () => {
+      prisma.book.aggregate.mockResolvedValue(aggregated("340.00", 7, 11));
+
+      const res = await as("get", "/books/wishlist-summary").expect(200);
+
+      // "total 340 lei — 7 din 11 cărți au preț estimat".
+      expect(res.body).toEqual({ total: 340, priced: 7, count: 11 });
+    });
+
+    it("sums over the wishlist only, and over the session's user", async () => {
+      prisma.book.aggregate.mockResolvedValue(aggregated("0.00", 0, 0));
+
+      await as("get", "/books/wishlist-summary").expect(200);
+
+      expect(prisma.book.aggregate.mock.calls[0][0].where).toEqual({
+        userId: "user-1",
+        status: "WISHLIST",
+      });
+    });
+
+    it("answers 0 for an empty wishlist rather than null", async () => {
+      // SUM over no rows is NULL in SQL; nothing to buy costs nothing.
+      prisma.book.aggregate.mockResolvedValue(aggregated(null, 0, 0));
+
+      const res = await as("get", "/books/wishlist-summary").expect(200);
+
+      expect(res.body).toEqual({ total: 0, priced: 0, count: 0 });
+    });
+
+    it("counts unpriced books in the coverage but not in the total", async () => {
+      prisma.book.aggregate.mockResolvedValue(aggregated("59.90", 1, 4));
+
+      const res = await as("get", "/books/wishlist-summary").expect(200);
+
+      expect(res.body).toEqual({ total: 59.9, priced: 1, count: 4 });
+    });
+
+    it("does not route through :id", async () => {
+      // Same declaration-order trap as isbn-duplicates.
+      prisma.book.aggregate.mockResolvedValue(aggregated(null, 0, 0));
+
+      await as("get", "/books/wishlist-summary").expect(200);
+      expect(prisma.book.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("POST /books/:id/purchase (S3.4)", () => {
+    const wishlistBook = {
+      ...storedBook,
+      status: "WISHLIST" as const,
+      purchasedOn: null,
+      startedOn: null,
+      paidPrice: null,
+      estimatedPrice: new Prisma.Decimal("59.90"),
+    };
+
+    const today = () => new Date(`${todayCalendarDate()}T00:00:00.000Z`);
+
+    beforeEach(() => {
+      prisma.book.findFirst.mockResolvedValue(wishlistBook);
+      prisma.book.update.mockResolvedValue({ ...wishlistBook, status: "PURCHASED" });
+    });
+
+    it("sets status, date and price in one click", async () => {
+      await as("post", "/books/book-1/purchase").expect(200);
+
+      expect(writtenData(prisma.book.update)).toEqual({
+        status: "PURCHASED",
+        purchasedOn: today(),
+        paidPrice: new Prisma.Decimal("59.90"),
+      });
+    });
+
+    it("leaves the paid price empty when there is no estimate, without failing", async () => {
+      prisma.book.findFirst.mockResolvedValue({
+        ...wishlistBook,
+        estimatedPrice: null,
+      });
+
+      await as("post", "/books/book-1/purchase").expect(200);
+
+      const data = writtenData(prisma.book.update);
+      expect(data.status).toBe("PURCHASED");
+      // Untouched, not cleared: a one-click action erases nothing.
+      expect(data.paidPrice).toBeUndefined();
+    });
+
+    it("overwrites an earlier purchase date", async () => {
+      // S1.5 never overwrites a recorded date, but this is an explicit "I
+      // bought it" — a book sent back to the wishlist and bought again was
+      // bought today.
+      prisma.book.findFirst.mockResolvedValue({
+        ...wishlistBook,
+        purchasedOn: new Date("2024-02-02T00:00:00Z"),
+      });
+
+      await as("post", "/books/book-1/purchase").expect(200);
+
+      expect(writtenData(prisma.book.update).purchasedOn).toEqual(today());
+    });
+
+    it("touches nothing else", async () => {
+      await as("post", "/books/book-1/purchase").expect(200);
+
+      const data = writtenData(prisma.book.update);
+      expect(data.estimatedPrice).toBeUndefined();
+      expect(data.rating).toBeUndefined();
+      expect(data.pagesRead).toBeUndefined();
+      expect(data.startedOn).toBeUndefined();
+    });
+
+    it("answers 404 for a book that is not yours", async () => {
+      prisma.book.findFirst.mockResolvedValue(null);
+
+      await as("post", "/books/foreign-id/purchase").expect(404);
+      expect(prisma.book.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses without a session", async () => {
+      await request(app.getHttpServer())
+        .post("/books/book-1/purchase")
+        .expect(401);
+    });
+
+    it("leaves all three fields editable afterwards", async () => {
+      await as("post", "/books/book-1/purchase").expect(200);
+
+      prisma.book.update.mockClear();
+      prisma.book.findFirst.mockResolvedValue({
+        ...wishlistBook,
+        status: "PURCHASED",
+        purchasedOn: today(),
+        paidPrice: new Prisma.Decimal("59.90"),
+      });
+
+      await as("patch", "/books/book-1")
+        .send({ paidPrice: 45, purchasedOn: "2026-08-01" })
+        .expect(200);
+
+      expect(writtenData(prisma.book.update)).toMatchObject({
+        paidPrice: new Prisma.Decimal("45.00"),
+        purchasedOn: new Date("2026-08-01T00:00:00.000Z"),
+      });
     });
   });
 

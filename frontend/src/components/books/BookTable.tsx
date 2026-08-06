@@ -5,7 +5,7 @@ import {
   type BookSort,
   type ListBooksQuery,
 } from "@bookcsi/shared";
-import { useUpdateBook } from "../../api/books";
+import { usePurchaseBook, useUpdateBook } from "../../api/books";
 import {
   progressLabel,
   progressRatio,
@@ -30,6 +30,11 @@ import { StartReadingDialog } from "./StartReadingDialog";
  * changed here is only what the cells contain: stars instead of a dash (S2.3),
  * a paid price (S2.4), and progress in place of a bare page count for whatever
  * is being read (S2.2).
+ *
+ * S3.1 reuses it whole for the wishlist rather than growing a second table.
+ * The one difference is which price the money column holds: a wishlist book has
+ * no paid price by definition, so showing that column there would be a row of
+ * dashes. Same table, one prop — not a wider table with both prices in it.
  */
 export function BookTable({
   books,
@@ -37,12 +42,15 @@ export function BookTable({
   onQueryChange,
   onEdit,
   onDelete,
+  price = "paid",
 }: {
   books: Book[];
   query: ListBooksQuery;
   onQueryChange: (query: ListBooksQuery) => void;
   onEdit: (book: Book) => void;
   onDelete: (book: Book) => void;
+  /** Which of §D6's two prices this view is about. */
+  price?: PriceColumn;
 }) {
   const sortBy = (sort: BookSort) => {
     // Same column flips direction; a new column starts in the direction that
@@ -85,7 +93,7 @@ export function BookTable({
               Status
             </Th>
             <Th align="right">Pagini</Th>
-            <Th align="right">Preț</Th>
+            <Th align="right">{PRICE_LABEL[price]}</Th>
             <Th align="right">Rating</Th>
             <Th sort="createdAt" query={query} onSort={sortBy} align="right">
               Adăugată
@@ -101,6 +109,7 @@ export function BookTable({
             <Row
               key={book.id}
               book={book}
+              price={price}
               onEdit={() => onEdit(book)}
               onDelete={() => onDelete(book)}
             />
@@ -113,14 +122,17 @@ export function BookTable({
 
 function Row({
   book,
+  price,
   onEdit,
   onDelete,
 }: {
   book: Book;
+  price: PriceColumn;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const update = useUpdateBook();
+  const purchase = usePurchaseBook();
   const [asking, setAsking] = useState(false);
   const next = NEXT_STATUS[book.status];
 
@@ -132,10 +144,22 @@ function Row({
       return;
     }
 
+    // S3.4. "Am cumpărat-o" was already this row's button in Sprint 1, and it
+    // stays one click — it just stopped being a plain status change. Buying a
+    // book also dates it and carries the estimate over into what was paid, and
+    // that rule belongs to the server (§D6), so the transition has its own
+    // route while every other one is still a PATCH.
+    if (next === "PURCHASED") {
+      purchase.mutate(book.id);
+      return;
+    }
+
     if (next !== null) {
       update.mutate({ id: book.id, input: { status: next } });
     }
   };
+
+  const advancing = update.isPending || purchase.isPending;
 
   return (
     <tr className="group h-14 border-b border-line last:border-b-0 transition-colors duration-150 hover:bg-surface-2">
@@ -159,7 +183,7 @@ function Row({
         <Pages book={book} />
       </Td>
       <Td align="right" className="tabular text-ink-2">
-        {book.paidPrice === null ? <Empty /> : book.paidPrice.toFixed(2)}
+        <Price value={price === "paid" ? book.paidPrice : book.estimatedPrice} />
       </Td>
       <Td align="right">
         <StarRating rating={book.rating} />
@@ -174,7 +198,7 @@ function Row({
           {next && (
             <button
               type="button"
-              disabled={update.isPending}
+              disabled={advancing}
               onClick={advance}
               className="rounded-lg border border-accent-quiet px-2.5 py-1.5 text-xs font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-50"
             >
@@ -270,7 +294,9 @@ function Th({
 }) {
   // Sticky sits on the cells, not on `<thead>`: with `border-collapse`, a
   // sticky thead is unreliable across engines, while sticky `th` is not.
-  const base = `sticky top-16 z-10 bg-surface-2 px-4 py-3 text-[11px] font-medium uppercase tracking-[.08em] text-ink-3 ${
+  // `whitespace-nowrap` so a two-word header ("Preț estimat", S3.1) stays on
+  // one line instead of growing the header row taller than the rows below it.
+  const base = `sticky top-16 z-10 whitespace-nowrap bg-surface-2 px-4 py-3 text-[11px] font-medium uppercase tracking-[.08em] text-ink-3 ${
     align === "right" ? "text-right" : "text-left"
   } ${className}`;
 
@@ -333,6 +359,23 @@ function RowAction({
       {children}
     </button>
   );
+}
+
+/** §D6 — the two prices are different questions, so they get different headers. */
+export type PriceColumn = "paid" | "estimated";
+
+const PRICE_LABEL: Record<PriceColumn, string> = {
+  paid: "Preț",
+  estimated: "Preț estimat",
+};
+
+/**
+ * Two decimals, always — a price is money whether or not it ends in round lei.
+ * A book with no price shows the dash, not a zero: S3.2 makes the estimate
+ * optional, and "I haven't decided" is not "free".
+ */
+function Price({ value }: { value: number | null }) {
+  return value === null ? <Empty /> : <>{value.toFixed(2)}</>;
 }
 
 /** A field nobody has filled in yet, not a zero. */

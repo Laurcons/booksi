@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import type { Book, ListBooksQuery } from "@bookcsi/shared";
 import { useBooks } from "../api/books";
 import { Header } from "../components/Header";
+import { LoadFailure, Note } from "../components/Note";
 import { BookFormDialog } from "../components/books/BookFormDialog";
 import { BookTable } from "../components/books/BookTable";
 import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
@@ -42,17 +43,11 @@ export function LibraryPage() {
         {isPending && <Note>Se încarcă biblioteca…</Note>}
 
         {isError && (
-          <Note>
-            <span className="text-ink-2">Nu am putut încărca biblioteca.</span>{" "}
-            <span className="text-ink-3">{error.message}</span>{" "}
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              className="text-accent underline-offset-4 hover:underline"
-            >
-              Încearcă din nou
-            </button>
-          </Note>
+          <LoadFailure
+            what="biblioteca"
+            error={error}
+            onRetry={() => void refetch()}
+          />
         )}
 
         {books &&
@@ -118,10 +113,3 @@ function EmptyLibrary({ onAdd }: { onAdd: () => void }) {
   );
 }
 
-function Note({ children }: { children: ReactNode }) {
-  return (
-    <p className="rounded-xl border border-line bg-surface-1 px-4 py-3 text-sm text-ink-3">
-      {children}
-    </p>
-  );
-}

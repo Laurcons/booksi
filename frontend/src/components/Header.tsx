@@ -1,15 +1,27 @@
 import { useEffect, useRef, useState } from "react";
+import { NavLink } from "react-router";
 import type { AuthUser } from "@bookcsi/shared";
 import { useCurrentUser, useLogout } from "../api/auth";
 
-const NAV = [
-  { label: "Bibliotecă", active: true },
-  { label: "Galerie", active: false },
-  { label: "Tracker", active: false },
-  { label: "Wishlist", active: false },
-  { label: "Buget", active: false },
-  { label: "Statistici", active: false },
+/**
+ * The whole product's shape, with the screens that do not exist yet greyed
+ * rather than hidden — the nav has read this way since Sprint 1, and it is
+ * honest about what is coming.
+ *
+ * `to` is what makes an entry real. Sprint 3 gives the wishlist one (S3.1);
+ * the remaining four get theirs in the sprints that build them.
+ */
+const NAV: { label: string; to?: string }[] = [
+  { label: "Bibliotecă", to: "/" },
+  { label: "Galerie" },
+  { label: "Tracker" },
+  { label: "Wishlist", to: "/wishlist" },
+  { label: "Buget" },
+  { label: "Statistici" },
 ];
+
+const NAV_ITEM =
+  "relative rounded-lg px-3 py-2 text-sm transition-colors duration-150 ";
 
 export function Header({ onAddBook }: { onAddBook?: () => void }) {
   const { data: user } = useCurrentUser();
@@ -17,31 +29,52 @@ export function Header({ onAddBook }: { onAddBook?: () => void }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-surface-0/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-6">
-        <a href="/" className="flex items-center gap-2.5 shrink-0">
+        {/* A `NavLink`, not an `<a>`: now that there is more than one screen,
+            an anchor here would reload the whole document. */}
+        <NavLink to="/" className="flex items-center gap-2.5 shrink-0">
           <BookMark />
           <span className="font-display text-xl tracking-tight text-ink">
             Bookcsi
           </span>
-        </a>
+        </NavLink>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {NAV.map((item) => (
-            <a
-              key={item.label}
-              href="#"
-              className={
-                "relative rounded-lg px-3 py-2 text-sm transition-colors duration-150 " +
-                (item.active
-                  ? "text-ink"
-                  : "text-ink-3 hover:bg-surface-2 hover:text-ink-2")
-              }
-            >
-              {item.label}
-              {item.active && (
-                <span className="absolute inset-x-3 -bottom-px h-px bg-accent" />
-              )}
-            </a>
-          ))}
+          {NAV.map((item) =>
+            item.to === undefined ? (
+              // Not a link and not a button: there is nowhere to go yet, and a
+              // dead `href="#"` would jump the page to the top on click.
+              <span
+                key={item.label}
+                aria-disabled
+                className={NAV_ITEM + "text-ink-3/60"}
+              >
+                {item.label}
+              </span>
+            ) : (
+              <NavLink
+                key={item.label}
+                to={item.to}
+                // `end` so "Bibliotecă" (path "/") does not also light up on
+                // /wishlist, which every route is nested under.
+                end
+                className={({ isActive }) =>
+                  NAV_ITEM +
+                  (isActive
+                    ? "text-ink"
+                    : "text-ink-3 hover:bg-surface-2 hover:text-ink-2")
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {item.label}
+                    {isActive && (
+                      <span className="absolute inset-x-3 -bottom-px h-px bg-accent" />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ),
+          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-3">

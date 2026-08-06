@@ -2,8 +2,10 @@ import { z } from "zod";
 import { genreSchema, statusSchema, type Status } from "./enums.js";
 
 /**
- * Contracts for the library itself: S1.1–S1.5, plus the three columns Sprint 2
- * opens for writing — `pagesRead` (S2.1), `rating` (S2.3), `paidPrice` (S2.4).
+ * Contracts for the library itself: S1.1–S1.5, the three columns Sprint 2
+ * opens for writing — `pagesRead` (S2.1), `rating` (S2.3), `paidPrice` (S2.4) —
+ * and Sprint 3's wishlist: `estimatedPrice` (S3.2), the `status` filter behind
+ * the wishlist view (S3.1) and the summary its total is read from (S3.3).
  *
  * Two conventions worth stating once, because both are load-bearing:
  *
@@ -13,11 +15,11 @@ import { genreSchema, statusSchema, type Status } from "./enums.js";
  *    "finished on the 5th" come back as the 4th. `YYYY-MM-DD` has no such
  *    failure mode.
  * 2. **Write schemas are strict.** They accept only the fields the sprints
- *    delivered so far own. `estimatedPrice` (S3.2) and `favorite` (S5.2) are
- *    already columns and are already returned on read — S1.2 wants those table
- *    columns visible but empty — yet a request that tries to set them is
- *    rejected loudly rather than silently dropped. Each becomes writable in
- *    the sprint that owns it.
+ *    delivered so far own. `favorite` (S5.2) is already a column and is
+ *    already returned on read — S1.2 wants that table column visible but
+ *    empty — yet a request that tries to set it is rejected loudly rather than
+ *    silently dropped. It becomes writable in the sprint that owns it, the way
+ *    `estimatedPrice` just did in S3.2.
  *
  * There is no `progress` field anywhere here, and that is S2.2 working as
  * specified: the percentage is `pagesRead / totalPages`, derived on display and
@@ -163,6 +165,21 @@ export const createBookSchema = z.strictObject({
    */
   paidPrice: money.nullable().optional(),
 
+  /**
+   * S3.2 — what the user guesses a wishlist book will cost. Open Library
+   * publishes no prices, so this is user-input or nothing.
+   *
+   * Optional in the strong sense: a book sits in the wishlist perfectly well
+   * without one, and S3.3 is written around that gap rather than against it —
+   * the total says how many books it covers instead of pretending to be
+   * complete.
+   *
+   * Not restricted to `WISHLIST`. Nothing in S3.2 asks for that, and an
+   * estimate is worth keeping after the purchase: it is what the paid price
+   * gets compared against.
+   */
+  estimatedPrice: money.nullable().optional(),
+
   // Supplying a date explicitly overrides the automatic one (S1.5).
   purchasedOn: calendarDateSchema.nullable().optional(),
   startedOn: calendarDateSchema.nullable().optional(),
@@ -196,9 +213,43 @@ export type BookSort = z.infer<typeof bookSortSchema>;
 export const listBooksQuerySchema = z.strictObject({
   sort: bookSortSchema.default("createdAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
+
+  /**
+   * S3.1 — the wishlist is `status=WISHLIST` on this route, not a second
+   * entity and not a second table. Absent means the whole library.
+   *
+   * Server-side rather than a client-side `filter()` even though S1.2 loads
+   * every row: the summary in S3.3 is computed in SQL over exactly this
+   * predicate, and a list filtered by a different rule than the total below it
+   * is how the two quietly stop agreeing.
+   */
+  status: statusSchema.optional(),
 });
 
 export type ListBooksQuery = z.infer<typeof listBooksQuerySchema>;
+
+/**
+ * S3.3 — what the wishlist would cost, plus how much of the wishlist that
+ * figure actually speaks for.
+ *
+ * The coverage is not decoration. A total summed over the books that have an
+ * estimate, displayed alone, reads as the price of the whole list and is wrong
+ * by however many books were left blank — so the story asks for both numbers
+ * in one breath: "total 340 lei — 7 din 11 cărți au preț estimat".
+ *
+ * Derived on every request, never stored: DECISIONS.md lists
+ * `cost_total_wishlist` among the values that are always computed.
+ */
+export const wishlistSummarySchema = z.object({
+  /** Summed over the priced books only; `0` when none of them has a price. */
+  total: z.number(),
+  /** Wishlist books carrying an estimate — the "7". */
+  priced: z.number().int(),
+  /** Wishlist books in total — the "11". */
+  count: z.number().int(),
+});
+
+export type WishlistSummary = z.infer<typeof wishlistSummarySchema>;
 
 /**
  * S1.1 / §D13: the same ISBN may legitimately appear twice (a re-read, a

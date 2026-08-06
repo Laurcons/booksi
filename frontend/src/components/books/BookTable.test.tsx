@@ -6,7 +6,7 @@ import { BookTable } from "./BookTable";
 
 const QUERY: ListBooksQuery = { sort: "createdAt", order: "desc" };
 
-function renderTable(books: Book[]) {
+function renderTable(books: Book[], price?: "paid" | "estimated") {
   return renderWithQuery(
     <BookTable
       books={books}
@@ -14,6 +14,7 @@ function renderTable(books: Book[]) {
       onQueryChange={vi.fn()}
       onEdit={vi.fn()}
       onDelete={vi.fn()}
+      price={price}
     />,
   );
 }
@@ -22,6 +23,12 @@ function renderTable(books: Book[]) {
 function pagesCell(): HTMLElement {
   const row = screen.getAllByRole("row")[1];
   return within(row).getAllByRole("cell")[4];
+}
+
+/** The money cell, whichever of §D6's two prices the view is showing. */
+function priceCell(): HTMLElement {
+  const row = screen.getAllByRole("row")[1];
+  return within(row).getAllByRole("cell")[5];
 }
 
 describe("BookTable — progress (S2.2)", () => {
@@ -109,6 +116,92 @@ describe("BookTable — starting a book (S2.2)", () => {
     await user.click(screen.getByRole("button", { name: "Am terminat-o" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(lastWrite(calls)).toEqual({ status: "FINISHED" });
+  });
+});
+
+describe("BookTable — the wishlist's price column (S3.1, S3.2)", () => {
+  it("shows what was paid in the library", () => {
+    renderTable([makeBook({ paidPrice: 45, estimatedPrice: 59.9 })]);
+
+    expect(priceCell()).toHaveTextContent("45.00");
+    expect(screen.getByRole("columnheader", { name: "Preț" })).toBeInTheDocument();
+  });
+
+  it("shows the estimate in the wishlist instead", () => {
+    // A wishlist book has not been paid for, so the library's column would be
+    // a row of dashes — same table, different question.
+    renderTable(
+      [makeBook({ status: "WISHLIST", paidPrice: null, estimatedPrice: 59.9 })],
+      "estimated",
+    );
+
+    expect(priceCell()).toHaveTextContent("59.90");
+    expect(
+      screen.getByRole("columnheader", { name: "Preț estimat" }),
+    ).toBeInTheDocument();
+  });
+
+  it("dashes a book nobody has priced, rather than showing 0", () => {
+    // S3.2 makes the estimate optional; "I haven't decided" is not "free".
+    renderTable([makeBook({ status: "WISHLIST", estimatedPrice: null })], "estimated");
+
+    expect(priceCell()).toHaveTextContent("—");
+    expect(priceCell()).not.toHaveTextContent("0.00");
+  });
+});
+
+describe("BookTable — buying a book (S3.4)", () => {
+  it("takes one click, on its own route", async () => {
+    // Not a PATCH: the status, the date and the price move together, and
+    // copying the estimate into what was paid is the server's rule (§D6).
+    const calls = stubApi(() => makeBook({ status: "PURCHASED" }));
+    const { user } = renderTable([
+      makeBook({ status: "WISHLIST", estimatedPrice: 59.9 }),
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Am cumpărat-o" }));
+
+    const write = calls.filter((call) => call.method !== "GET").at(-1);
+    expect(write?.method).toBe("POST");
+    expect(write?.url).toMatch(/\/books\/book-1\/purchase$/);
+    // Nothing is re-entered — the request carries no body at all.
+    expect(write?.body).toBeUndefined();
+  });
+
+  it("asks nothing first", async () => {
+    // "Fără modal" is in the story. The one dialog this table can raise belongs
+    // to starting a book, not to buying one.
+    stubApi(() => makeBook({ status: "PURCHASED" }));
+    const { user } = renderTable([
+      makeBook({ status: "WISHLIST", totalPages: null }),
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Am cumpărat-o" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not block on a book with no estimate", async () => {
+    const calls = stubApi(() => makeBook({ status: "PURCHASED" }));
+    const { user } = renderTable([
+      makeBook({ status: "WISHLIST", estimatedPrice: null }),
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Am cumpărat-o" }));
+
+    expect(
+      calls.filter((call) => call.url.includes("/purchase")),
+    ).toHaveLength(1);
+  });
+
+  it("leaves every other transition a PATCH", async () => {
+    const calls = stubApi();
+    const { user } = renderTable([makeBook({ status: "READING", totalPages: 620 })]);
+
+    await user.click(screen.getByRole("button", { name: "Am terminat-o" }));
+
+    expect(calls.filter((call) => call.url.includes("/purchase"))).toHaveLength(0);
     expect(lastWrite(calls)).toEqual({ status: "FINISHED" });
   });
 });

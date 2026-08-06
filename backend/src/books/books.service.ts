@@ -12,6 +12,7 @@ import {
   type ListBooksQuery,
   type Status,
   type UpdateBookInput,
+  type WishlistSummary,
 } from "@bookcsi/shared";
 import { ownedOrNotFound } from "../common/ownership";
 import { validationFailed } from "../common/validation-error";
@@ -36,12 +37,16 @@ type BookWriteData = {
   pagesRead?: number;
   rating?: number | null;
   paidPrice?: Prisma.Decimal | null;
+  estimatedPrice?: Prisma.Decimal | null;
   purchasedOn?: Date | null;
   startedOn?: Date | null;
   finishedOn?: Date | null;
 };
 
 const DEFAULT_STATUS: Status = "WISHLIST";
+
+/** The status S3.1's view and S3.3's total are both defined by. */
+const WISHLIST: Status = "WISHLIST";
 
 @Injectable()
 export class BooksService {
@@ -76,10 +81,10 @@ export class BooksService {
     return toBook(row);
   }
 
-  /** S1.2. */
+  /** S1.2, and with the filter applied, the wishlist view of S3.1. */
   async findAll(userId: string, query: ListBooksQuery): Promise<Book[]> {
     const rows = await this.prisma.book.findMany({
-      where: { userId },
+      where: { userId, ...(query.status === undefined ? {} : { status: query.status }) },
       // `id` breaks ties so that two books sharing an author (or a status, or
       // a creation timestamp) keep a stable order between requests instead of
       // swapping places on every reload.
@@ -91,6 +96,30 @@ export class BooksService {
 
   async findOne(userId: string, id: string): Promise<Book> {
     return toBook(await this.load(userId, id));
+  }
+
+  /**
+   * S3.3. Summed in SQL over `DECIMAL(10,2)`, so the total is exact and stays
+   * exact however long the wishlist grows — the same reason §D6's two prices
+   * are decimal columns rather than floats.
+   *
+   * One aggregate, not two queries: `_count.estimatedPrice` counts the non-null
+   * values while `_count._all` counts the rows, which is precisely the "7 din
+   * 11" the story asks to print under the total.
+   */
+  async wishlistSummary(userId: string): Promise<WishlistSummary> {
+    const summary = await this.prisma.book.aggregate({
+      where: { userId, status: WISHLIST },
+      _sum: { estimatedPrice: true },
+      _count: { _all: true, estimatedPrice: true },
+    });
+
+    return {
+      // `SUM` over no rows is NULL; an empty wishlist costs 0, not "unknown".
+      total: toNumber(summary._sum.estimatedPrice) ?? 0,
+      priced: summary._count.estimatedPrice,
+      count: summary._count._all,
+    };
   }
 
   /** S1.3 and S1.4 — one route: a status change is an edit like any other. */
@@ -119,6 +148,43 @@ export class BooksService {
     }
 
     // Ownership was settled by `load`; the id alone is enough to address the row.
+    const row = await this.prisma.book.update({ where: { id }, data });
+
+    return toBook(row);
+  }
+
+  /**
+   * S3.4 — "am cumpărat-o", in one click and without a modal: the status, the
+   * date and the price move together, and all three stay editable afterwards
+   * through the ordinary `PATCH`.
+   *
+   * A route of its own rather than a `PATCH` the client assembles, because the
+   * rule being applied is `paidPrice → estimatedPrice` (§D6), and a client that
+   * has to know that rule is a second place it can be got wrong.
+   *
+   * **`purchasedOn` is overwritten, unlike everywhere else.** S1.5's rule that
+   * a recorded date is never overwritten protects history that the user did not
+   * ask to change; here they did — this is an explicit "I bought it", and the
+   * day it names is today. The two rules only ever meet on a book that was
+   * bought, sent back to the wishlist and bought again, and for that book the
+   * new purchase is the true one.
+   *
+   * The price is copied only when there is one. Without an estimate `paidPrice`
+   * is left exactly as it was — the action does not block (the story is
+   * explicit) and neither does it erase a figure it was never given.
+   */
+  async purchase(userId: string, id: string): Promise<Book> {
+    const existing = await this.load(userId, id);
+
+    const data: BookWriteData = {
+      status: "PURCHASED",
+      purchasedOn: fromCalendarDate(todayCalendarDate()),
+    };
+
+    if (existing.estimatedPrice !== null) {
+      data.paidPrice = existing.estimatedPrice;
+    }
+
     const row = await this.prisma.book.update({ where: { id }, data });
 
     return toBook(row);
@@ -195,6 +261,7 @@ function writeData(input: UpdateBookInput): BookWriteData {
     pagesRead: input.pagesRead,
     rating: input.rating,
     paidPrice: toDecimal(input.paidPrice),
+    estimatedPrice: toDecimal(input.estimatedPrice),
     // A date only moves when the request says so — `"key" in input` separates
     // "cleared it" (null) from "did not mention it" (absent), which
     // `?? undefined` would flatten into the same thing.

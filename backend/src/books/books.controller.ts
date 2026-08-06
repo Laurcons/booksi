@@ -26,6 +26,7 @@ import {
 } from "@nestjs/swagger";
 import {
   BOOK_SORT_VALUES,
+  STATUS_VALUES,
   createBookSchema,
   isbnDuplicatesQuerySchema,
   listBooksQuerySchema,
@@ -37,6 +38,7 @@ import {
   type IsbnDuplicatesQuery,
   type ListBooksQuery,
   type UpdateBookInput,
+  type WishlistSummary,
 } from "@bookcsi/shared";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
@@ -64,7 +66,17 @@ export class BooksController {
     description:
       "S1.2 — tabelul complet, sortabil. Coperta nu e inclusă: e o relație " +
       "separată (§D18) și se servește prin ruta ei, ca listarea să nu care " +
-      "un blob per rând.",
+      "un blob per rând.\n\n" +
+      "**Wishlist-ul (S3.1)** e aceeași rută cu `status=WISHLIST`, nu o " +
+      "entitate separată. Totalul care însoțește vederea se ia din " +
+      "`GET /books/wishlist-summary`.",
+  })
+  @ApiQuery({
+    name: "status",
+    required: false,
+    enum: STATUS_VALUES,
+    description:
+      "S3.1 — filtrează pe un singur status. Absent: toată biblioteca.",
   })
   @ApiQuery({
     name: "sort",
@@ -124,6 +136,25 @@ export class BooksController {
     return this.books.isbnDuplicates(user.id, query);
   }
 
+  /** S3.3 — declared above `:id` for the same reason as the route above it. */
+  @ApiOperation({
+    summary: "Cât ar costa tot wishlist-ul",
+    description:
+      "S3.3 — suma prețurilor estimate din wishlist, plus câte cărți acoperă " +
+      "efectiv suma.\n\n" +
+      "Cele două numere se afișează împreună: `total` e calculat **doar peste " +
+      "cărțile care au preț**, așa că singur ar trece drept prețul întregii " +
+      "liste. Cu `priced` și `count` alături iese exact rândul din story — " +
+      "„total 340 lei — 7 din 11 cărți au preț estimat”.\n\n" +
+      "Valoare derivată: se calculează la fiecare cerere, nu se stochează " +
+      "niciodată (`cost_total_wishlist`, DECISIONS.md).",
+  })
+  @ApiOkResponse({ schema: ref("WishlistSummary") })
+  @Get("wishlist-summary")
+  wishlistSummary(@CurrentUser() user: AuthUser): Promise<WishlistSummary> {
+    return this.books.wishlistSummary(user.id);
+  }
+
   @ApiOperation({ summary: "O singură carte" })
   @ApiParam({ name: "id", description: "Id-ul cărții (cuid)." })
   @ApiOkResponse({ schema: ref("Book") })
@@ -150,9 +181,9 @@ export class BooksController {
       "Dacă statusul implică o dată (`PURCHASED`, `READING`, `FINISHED`) și " +
       "cererea nu o trimite explicit, se completează automat cu ziua curentă " +
       "(S1.5). O dată trimisă explicit are întotdeauna prioritate.\n\n" +
-      "Se pot da din start și `pagesRead` (S2.1), `rating` (S2.3) și " +
-      "`paidPrice` (S2.4) — o carte terminată acum trei ani se introduce " +
-      "dintr-o singură cerere, cu tot cu stele.",
+      "Se pot da din start și `pagesRead` (S2.1), `rating` (S2.3), " +
+      "`paidPrice` (S2.4) și `estimatedPrice` (S3.2) — o carte terminată acum " +
+      "trei ani se introduce dintr-o singură cerere, cu tot cu stele.",
   })
   @ApiBody({ schema: ref("CreateBookInput") })
   @ApiCreatedResponse({ schema: ref("Book") })
@@ -160,8 +191,7 @@ export class BooksController {
     description:
       "Titlu lipsă, dată care nu e `YYYY-MM-DD`, rating pe o carte care nu e " +
       "terminată sau abandonată (S2.3), sau un câmp care aparține unui sprint " +
-      "viitor (`estimatedPrice`, `favorite`) — respinse explicit, nu ignorate " +
-      "în tăcere.",
+      "viitor (`favorite`, S5.2) — respins explicit, nu ignorat în tăcere.",
     schema: ref("ValidationError"),
   })
   @Post()
@@ -194,6 +224,13 @@ export class BooksController {
       "Aceeași cerere poate trimite statusul și ratingul deodată. Ștergerea " +
       "ratingului (`null`) e permisă întotdeauna, iar o revenire la `READING` " +
       "**nu** șterge ratingul existent.\n\n" +
+      "**Prețul estimat (S3.2).** `estimatedPrice` e estimarea proprie a " +
+      "utilizatorului — Open Library nu dă prețuri — și e un câmp distinct de " +
+      "`paidPrice` (§D6): doar al doilea alimentează bugetul din Sprint 6. Nu " +
+      "e legat de status: rămâne editabil și după cumpărare, ca să existe cu " +
+      "ce compara suma plătită.\n\n" +
+      "Tot pe aici se corectează, ulterior, cele trei câmpuri scrise dintr-un " +
+      "click de `POST /books/{id}/purchase` (S3.4).\n\n" +
       "Trimite doar câmpurile schimbate: un câmp absent rămâne neatins.",
   })
   @ApiParam({ name: "id", description: "Id-ul cărții (cuid)." })
@@ -216,6 +253,39 @@ export class BooksController {
     @Body(new ZodValidationPipe(updateBookSchema)) input: UpdateBookInput,
   ): Promise<Book> {
     return this.books.update(user.id, id, input);
+  }
+
+  /** S3.4. */
+  @ApiOperation({
+    summary: "Marchează o carte drept cumpărată",
+    description:
+      "S3.4 — un singur click, fără modal și fără date reintroduse: " +
+      "`status → PURCHASED`, `purchasedOn → azi`, `paidPrice → " +
+      "estimatedPrice`.\n\n" +
+      "Rută proprie, nu un `PATCH` compus de client, fiindcă regula copierii " +
+      "prețului (§D6) e a serverului.\n\n" +
+      "**`purchasedOn` se suprascrie**, spre deosebire de regula generală din " +
+      "S1.5 — aici utilizatorul cere explicit „am cumpărat-o”, iar ziua la " +
+      "care se referă e azi. Diferența se vede doar pe o carte cumpărată, " +
+      "întoarsă în wishlist și cumpărată din nou.\n\n" +
+      "Dacă `estimatedPrice` lipsește, `paidPrice` rămâne neatins — acțiunea " +
+      "nu se blochează. Toate trei câmpurile rămân editabile prin `PATCH`.\n\n" +
+      "Idempotentă în efect: reapelarea rescrie aceleași câmpuri, doar data " +
+      "devine cea de azi.",
+  })
+  @ApiParam({ name: "id", description: "Id-ul cărții (cuid)." })
+  @ApiOkResponse({ schema: ref("Book") })
+  @ApiNotFoundResponse({
+    description: "Inexistentă sau a altcuiva — vezi `GET /books/{id}`.",
+    schema: ref("HttpError"),
+  })
+  @Post(":id/purchase")
+  @HttpCode(HttpStatus.OK)
+  purchase(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+  ): Promise<Book> {
+    return this.books.purchase(user.id, id);
   }
 
   /** S1.3. */

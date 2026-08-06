@@ -19,5 +19,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  // The end-to-end suite belongs here rather than with `src`: it runs in Node,
+  // not in the browser, and so it needs these libs rather than the DOM ones.
+  "include": ["vite.config.ts", "playwright.config.ts", "e2e"]
 }

@@ -4,6 +4,7 @@ import { RequireAuth } from "./components/RequireAuth";
 import { queryClient } from "./lib/query-client";
 import { LibraryPage } from "./pages/LibraryPage";
 import { LoginPage } from "./pages/LoginPage";
+import { WishlistPage } from "./pages/WishlistPage";
 
 export default function App() {
   return (
@@ -16,6 +17,8 @@ export default function App() {
               guard on the API (S0.3). */}
           <Route element={<RequireAuth />}>
             <Route path="/" element={<LibraryPage />} />
+            {/* S3.1 — a view of the same books, not a second collection. */}
+            <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="*" element={<LibraryPage />} />
           </Route>
         </Routes>

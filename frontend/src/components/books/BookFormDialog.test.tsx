@@ -139,6 +139,80 @@ describe("BookFormDialog — paid price (S2.4)", () => {
   });
 });
 
+describe("BookFormDialog — estimated price (S3.2)", () => {
+  it("sends the estimate as a number", async () => {
+    const { calls, user } = renderForm(makeBook());
+
+    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59.90");
+    await user.click(save());
+
+    await waitFor(() =>
+      expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }),
+    );
+  });
+
+  it("accepts a comma here too", async () => {
+    const { calls, user } = renderForm(makeBook());
+
+    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59,90");
+    await user.click(save());
+
+    await waitFor(() =>
+      expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }),
+    );
+  });
+
+  it("keeps it apart from what was paid (§D6)", async () => {
+    // Two boxes, two columns, one request. Only the second feeds the Sprint 6
+    // budget, which is the whole reason they are not one field.
+    const { calls, user } = renderForm(makeBook());
+
+    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59.90");
+    await user.type(screen.getByLabelText(/Cât am plătit/), "45");
+    await user.click(save());
+
+    await waitFor(() =>
+      expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9, paidPrice: 45 }),
+    );
+  });
+
+  it("refuses a third decimal, as the column does", async () => {
+    const { calls, user } = renderForm(makeBook());
+
+    await user.type(screen.getByLabelText(/Cât cred că va costa/), "12.345");
+    await user.click(save());
+
+    expect(await screen.findByText("Cel mult două zecimale")).toBeInTheDocument();
+    expect(lastWrite(calls)).toBeUndefined();
+  });
+
+  it("clears the estimate when the box is emptied", async () => {
+    const { calls, user } = renderForm(makeBook({ estimatedPrice: 59.9 }));
+
+    await user.clear(screen.getByLabelText(/Cât cred că va costa/));
+    await user.click(save());
+
+    await waitFor(() =>
+      expect(lastWrite(calls)).toEqual({ estimatedPrice: null }),
+    );
+  });
+
+  it("stays editable on a book that is no longer a wish", async () => {
+    // Not tied to WISHLIST: after the purchase the estimate is what the paid
+    // price gets compared against.
+    const { calls, user } = renderForm(
+      makeBook({ status: "FINISHED", estimatedPrice: null }),
+    );
+
+    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59.90");
+    await user.click(save());
+
+    await waitFor(() =>
+      expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }),
+    );
+  });
+});
+
 describe("BookFormDialog — creating with Sprint 2 fields", () => {
   it("takes a shelf entry complete with stars and price in one go", async () => {
     const { calls, user } = renderForm();

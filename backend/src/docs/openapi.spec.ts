@@ -83,10 +83,12 @@ describe("OpenAPI document", () => {
       "GET /auth/me",
       "GET /books",
       "GET /books/isbn-duplicates",
+      "GET /books/wishlist-summary",
       "GET /books/{id}",
       "PATCH /books/{id}",
       "POST /auth/logout",
       "POST /books",
+      "POST /books/{id}/purchase",
     ]);
   });
 
@@ -129,9 +131,10 @@ describe("OpenAPI document", () => {
       expect(schema().required).toEqual(["title"]);
     });
 
-    it("accepts the fields Sprints 1 and 2 own", () => {
+    it("accepts the fields Sprints 1 to 3 own", () => {
       expect(Object.keys(schema().properties ?? {}).sort()).toEqual([
         "author",
+        "estimatedPrice",
         "finishedOn",
         "genre",
         "isbn",
@@ -147,21 +150,25 @@ describe("OpenAPI document", () => {
     });
 
     it("keeps fields belonging to later sprints out", () => {
-      // They are columns already and they are returned on read, but a request
-      // that sets them is rejected — so they must not appear as writable here.
-      for (const field of ["estimatedPrice", "favorite"]) {
-        expect(schema().properties).not.toHaveProperty(field);
-      }
+      // `favorite` is a column already and is returned on read, but a request
+      // that sets it is rejected — so it must not appear as writable here.
+      expect(schema().properties).not.toHaveProperty("favorite");
     });
 
-    it("carries the money constraints into the schema (S2.4)", () => {
+    it("carries the money constraints into the schema (S2.4, S3.2)", () => {
       // Documented rather than merely enforced: a generated client should know
-      // the column is DECIMAL(10,2) without having to POST a third decimal.
-      expect(schema().properties?.paidPrice).toMatchObject({
-        anyOf: expect.arrayContaining([
-          expect.objectContaining({ multipleOf: 0.01, minimum: 0 }),
-        ]),
-      });
+      // the columns are DECIMAL(10,2) without having to POST a third decimal.
+      // Both prices, because §D6 keeps them separate everywhere else too.
+      for (const field of ["paidPrice", "estimatedPrice"]) {
+        expect({ field, schema: schema().properties?.[field] }).toEqual({
+          field,
+          schema: expect.objectContaining({
+            anyOf: expect.arrayContaining([
+              expect.objectContaining({ multipleOf: 0.01, minimum: 0 }),
+            ]),
+          }),
+        });
+      }
     });
   });
 
@@ -181,8 +188,13 @@ describe("OpenAPI document", () => {
   });
 
   it("documents 404 — not 403 — wherever a book is addressed by id (S0.3)", () => {
-    for (const path of ["/books/{id}"]) {
-      for (const method of ["get", "patch", "delete"] as const) {
+    const byId: Record<string, readonly ("get" | "patch" | "delete" | "post")[]> = {
+      "/books/{id}": ["get", "patch", "delete"],
+      "/books/{id}/purchase": ["post"],
+    };
+
+    for (const [path, methods] of Object.entries(byId)) {
+      for (const method of methods) {
         const responses = (
           document.paths[path] as Record<
             string,
