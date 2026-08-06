@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import type { Book as BookRow, Prisma } from "@prisma/client";
+// `Prisma` is a value here, not just a namespace: `Prisma.Decimal` constructs
+// the money columns on the way in.
+import { Prisma, type Book as BookRow } from "@prisma/client";
 import {
   normalizeIsbn,
   type Book,
@@ -12,14 +14,17 @@ import {
   type UpdateBookInput,
 } from "@bookcsi/shared";
 import { ownedOrNotFound } from "../common/ownership";
+import { validationFailed } from "../common/validation-error";
 import { PrismaService } from "../prisma/prisma.service";
 import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "./calendar-date";
+import { RATING_STATUS_MESSAGE, ratingAccepted } from "./rating";
 import { autoDatedField } from "./status-dates";
 
 /**
- * The write payload, narrowed to the fields Sprint 1 owns. An absent key means
- * "leave this column alone" — Prisma's own convention, which is why the
- * request's optional fields can be passed straight through.
+ * The write payload, narrowed to the fields the API currently lets a request
+ * set. An absent key means "leave this column alone" — Prisma's own
+ * convention, which is why the request's optional fields can be passed
+ * straight through.
  */
 type BookWriteData = {
   title?: string;
@@ -28,6 +33,9 @@ type BookWriteData = {
   totalPages?: number | null;
   genre?: Genre | null;
   status?: Status;
+  pagesRead?: number;
+  rating?: number | null;
+  paidPrice?: Prisma.Decimal | null;
   purchasedOn?: Date | null;
   startedOn?: Date | null;
   finishedOn?: Date | null;
@@ -42,6 +50,8 @@ export class BooksService {
   /** S1.1. */
   async create(userId: string, input: CreateBookInput): Promise<Book> {
     const status = input.status ?? DEFAULT_STATUS;
+
+    this.checkRating(input.rating, status);
 
     const data: BookWriteData & { title: string } = {
       ...writeData(input),
@@ -86,6 +96,10 @@ export class BooksService {
   /** S1.3 and S1.4 — one route: a status change is an edit like any other. */
   async update(userId: string, id: string, input: UpdateBookInput): Promise<Book> {
     const existing = await this.load(userId, id);
+
+    // The status the book ends up in, which is what S2.3 constrains — a
+    // request may set the rating and the status that permits it at once.
+    this.checkRating(input.rating, input.status ?? existing.status);
 
     const data = writeData(input);
 
@@ -152,6 +166,17 @@ export class BooksService {
       .map(({ id, title, author }) => ({ id, title, author }));
   }
 
+  /**
+   * S2.3. Reported as a field-keyed validation failure, identical in shape to
+   * everything `ZodValidationPipe` produces, because to the form it is the same
+   * kind of error — it just needs the stored row to decide.
+   */
+  private checkRating(rating: number | null | undefined, status: Status): void {
+    if (!ratingAccepted(rating, status)) {
+      throw validationFailed({ rating: [RATING_STATUS_MESSAGE] });
+    }
+  }
+
   private async load(userId: string, id: string): Promise<BookRow> {
     return ownedOrNotFound(
       await this.prisma.book.findFirst({ where: { id, userId } }),
@@ -167,6 +192,9 @@ function writeData(input: UpdateBookInput): BookWriteData {
     totalPages: input.totalPages,
     genre: input.genre,
     status: input.status,
+    pagesRead: input.pagesRead,
+    rating: input.rating,
+    paidPrice: toDecimal(input.paidPrice),
     // A date only moves when the request says so — `"key" in input` separates
     // "cleared it" (null) from "did not mention it" (absent), which
     // `?? undefined` would flatten into the same thing.
@@ -174,6 +202,26 @@ function writeData(input: UpdateBookInput): BookWriteData {
     startedOn: providedDate(input, "startedOn"),
     finishedOn: providedDate(input, "finishedOn"),
   };
+}
+
+/**
+ * S2.4. `undefined` and `null` pass through unchanged — Prisma reads them as
+ * "leave it" and "clear it", the same two meanings the request carries.
+ *
+ * A number becomes a `Decimal` through its two-decimal string rather than
+ * directly: `new Prisma.Decimal(59.9)` starts from the double, and the column
+ * is `DECIMAL(10,2)`. Going via `toFixed(2)` puts the rounding here, where the
+ * value has already been validated to have no third decimal, instead of
+ * leaving it to the driver.
+ */
+function toDecimal(
+  value: number | null | undefined,
+): Prisma.Decimal | null | undefined {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  return new Prisma.Decimal(value.toFixed(2));
 }
 
 function providedDate(

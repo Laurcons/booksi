@@ -1,9 +1,6 @@
-import {
-  BadRequestException,
-  Injectable,
-  type PipeTransform,
-} from "@nestjs/common";
+import { Injectable, type PipeTransform } from "@nestjs/common";
 import type { z } from "zod";
+import { validationFailed } from "../validation-error";
 
 /**
  * Validates a body or a query against a schema from `shared/`, so that the API
@@ -27,12 +24,7 @@ export class ZodValidationPipe<Schema extends z.ZodType>
     const parsed = this.schema.safeParse(value);
 
     if (!parsed.success) {
-      throw new BadRequestException({
-        statusCode: 400,
-        error: "Bad Request",
-        message: "Validation failed",
-        errors: fieldErrors(parsed.error),
-      });
+      throw validationFailed(fieldErrors(parsed.error));
     }
 
     return parsed.data;

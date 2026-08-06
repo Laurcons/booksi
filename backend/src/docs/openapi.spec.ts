@@ -129,13 +129,16 @@ describe("OpenAPI document", () => {
       expect(schema().required).toEqual(["title"]);
     });
 
-    it("accepts the fields Sprint 1 owns", () => {
+    it("accepts the fields Sprints 1 and 2 own", () => {
       expect(Object.keys(schema().properties ?? {}).sort()).toEqual([
         "author",
         "finishedOn",
         "genre",
         "isbn",
+        "pagesRead",
+        "paidPrice",
         "purchasedOn",
+        "rating",
         "startedOn",
         "status",
         "title",
@@ -146,9 +149,19 @@ describe("OpenAPI document", () => {
     it("keeps fields belonging to later sprints out", () => {
       // They are columns already and they are returned on read, but a request
       // that sets them is rejected — so they must not appear as writable here.
-      for (const field of ["rating", "paidPrice", "estimatedPrice", "pagesRead", "favorite"]) {
+      for (const field of ["estimatedPrice", "favorite"]) {
         expect(schema().properties).not.toHaveProperty(field);
       }
+    });
+
+    it("carries the money constraints into the schema (S2.4)", () => {
+      // Documented rather than merely enforced: a generated client should know
+      // the column is DECIMAL(10,2) without having to POST a third decimal.
+      expect(schema().properties?.paidPrice).toMatchObject({
+        anyOf: expect.arrayContaining([
+          expect.objectContaining({ multipleOf: 0.01, minimum: 0 }),
+        ]),
+      });
     });
   });
 

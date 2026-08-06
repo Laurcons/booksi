@@ -7,6 +7,7 @@ import {
   genreSchema,
   GENRE_LABEL,
   GENRE_VALUES,
+  isRatable,
   statusSchema,
   STATUS_LABEL,
   STATUS_VALUES,
@@ -16,6 +17,7 @@ import {
 import { useCreateBook, useIsbnDuplicates, useUpdateBook } from "../../api/books";
 import { useDebounced } from "../../lib/use-debounced";
 import { Modal } from "../Modal";
+import { StarRatingInput } from "./StarRating";
 
 /**
  * S1.1 (add) and S1.3 (edit) are the same form: every field is editable at any
@@ -35,6 +37,9 @@ const bookFormSchema = z
     totalPages: z.string(),
     genre: z.union([genreSchema, z.literal("")]),
     status: statusSchema,
+    pagesRead: z.string(),
+    rating: z.union([z.enum(["1", "2", "3", "4", "5"]), z.literal("")]),
+    paidPrice: z.string(),
     purchasedOn: z.string(),
     startedOn: z.string(),
     finishedOn: z.string(),
@@ -48,11 +53,41 @@ const bookFormSchema = z
     totalPages: values.totalPages.trim() === "" ? null : Number(values.totalPages),
     genre: values.genre === "" ? null : values.genre,
     status: values.status,
+    // S2.1. Blank is 0, not null: the column has no null to store, and "I
+    // haven't opened it yet" is genuinely page zero.
+    pagesRead: values.pagesRead.trim() === "" ? 0 : Number(values.pagesRead),
+    rating: ratingFor(values.status, values.rating),
+    // S2.4. Comma is what a Romanian keyboard produces for a decimal; the API
+    // wants a JSON number either way.
+    paidPrice:
+      values.paidPrice.trim() === ""
+        ? null
+        : Number(values.paidPrice.replace(",", ".")),
     purchasedOn: blankToNull(values.purchasedOn),
     startedOn: blankToNull(values.startedOn),
     finishedOn: blankToNull(values.finishedOn),
   }))
   .pipe(createBookSchema);
+
+/**
+ * S2.3. The stars are only offered on a status that can hold a rating, so on
+ * any other status the field must go out as `undefined` — *absent*, not `null`.
+ *
+ * The difference is the whole rule. `null` would clear a rating the user never
+ * touched, which is exactly what the API refuses to do on its own when a
+ * finished book goes back to `Citesc` for a re-read; sending it from here would
+ * undo that decision from the outside.
+ */
+function ratingFor(
+  status: z.infer<typeof statusSchema>,
+  rating: string,
+): number | null | undefined {
+  if (!isRatable(status)) {
+    return undefined;
+  }
+
+  return rating === "" ? null : Number(rating);
+}
 
 type BookFormValues = z.input<typeof bookFormSchema>;
 
@@ -63,6 +98,9 @@ const EMPTY: BookFormValues = {
   totalPages: "",
   genre: "",
   status: "WISHLIST",
+  pagesRead: "",
+  rating: "",
+  paidPrice: "",
   purchasedOn: "",
   startedOn: "",
   finishedOn: "",
@@ -92,6 +130,12 @@ export function BookFormDialog({
 
   const isbn = useDebounced(watch("isbn"), 300);
   const duplicates = useIsbnDuplicates(isbn, book?.id);
+
+  // The stars appear and disappear with the status, so the form has to follow
+  // the select rather than read the stored value once.
+  const status = watch("status");
+  const ratingValue = watch("rating");
+  const ratingField = register("rating");
 
   const submit = handleSubmit(async (payload) => {
     if (editing) {
@@ -173,6 +217,66 @@ export function BookFormDialog({
               ))}
             </select>
           </Field>
+
+          {/* Sprint 2 — where the book has got to, what it was worth, what it
+              cost. Grouped away from the identity fields above because these
+              change over a book's life while the title and the ISBN do not. */}
+          <div className="sm:col-span-2">
+            <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
+              Progres și evaluare
+            </h3>
+
+            <div className="mt-4 grid gap-5 sm:grid-cols-2">
+              <Field
+                label="Pagina la care am ajuns"
+                error={errors.pagesRead}
+                hint="S2.1"
+              >
+                <input
+                  {...register("pagesRead")}
+                  type="number"
+                  min={0}
+                  className={INPUT}
+                  inputMode="numeric"
+                />
+              </Field>
+
+              <Field label="Cât am plătit" error={errors.paidPrice} hint="lei">
+                <input
+                  {...register("paidPrice")}
+                  type="text"
+                  className={INPUT}
+                  inputMode="decimal"
+                  autoComplete="off"
+                />
+              </Field>
+            </div>
+
+            {/* S2.3 — offered only where a rating may live. The alternative,
+                showing disabled stars everywhere, invites a click that cannot
+                do anything. */}
+            {isRatable(status) ? (
+              <div className="mt-5">
+                <span className="mb-1.5 block text-sm text-ink-2">Rating</span>
+                <StarRatingInput
+                  name={ratingField.name}
+                  value={ratingValue}
+                  onChange={ratingField.onChange}
+                  onBlur={ratingField.onBlur}
+                  inputRef={ratingField.ref}
+                />
+                {errors.rating?.message && (
+                  <span className="mt-1 block text-xs text-status-abandoned">
+                    {errors.rating.message}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="mt-5 text-xs text-ink-3">
+                Ratingul se dă cărților terminate sau abandonate.
+              </p>
+            )}
+          </div>
 
           <div className="sm:col-span-2">
             <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
@@ -279,11 +383,18 @@ function toFormValues(book: Book): BookFormValues {
     totalPages: book.totalPages === null ? "" : String(book.totalPages),
     genre: book.genre ?? "",
     status: book.status,
+    // Page zero shows as an empty box rather than a literal "0", so the field
+    // reads as "nothing recorded yet" instead of as a measurement.
+    pagesRead: book.pagesRead === 0 ? "" : String(book.pagesRead),
+    rating: book.rating === null ? "" : (String(book.rating) as RatingValue),
+    paidPrice: book.paidPrice === null ? "" : book.paidPrice.toFixed(2),
     purchasedOn: book.purchasedOn ?? "",
     startedOn: book.startedOn ?? "",
     finishedOn: book.finishedOn ?? "",
   };
 }
+
+type RatingValue = BookFormValues["rating"];
 
 /** The edit payload: exactly the fields the user changed, nothing else. */
 function onlyDirty(
@@ -292,13 +403,24 @@ function onlyDirty(
 ): Partial<CreateBookInput> {
   const changed: Record<string, unknown> = {};
 
-  for (const key of Object.keys(payload) as (keyof CreateBookInput)[]) {
-    if (dirtyFields[key]) {
+  // The payload is typed by the API, and the API runs ahead of this form:
+  // Sprint 2 opened `pagesRead`, `rating` and `paidPrice` for writing before
+  // there were inputs for them. The transform above emits only the fields this
+  // dialog renders, so those keys never turn up at runtime — the guard is what
+  // tells the compiler that, and it keeps holding as later sprints add more.
+  for (const key of Object.keys(payload)) {
+    if (isFormField(key) && dirtyFields[key]) {
       changed[key] = payload[key];
     }
   }
 
   return changed;
+}
+
+const FORM_FIELDS = Object.keys(EMPTY) as (keyof BookFormValues)[];
+
+function isFormField(key: string): key is keyof BookFormValues {
+  return (FORM_FIELDS as string[]).includes(key);
 }
 
 /**

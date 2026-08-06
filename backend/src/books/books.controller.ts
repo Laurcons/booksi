@@ -149,15 +149,19 @@ export class BooksController {
       "introdusă.\n\n" +
       "Dacă statusul implică o dată (`PURCHASED`, `READING`, `FINISHED`) și " +
       "cererea nu o trimite explicit, se completează automat cu ziua curentă " +
-      "(S1.5). O dată trimisă explicit are întotdeauna prioritate.",
+      "(S1.5). O dată trimisă explicit are întotdeauna prioritate.\n\n" +
+      "Se pot da din start și `pagesRead` (S2.1), `rating` (S2.3) și " +
+      "`paidPrice` (S2.4) — o carte terminată acum trei ani se introduce " +
+      "dintr-o singură cerere, cu tot cu stele.",
   })
   @ApiBody({ schema: ref("CreateBookInput") })
   @ApiCreatedResponse({ schema: ref("Book") })
   @ApiBadRequestResponse({
     description:
-      "Titlu lipsă, dată care nu e `YYYY-MM-DD`, sau un câmp care aparține " +
-      "unui sprint viitor (`rating`, `paidPrice`, …) — respinse explicit, nu " +
-      "ignorate în tăcere.",
+      "Titlu lipsă, dată care nu e `YYYY-MM-DD`, rating pe o carte care nu e " +
+      "terminată sau abandonată (S2.3), sau un câmp care aparține unui sprint " +
+      "viitor (`estimatedPrice`, `favorite`) — respinse explicit, nu ignorate " +
+      "în tăcere.",
     schema: ref("ValidationError"),
   })
   @Post()
@@ -168,7 +172,7 @@ export class BooksController {
     return this.books.create(user.id, input);
   }
 
-  /** S1.3, S1.4 and S1.5 — every edit, including a status change. */
+  /** S1.3, S1.4, S1.5 — every edit, including a status change — and S2.1–S2.4. */
   @ApiOperation({
     summary: "Modifică o carte",
     description:
@@ -180,12 +184,27 @@ export class BooksController {
       "cererea nu îl trimite explicit. O dată deja înregistrată nu se " +
       "suprascrie niciodată — o recitire nu șterge când ai început prima " +
       "oară. Trimiterea explicită a valorii `null` golește câmpul.\n\n" +
+      "**Progres și evaluare (Sprint 2).** `pagesRead` e ruta prin care se " +
+      "notează pagina curentă (S2.1) — o singură valoare, nu un istoric " +
+      "(§D3), și nelimitată de `totalPages`, care lipsește des și e uneori " +
+      "greșit (§D4). Procentul de progres **nu se trimite și nu se " +
+      "stochează**: se calculează la afișare (S2.2).\n\n" +
+      "`rating` (S2.3) se acceptă doar dacă statusul rezultat în urma cererii " +
+      "e `FINISHED` sau `ABANDONED` — abandonul primește rating prin §D11. " +
+      "Aceeași cerere poate trimite statusul și ratingul deodată. Ștergerea " +
+      "ratingului (`null`) e permisă întotdeauna, iar o revenire la `READING` " +
+      "**nu** șterge ratingul existent.\n\n" +
       "Trimite doar câmpurile schimbate: un câmp absent rămâne neatins.",
   })
   @ApiParam({ name: "id", description: "Id-ul cărții (cuid)." })
   @ApiBody({ schema: ref("UpdateBookInput") })
   @ApiOkResponse({ schema: ref("Book") })
-  @ApiBadRequestResponse({ schema: ref("ValidationError") })
+  @ApiBadRequestResponse({
+    description:
+      "Aceleași reguli ca la creare, plus ratingul dat unei cărți care nu " +
+      "ajunge în `FINISHED` sau `ABANDONED` (S2.3).",
+    schema: ref("ValidationError"),
+  })
   @ApiNotFoundResponse({
     description: "Inexistentă sau a altcuiva — vezi `GET /books/{id}`.",
     schema: ref("HttpError"),

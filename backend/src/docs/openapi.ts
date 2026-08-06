@@ -110,7 +110,11 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       "session",
     )
     .addTag("auth", "Google OAuth și sesiunea (Sprint 0)")
-    .addTag("books", "Biblioteca: creare, listare, editare, ștergere (Sprint 1)")
+    .addTag(
+      "books",
+      "Biblioteca: creare, listare, editare, ștergere (Sprint 1), plus " +
+        "pagini citite, rating și suma plătită (Sprint 2)",
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

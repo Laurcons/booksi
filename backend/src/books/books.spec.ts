@@ -47,7 +47,7 @@ const storedBook = {
   manuallyEditedFields: { fields: ["title"] },
 };
 
-describe("books routes (Sprint 1)", () => {
+describe("books routes (Sprints 1–2)", () => {
   let app: INestApplication;
   let authService: AuthService;
 
@@ -252,14 +252,44 @@ describe("books routes (Sprint 1)", () => {
     });
 
     it("rejects fields that belong to later sprints", async () => {
-      // rating is S2.3, paidPrice is S2.4. Silently dropping them would look
-      // like the API accepted the value.
+      // estimatedPrice is S3.2, favorite is S5.2. Silently dropping them would
+      // look like the API accepted the value.
       await as("post", "/books")
-        .send({ title: "Dune", rating: 5 })
+        .send({ title: "Dune", estimatedPrice: 59.9 })
         .expect(400);
       await as("post", "/books")
-        .send({ title: "Dune", paidPrice: 59.9 })
+        .send({ title: "Dune", favorite: true })
         .expect(400);
+    });
+
+    it("takes progress, rating and price for a book read years ago (Sprint 2)", async () => {
+      prisma.book.create.mockResolvedValue(storedBook);
+
+      await as("post", "/books")
+        .send({
+          title: "Dune",
+          status: "FINISHED",
+          pagesRead: 620,
+          rating: 5,
+          paidPrice: 59.9,
+        })
+        .expect(201);
+
+      const data = writtenData(prisma.book.create);
+      expect(data.pagesRead).toBe(620);
+      expect(data.rating).toBe(5);
+      expect(data.paidPrice).toEqual(new Prisma.Decimal("59.90"));
+    });
+
+    it("refuses a rating on a book that is not finished (S2.3)", async () => {
+      const res = await as("post", "/books")
+        .send({ title: "Dune", status: "READING", rating: 5 })
+        .expect(400);
+
+      // Field-keyed like every other failure, even though this one needed the
+      // status rather than the field alone.
+      expect(res.body.errors).toHaveProperty("rating");
+      expect(prisma.book.create).not.toHaveBeenCalled();
     });
 
     it("turns a cleared optional field into NULL rather than an empty string", async () => {
@@ -377,6 +407,130 @@ describe("books routes (Sprint 1)", () => {
       expect(data.author).toBeUndefined();
       expect(data.status).toBeUndefined();
       expect(data.purchasedOn).toBeUndefined();
+    });
+  });
+
+  describe("PATCH /books/:id (S2.1, S2.3, S2.4)", () => {
+    beforeEach(() => {
+      prisma.book.findFirst.mockResolvedValue(storedBook);
+      prisma.book.update.mockResolvedValue(storedBook);
+    });
+
+    it("records the page reached (S2.1)", async () => {
+      await as("patch", "/books/book-1").send({ pagesRead: 220 }).expect(200);
+
+      expect(writtenData(prisma.book.update).pagesRead).toBe(220);
+    });
+
+    it("accepts a page number past totalPages (§D4, §D7)", async () => {
+      // storedBook says 620 pages, on Open Library's authority — for a
+      // different edition than the one in the user's hands. The book they are
+      // holding wins.
+      await as("patch", "/books/book-1").send({ pagesRead: 700 }).expect(200);
+
+      expect(writtenData(prisma.book.update).pagesRead).toBe(700);
+    });
+
+    it("refuses a negative page count", async () => {
+      await as("patch", "/books/book-1").send({ pagesRead: -1 }).expect(400);
+    });
+
+    it("never stores a progress percentage (S2.2)", async () => {
+      // The percentage is derived at display time; a client that tries to send
+      // one is sending a field that does not exist.
+      await as("patch", "/books/book-1").send({ progress: 35 }).expect(400);
+
+      const res = await as("get", "/books/book-1").expect(200);
+      expect(res.body).not.toHaveProperty("progress");
+    });
+
+    it("rates a finished book (S2.3)", async () => {
+      prisma.book.findFirst.mockResolvedValue({ ...storedBook, status: "FINISHED" });
+
+      await as("patch", "/books/book-1").send({ rating: 4 }).expect(200);
+
+      expect(writtenData(prisma.book.update).rating).toBe(4);
+    });
+
+    it("rates a book in the same request that finishes it", async () => {
+      // The book is stored as READING; the status it ends up in is what counts.
+      await as("patch", "/books/book-1")
+        .send({ status: "FINISHED", rating: 4 })
+        .expect(200);
+
+      expect(writtenData(prisma.book.update)).toMatchObject({
+        status: "FINISHED",
+        rating: 4,
+      });
+    });
+
+    it("rates an abandoned book (§D11)", async () => {
+      await as("patch", "/books/book-1")
+        .send({ status: "ABANDONED", rating: 2 })
+        .expect(200);
+
+      expect(writtenData(prisma.book.update).rating).toBe(2);
+    });
+
+    it("refuses a rating while the book is still being read", async () => {
+      const res = await as("patch", "/books/book-1").send({ rating: 4 }).expect(400);
+
+      expect(res.body.errors).toHaveProperty("rating");
+      expect(prisma.book.update).not.toHaveBeenCalled();
+    });
+
+    it("keeps the rating when a finished book goes back to READING", async () => {
+      // A re-read is an ordinary transition (§D12); it must not silently throw
+      // away the verdict from the first read.
+      prisma.book.findFirst.mockResolvedValue({
+        ...storedBook,
+        status: "FINISHED",
+        rating: 5,
+      });
+
+      await as("patch", "/books/book-1").send({ status: "READING" }).expect(200);
+
+      expect(writtenData(prisma.book.update).rating).toBeUndefined();
+    });
+
+    it("lets a rating be cleared whatever the status", async () => {
+      await as("patch", "/books/book-1").send({ rating: null }).expect(200);
+
+      expect(writtenData(prisma.book.update).rating).toBeNull();
+    });
+
+    it("rejects half stars and out-of-range values", async () => {
+      prisma.book.findFirst.mockResolvedValue({ ...storedBook, status: "FINISHED" });
+
+      await as("patch", "/books/book-1").send({ rating: 3.5 }).expect(400);
+      await as("patch", "/books/book-1").send({ rating: 0 }).expect(400);
+      await as("patch", "/books/book-1").send({ rating: 6 }).expect(400);
+    });
+
+    it("stores what was paid as an exact decimal (S2.4)", async () => {
+      await as("patch", "/books/book-1").send({ paidPrice: 59.9 }).expect(200);
+
+      // Not `new Prisma.Decimal(59.9)`: the column is DECIMAL(10,2) and the
+      // Sprint 6 budget sums these in SQL.
+      expect(writtenData(prisma.book.update).paidPrice).toEqual(
+        new Prisma.Decimal("59.90"),
+      );
+    });
+
+    it("lets the paid price be cleared", async () => {
+      await as("patch", "/books/book-1").send({ paidPrice: null }).expect(200);
+
+      expect(writtenData(prisma.book.update).paidPrice).toBeNull();
+    });
+
+    it("rejects a price with a third decimal or a negative one", async () => {
+      await as("patch", "/books/book-1").send({ paidPrice: 12.345 }).expect(400);
+      await as("patch", "/books/book-1").send({ paidPrice: -5 }).expect(400);
+    });
+
+    it("still refuses the wishlist estimate, which is S3.2", async () => {
+      // §D6 keeps the two prices apart; only one of them is open for writing.
+      await as("patch", "/books/book-1").send({ estimatedPrice: 59.9 }).expect(400);
     });
   });
 

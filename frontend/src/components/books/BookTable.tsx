@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   STATUS_LABEL,
   type Book,
@@ -6,8 +6,16 @@ import {
   type ListBooksQuery,
 } from "@bookcsi/shared";
 import { useUpdateBook } from "../../api/books";
+import {
+  progressLabel,
+  progressRatio,
+  progressShortLabel,
+  showsProgressBar,
+} from "../../lib/progress";
 import { NEXT_STATUS, NEXT_STATUS_LABEL, STATUS_COLOR } from "../../lib/status";
 import { CoverThumb } from "./CoverThumb";
+import { StarRating } from "./StarRating";
+import { StartReadingDialog } from "./StartReadingDialog";
 
 /**
  * S1.2 — the table.
@@ -17,9 +25,11 @@ import { CoverThumb } from "./CoverThumb";
  * a sticky header. The low density is what keeps it a journal rather than a
  * spreadsheet.
  *
- * Price and rating are columns from day one and stay empty until Sprints 2–3
- * fill them, exactly as the story asks — a table that grows columns later
- * looks like a different table.
+ * Price and rating were columns from day one and stood empty on purpose, so
+ * that the table Sprint 2 fills in is the same table, not a wider one. What
+ * changed here is only what the cells contain: stars instead of a dash (S2.3),
+ * a paid price (S2.4), and progress in place of a bare page count for whatever
+ * is being read (S2.2).
  */
 export function BookTable({
   books,
@@ -111,7 +121,21 @@ function Row({
   onDelete: () => void;
 }) {
   const update = useUpdateBook();
+  const [asking, setAsking] = useState(false);
   const next = NEXT_STATUS[book.status];
+
+  // S2.2. Starting a book with no page count is the one transition worth a
+  // question; every other one stays a single click.
+  const advance = () => {
+    if (next === "READING" && book.totalPages === null) {
+      setAsking(true);
+      return;
+    }
+
+    if (next !== null) {
+      update.mutate({ id: book.id, input: { status: next } });
+    }
+  };
 
   return (
     <tr className="group h-14 border-b border-line last:border-b-0 transition-colors duration-150 hover:bg-surface-2">
@@ -132,13 +156,13 @@ function Row({
         <StatusPill status={book.status} />
       </Td>
       <Td align="right" className="tabular text-ink-2">
-        {book.totalPages ?? <Empty />}
+        <Pages book={book} />
       </Td>
       <Td align="right" className="tabular text-ink-2">
         {book.paidPrice === null ? <Empty /> : book.paidPrice.toFixed(2)}
       </Td>
-      <Td align="right" className="tabular text-ink-2">
-        {book.rating === null ? <Empty /> : `${book.rating}/5`}
+      <Td align="right">
+        <StarRating rating={book.rating} />
       </Td>
       <Td align="right" className="tabular whitespace-nowrap text-ink-3">
         {formatDate(book.createdAt)}
@@ -151,9 +175,7 @@ function Row({
             <button
               type="button"
               disabled={update.isPending}
-              onClick={() =>
-                update.mutate({ id: book.id, input: { status: next } })
-              }
+              onClick={advance}
               className="rounded-lg border border-accent-quiet px-2.5 py-1.5 text-xs font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-50"
             >
               {NEXT_STATUS_LABEL[book.status]}
@@ -161,9 +183,52 @@ function Row({
           )}
           <RowAction onClick={onEdit}>Editează</RowAction>
           <RowAction onClick={onDelete}>Șterge</RowAction>
+
+          {asking && (
+            <StartReadingDialog book={book} onClose={() => setAsking(false)} />
+          )}
         </div>
       </Td>
     </tr>
+  );
+}
+
+/**
+ * S2.2 in the table. A book being read shows where it has got to; everything
+ * else shows the plain page count it always showed, because progress on a book
+ * nobody has opened is not information.
+ *
+ * The bar appears only when there is a percentage to draw. Without a page count
+ * the cell falls back to "pag. 143" — §D4's frequent case, and the reason there
+ * is no half-width bar standing in for an unknown.
+ */
+function Pages({ book }: { book: Book }) {
+  if (!showsProgressBar(book)) {
+    return book.totalPages ?? <Empty />;
+  }
+
+  const ratio = progressRatio(book);
+
+  return (
+    <span className="inline-flex items-center justify-end gap-2 whitespace-nowrap">
+      {ratio !== null && (
+        <span
+          className="h-1 w-16 overflow-hidden rounded-full bg-surface-3"
+          role="progressbar"
+          aria-valuenow={Math.round(ratio * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          // The percentage is in the label anyway; this names what it measures.
+          aria-label={progressLabel(book)}
+        >
+          <span
+            className="block h-full rounded-full bg-accent"
+            style={{ width: `${ratio * 100}%` }}
+          />
+        </span>
+      )}
+      <span className="text-ink-2">{progressShortLabel(book)}</span>
+    </span>
   );
 }
 
