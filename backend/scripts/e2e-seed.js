@@ -98,9 +98,16 @@ async function main() {
       data: BOOKS.map((book) => ({ ...book, userId: user.id })),
     });
 
-    const token = jwt.sign({ sub: user.id }, env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    // `ver` is not optional: `JwtStrategy` compares it against the stored
+    // `tokenVersion` and refuses a token that omits it, which is what makes
+    // logout able to revoke. A seed that signed without it would produce a
+    // cookie the guard rejects, and every spec would fail on an unexplained
+    // 401.
+    const token = jwt.sign(
+      { sub: user.id, ver: user.tokenVersion },
+      env.JWT_SECRET,
+      { expiresIn: "1d" },
+    );
 
     process.stdout.write(JSON.stringify({ userId: user.id, token }));
   } finally {

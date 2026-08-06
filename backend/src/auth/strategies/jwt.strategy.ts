@@ -33,13 +33,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
 
   /**
    * The token is only a claim about *who*; the row is the authority on whether
-   * that user still exists. A deleted account must not keep working until its
-   * cookie happens to expire.
+   * that user still exists — and, since S0.2's logout, on whether the claim is
+   * still current. A deleted account must not keep working until its cookie
+   * happens to expire, and neither must one that has been logged out.
+   *
+   * The version check is what costs this lookup its keep. It was already
+   * hitting the database on every request to confirm the user existed; now the
+   * same row answers both questions.
    */
   async validate(payload: SessionPayload): Promise<AuthUser> {
     const user = await this.authService.findById(payload.sub);
 
-    if (!user) {
+    if (!user || payload.ver !== user.tokenVersion) {
       throw new UnauthorizedException();
     }
 

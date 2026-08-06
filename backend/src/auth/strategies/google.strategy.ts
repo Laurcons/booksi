@@ -43,8 +43,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     };
 
     try {
+      // The whole row, not `toAuthUser`: the callback has to sign a session
+      // from it, and that needs `tokenVersion`, which the client-facing shape
+      // deliberately does not carry. Nothing serialises `req.user` on this
+      // route — it only mints a cookie and redirects — so the wider object
+      // never leaves the process.
       const user = await this.authService.upsertFromGoogle(data);
-      done(null, AuthService.toAuthUser(user));
+      done(null, user);
     } catch (error) {
       done(error as Error);
     }

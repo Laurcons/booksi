@@ -10,7 +10,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { AuthGuard } from "@nestjs/passport";
 import {
   ApiCookieAuth,
   ApiFoundResponse,
@@ -22,13 +21,19 @@ import {
 } from "@nestjs/swagger";
 import { Throttle, minutes } from "@nestjs/throttler";
 import type { Request, Response } from "express";
+import type { User } from "@prisma/client";
 import type { AuthUser } from "@bookcsi/shared";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
 import type { Env } from "../config/env";
 import { ref } from "../docs/openapi";
 import { AuthService } from "./auth.service";
+import {
+  GoogleCallbackGuard,
+  GoogleLoginGuard,
+} from "./guards/google-oauth.guard";
 import { OAuthFailureFilter } from "./oauth-failure.filter";
+import { sessionCookieExtractor } from "./strategies/jwt.strategy";
 import { SESSION_COOKIE, sessionCookieOptions } from "./session";
 
 /**
@@ -71,7 +76,7 @@ export class AuthController {
   @Public()
   @Throttle(LOGIN_RATE)
   @UseFilters(OAuthFailureFilter)
-  @UseGuards(AuthGuard("google"))
+  @UseGuards(GoogleLoginGuard)
   @Get("google")
   googleLogin(): void {
     // intentionally empty
@@ -99,11 +104,13 @@ export class AuthController {
   @Public()
   @Throttle(LOGIN_RATE)
   @UseFilters(OAuthFailureFilter)
-  @UseGuards(AuthGuard("google"))
+  @UseGuards(GoogleCallbackGuard)
   @Get("google/callback")
   googleCallback(@Req() req: Request, @Res() res: Response): void {
-    const user = req.user as AuthUser;
-    const token = this.authService.signSessionToken({ id: user.id });
+    // `GoogleStrategy` puts the whole row here, not the client-facing shape:
+    // signing a session needs `tokenVersion`.
+    const user = req.user as User;
+    const token = this.authService.signSessionToken(user);
 
     res.cookie(SESSION_COOKIE, token, this.cookieOptions());
     res.redirect(this.config.get("WEB_ORIGIN", { infer: true }));
@@ -140,15 +147,28 @@ export class AuthController {
   @ApiOperation({
     summary: "Delogare",
     description:
-      "S0.2 — șterge cookie-ul de sesiune. Marcată `@Public()` intenționat: " +
-      "un tab rămas deschis cu o sesiune deja expirată trebuie totuși să se " +
-      "poată deloga, nu să primească 401 la ieșire.",
+      "S0.2 — șterge cookie-ul de sesiune **și invalidează token-ul**. " +
+      "Ștergerea cookie-ului singură ia doar copia din browser; token-ul e " +
+      "semnat și ar rămâne valid încă 30 de zile. Delogarea incrementează " +
+      "`tokenVersion`, deci se închid sesiunile de pe *toate* dispozitivele, " +
+      "nu doar de pe acesta.\n\n" +
+      "Marcată `@Public()` intenționat: un tab rămas deschis cu o sesiune " +
+      "deja expirată trebuie totuși să se poată deloga, nu să primească 401 " +
+      "la ieșire.",
   })
   @ApiNoContentResponse({ description: "Cookie-ul de sesiune a fost șters." })
   @Public()
   @Post("logout")
   @HttpCode(HttpStatus.NO_CONTENT)
-  logout(@Res({ passthrough: true }) res: Response): void {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    // Clearing the cookie only takes the browser's copy away; the token itself
+    // stays valid until it expires. Bumping the user's version is what
+    // actually ends the session — see `AuthService.revokeSessions`.
+    await this.authService.revokeSessions(sessionCookieExtractor(req));
+
     const { maxAge: _maxAge, ...options } = this.cookieOptions();
     res.clearCookie(SESSION_COOKIE, options);
   }

@@ -21,6 +21,7 @@ const storedUser = {
   name: "Cineva",
   avatarUrl: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
+  tokenVersion: 0,
 };
 
 /** A full row, as Prisma hands it over — blob-free, but with everything else. */
@@ -110,7 +111,7 @@ describe("books routes (Sprints 1–3)", () => {
   });
 
   const session = () =>
-    `${SESSION_COOKIE}=${authService.signSessionToken({ id: storedUser.id })}`;
+    `${SESSION_COOKIE}=${authService.signSessionToken(storedUser)}`;
 
   const as = (method: "get" | "post" | "patch" | "delete", url: string) =>
     request(app.getHttpServer())[method](url).set("Cookie", session());

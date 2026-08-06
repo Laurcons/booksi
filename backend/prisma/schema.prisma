@@ -19,6 +19,14 @@ model User {
   avatarUrl String?  @db.Text
   createdAt DateTime @default(now())
 
+  /// Bumped on logout, which is what makes logout mean anything: the session
+  /// is a signed JWT, so clearing the cookie only removes the browser's copy
+  /// and any token captured beforehand keeps working for its full 30 days.
+  /// Every token carries the version it was signed under and is refused once
+  /// this moves past it. One counter per user, so a logout ends every session
+  /// on every device — see S0.2.
+  tokenVersion Int @default(0)
+
   books    Book[]
   settings Settings?
 }

@@ -3,5 +3,15 @@
   "compilerOptions": {
     "types": ["node", "jest"]
   },
+  /**
+   * `exclude` is inherited, and the base excludes `src/**' + '/*.spec.ts` so that
+   * `nest build` does not emit the tests. Left alone, that exclusion applies
+   * here too — and since `isolatedModules` puts ts-jest in transpile-only mode,
+   * the specs would be type-checked by nothing at all. They went that way for
+   * some time: a change to `signSessionToken`'s signature left every call in
+   * them wrong, and the suite stayed green because the two sides of a
+   * comparison were both `undefined`.
+   */
+  "exclude": ["node_modules", "dist"],
   "include": ["src/**/*"]
 }

@@ -11,8 +11,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "npm run typecheck && jest",
+    "test:watch": "jest --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.spec.json"
   },
   "dependencies": {
     "@bookcsi/shared": "*",

@@ -18,6 +18,7 @@ const storedUser = {
   name: "Cineva",
   avatarUrl: "https://example.com/a.png",
   createdAt: new Date("2026-01-01T00:00:00Z"),
+  tokenVersion: 0,
 };
 
 /**
@@ -40,6 +41,7 @@ describe("auth routes", () => {
     user: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -87,10 +89,11 @@ describe("auth routes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.user.findUnique.mockResolvedValue(storedUser);
+    prisma.user.update.mockResolvedValue(storedUser);
   });
 
   const sessionCookie = () =>
-    `${SESSION_COOKIE}=${authService.signSessionToken({ id: storedUser.id })}`;
+    `${SESSION_COOKIE}=${authService.signSessionToken(storedUser)}`;
 
   describe("GET /auth/me", () => {
     it("answers 401 without a cookie, so the frontend can show login", () =>
@@ -158,6 +161,53 @@ describe("auth routes", () => {
 
     it("works without a session, so a stale tab can still log out", () =>
       request(app.getHttpServer()).post("/auth/logout").expect(204));
+
+    /**
+     * The point of S0.2's logout. Clearing the cookie takes away the browser's
+     * copy and nothing else — the token is signed and self-contained, so
+     * anything that captured it beforehand would keep working for the full 30
+     * days. Bumping the version is what actually ends the session.
+     */
+    it("revokes the token rather than only clearing the cookie", async () => {
+      await request(app.getHttpServer())
+        .post("/auth/logout")
+        .set("Cookie", sessionCookie())
+        .expect(204);
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: storedUser.id },
+        data: { tokenVersion: { increment: 1 } },
+      });
+    });
+
+    it("leaves a token issued before the logout unusable", async () => {
+      const captured = sessionCookie();
+
+      await request(app.getHttpServer())
+        .post("/auth/logout")
+        .set("Cookie", captured)
+        .expect(204);
+
+      // What the next request would read out of the database.
+      prisma.user.findUnique.mockResolvedValue({
+        ...storedUser,
+        tokenVersion: 1,
+      });
+
+      await request(app.getHttpServer())
+        .get("/auth/me")
+        .set("Cookie", captured)
+        .expect(401);
+    });
+
+    it("does not fall over when there is no valid token to revoke", async () => {
+      await request(app.getHttpServer())
+        .post("/auth/logout")
+        .set("Cookie", `${SESSION_COOKIE}=not.a.valid.jwt`)
+        .expect(204);
+
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
   });
 
   describe("GET /auth/google", () => {
@@ -170,6 +220,62 @@ describe("auth routes", () => {
         "https://accounts.google.com/o/oauth2/v2/auth",
       );
       expect(res.headers.location).toContain("client_id=test-client-id");
+    });
+
+    /**
+     * The anti-CSRF nonce. Without it the callback accepts any authorization
+     * code that reaches it, and a victim can be silently signed in as the
+     * attacker — see `oauth-state.ts`. The value Google is asked to hand back
+     * has to be the same one parked in the cookie, or there is nothing to
+     * compare on the way in.
+     */
+    it("mints a state nonce and sends the same value to Google", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/auth/google")
+        .expect(302);
+
+      const setCookie = res.headers["set-cookie"] as unknown as string[];
+      const state = /oauth_state=([^;]+)/.exec(setCookie[0])?.[1];
+
+      expect(state).toBeTruthy();
+      expect(setCookie[0]).toContain("HttpOnly");
+      expect(setCookie[0]).toContain("Path=/auth");
+      expect(res.headers.location).toContain(`state=${state}`);
+    });
+  });
+
+  describe("GET /auth/google/callback", () => {
+    /**
+     * A forged callback — the attacker's code, the victim's browser, no cookie
+     * from this site. It has to be refused *before* the code is exchanged, so
+     * no assertion here should require a network round trip to Google.
+     */
+    it("refuses a callback with no state cookie", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/auth/google/callback?code=stolen&state=guessed")
+        .expect(302);
+
+      expect(res.headers.location).toBe("http://localhost:5173/login?error=auth");
+    });
+
+    it("refuses a callback whose state does not match the cookie", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/auth/google/callback?code=stolen&state=guessed")
+        .set("Cookie", "oauth_state=the-real-one")
+        .expect(302);
+
+      expect(res.headers.location).toBe("http://localhost:5173/login?error=auth");
+    });
+
+    /** Single use: the cookie is cleared whether or not the check passed. */
+    it("clears the state cookie so it cannot be replayed", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/auth/google/callback?code=stolen&state=the-real-one")
+        .set("Cookie", "oauth_state=the-real-one")
+        .expect(302);
+
+      const setCookie = res.headers["set-cookie"] as unknown as string[];
+      expect(setCookie.some((c) => c.startsWith("oauth_state=;"))).toBe(true);
     });
   });
 });
