@@ -35,23 +35,22 @@ import {
  * for them; `"output"` is the honest label for what the API emits.
  */
 
-/** Errors are part of the contract, so they are modelled like everything else. */
-const validationErrorSchema = z.object({
-  statusCode: z.literal(400),
-  error: z.literal("Bad Request"),
-  message: z.literal("Validation failed"),
-  /**
-   * Keyed by field path, so a form can attach each message to its input. An
-   * issue with no path — an unrecognised key, say — is reported under `_`.
-   */
-  errors: z.record(z.string(), z.array(z.string())),
-});
-
+/**
+ * Errors are part of the contract, so they are modelled like everything else.
+ * One shape covers all of them: a validation failure is a 400 whose `message`
+ * lists one sentence per problem, each naming its field.
+ */
 const httpErrorSchema = z.object({
   // Bounded so the generated example is a plausible status rather than the
   // smallest integer a JSON number can hold.
   statusCode: z.number().int().min(400).max(599),
-  message: z.string().meta({ examples: ["Not Found"] }),
+  /**
+   * A string for most errors; an array when several rules failed at once,
+   * which is Nest's own convention and what validation failures produce.
+   */
+  message: z
+    .union([z.string(), z.array(z.string())])
+    .meta({ examples: ["Not Found", ["title: Titlul e obligatoriu"]] }),
 });
 
 export type SchemaName =
@@ -61,7 +60,6 @@ export type SchemaName =
   | "UpdateBookInput"
   | "IsbnDuplicate"
   | "WishlistSummary"
-  | "ValidationError"
   | "HttpError";
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
@@ -71,7 +69,6 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   UpdateBookInput: toOpenApiSchema(updateBookSchema, "input"),
   IsbnDuplicate: toOpenApiSchema(isbnDuplicateSchema, "output"),
   WishlistSummary: toOpenApiSchema(wishlistSummarySchema, "output"),
-  ValidationError: toOpenApiSchema(validationErrorSchema, "output"),
   HttpError: toOpenApiSchema(httpErrorSchema, "output"),
 };
 

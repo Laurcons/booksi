@@ -1,6 +1,5 @@
-import { Injectable, type PipeTransform } from "@nestjs/common";
+import { BadRequestException, Injectable, type PipeTransform } from "@nestjs/common";
 import type { z } from "zod";
-import { validationFailed } from "../validation-error";
 
 /**
  * Validates a body or a query against a schema from `shared/`, so that the API
@@ -11,8 +10,13 @@ import { validationFailed } from "../validation-error";
  * reflection-based channel to discover which schema belongs to which route;
  * naming the schema at the parameter is the same information, visible.
  *
- * Failures come back field-keyed rather than as a flat sentence, because
- * react-hook-form attaches them to inputs by path.
+ * Failures come back as Nest's ordinary error body, with `message` listing one
+ * sentence per problem. This used to be a field-keyed object, on the reasoning
+ * that react-hook-form attaches messages to inputs by path — but nothing on the
+ * client ever read it: `apiFetch` takes `message` and drops the rest, so every
+ * rejected save showed the literal words "Validation failed" and no indication
+ * of which field. Prefixing the path onto the sentence puts that information
+ * back where it is actually read.
  */
 @Injectable()
 export class ZodValidationPipe<Schema extends z.ZodType>
@@ -24,22 +28,22 @@ export class ZodValidationPipe<Schema extends z.ZodType>
     const parsed = this.schema.safeParse(value);
 
     if (!parsed.success) {
-      throw validationFailed(fieldErrors(parsed.error));
+      throw new BadRequestException(messages(parsed.error));
     }
 
     return parsed.data;
   }
 }
 
-function fieldErrors(error: z.ZodError): Record<string, string[]> {
-  const errors: Record<string, string[]> = {};
-
-  for (const issue of error.issues) {
-    // An issue on the object itself (an unknown key, say) has an empty path;
-    // it still has to be reported somewhere the client can find it.
-    const path = issue.path.length > 0 ? issue.path.join(".") : "_";
-    (errors[path] ??= []).push(issue.message);
-  }
-
-  return errors;
+/**
+ * One sentence per issue, each naming its field. An issue on the object itself
+ * — an unrecognised key, say — has an empty path and stands on its own, which
+ * is why the path is prefixed rather than assumed.
+ */
+function messages(error: z.ZodError): string[] {
+  return error.issues.map((issue) =>
+    issue.path.length > 0
+      ? `${issue.path.join(".")}: ${issue.message}`
+      : issue.message,
+  );
 }

@@ -48,9 +48,38 @@ export function isRatable(status: Status): boolean {
   return (RATABLE_STATUSES as readonly Status[]).includes(status);
 }
 
+/**
+ * Whether a string that already looks like `YYYY-MM-DD` names a day that
+ * exists.
+ *
+ * The pattern alone does not decide this, and the gap is not academic: JS
+ * silently rolls an out-of-range day forward, so `2026-02-31` parses to March
+ * 3rd and `2026-02-29` — a leap day in a year that has none — to March 1st.
+ * Stored without complaint, both come back as a date the user never typed.
+ * `2026-13-45` fares differently and no better: it yields an Invalid Date,
+ * which reaches the driver instead of the 400 the route documents.
+ *
+ * Round-tripping through the parser is what tells the three cases apart. A day
+ * that survives unchanged is a day that exists.
+ */
+function isRealCalendarDay(value: string): boolean {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
 export const calendarDateSchema = z
   .string()
   .regex(CALENDAR_DATE_PATTERN, "Expected a calendar date as YYYY-MM-DD")
+  // Guarded by the pattern test so a malformed string reports the shape
+  // problem alone, rather than that and "this day does not exist" together.
+  .refine(
+    (value) => !CALENDAR_DATE_PATTERN.test(value) || isRealCalendarDay(value),
+    "Ziua asta nu există în calendar",
+  )
   // Carried into the generated OpenAPI schema. Without it, tooling invents a
   // string that merely satisfies the pattern — "5843-15-01" and the like,
   // which teaches a reader the wrong shape.

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 // `Prisma` is a value here, not just a namespace: `Prisma.Decimal` constructs
 // the money columns on the way in.
 import { Prisma, type Book as BookRow } from "@prisma/client";
@@ -15,7 +15,6 @@ import {
   type WishlistSummary,
 } from "@bookcsi/shared";
 import { ownedOrNotFound } from "../common/ownership";
-import { validationFailed } from "../common/validation-error";
 import { PrismaService } from "../prisma/prisma.service";
 import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "./calendar-date";
 import { RATING_STATUS_MESSAGE, ratingAccepted } from "./rating";
@@ -233,13 +232,13 @@ export class BooksService {
   }
 
   /**
-   * S2.3. Reported as a field-keyed validation failure, identical in shape to
-   * everything `ZodValidationPipe` produces, because to the form it is the same
-   * kind of error — it just needs the stored row to decide.
+   * S2.3. A 400 shaped like anything `ZodValidationPipe` produces, because to
+   * the client it is the same kind of error — this rule just needs the stored
+   * row to decide, so it cannot live in the schema.
    */
   private checkRating(rating: number | null | undefined, status: Status): void {
     if (!ratingAccepted(rating, status)) {
-      throw validationFailed({ rating: [RATING_STATUS_MESSAGE] });
+      throw new BadRequestException([`rating: ${RATING_STATUS_MESSAGE}`]);
     }
   }
 

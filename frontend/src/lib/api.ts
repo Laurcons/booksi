@@ -52,7 +52,25 @@ export async function apiFetch<T>(
   return (await res.json()) as T;
 }
 
+/**
+ * Every call site puts this straight on screen, so what it returns has to be
+ * addressed to the user rather than to whoever reads the logs.
+ *
+ * A 4xx is the client's own request being refused, and the API answers those in
+ * sentences written for exactly this purpose — "title: Titlul e obligatoriu" is
+ * worth showing verbatim. A 5xx is not: its message is a stack frame, a driver
+ * error, a column name. Unhelpful to the reader at best, and at worst a
+ * description of the inside of the server on somebody's screen.
+ */
 async function readErrorMessage(res: Response): Promise<string> {
+  if (res.status >= 500) {
+    return "Ceva n-a mers bine pe server. Încearcă din nou peste puțin.";
+  }
+
+  if (res.status === 429) {
+    return "Prea multe cereri într-un timp scurt. Așteaptă un moment.";
+  }
+
   try {
     const body = (await res.json()) as { message?: string | string[] };
     const message = Array.isArray(body.message)

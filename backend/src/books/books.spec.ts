@@ -243,14 +243,33 @@ describe("books routes (Sprints 1–3)", () => {
       await as("post", "/books").send({ title: "   " }).expect(400);
     });
 
-    it("reports validation failures per field, for the form to attach", async () => {
+    it("names the offending field in every message", async () => {
       const res = await as("post", "/books")
         .send({ title: "", genre: "COOKBOOK" })
         .expect(400);
 
-      expect(Object.keys(res.body.errors)).toEqual(
-        expect.arrayContaining(["title", "genre"]),
+      // One sentence per problem, each prefixed with its path. A bare
+      // "Validation failed" is what this used to say, and it left the user
+      // with a rejected form and nothing to act on.
+      expect(res.body.message).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("title:"),
+          expect.stringContaining("genre:"),
+        ]),
       );
+    });
+
+    it("refuses a date that looks right but names no real day", async () => {
+      // The pattern alone accepts this; `new Date` would roll it forward to
+      // March 3rd and store a day the user never typed.
+      const res = await as("post", "/books")
+        .send({ title: "Dune", finishedOn: "2026-02-31" })
+        .expect(400);
+
+      expect(res.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining("finishedOn:")]),
+      );
+      expect(prisma.book.create).not.toHaveBeenCalled();
     });
 
     it("rejects fields that belong to later sprints", async () => {
@@ -285,9 +304,11 @@ describe("books routes (Sprints 1–3)", () => {
         .send({ title: "Dune", status: "READING", rating: 5 })
         .expect(400);
 
-      // Field-keyed like every other failure, even though this one needed the
+      // Shaped like every other failure, even though this one needed the
       // status rather than the field alone.
-      expect(res.body.errors).toHaveProperty("rating");
+      expect(res.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining("rating:")]),
+      );
       expect(prisma.book.create).not.toHaveBeenCalled();
     });
 
@@ -474,7 +495,9 @@ describe("books routes (Sprints 1–3)", () => {
     it("refuses a rating while the book is still being read", async () => {
       const res = await as("patch", "/books/book-1").send({ rating: 4 }).expect(400);
 
-      expect(res.body.errors).toHaveProperty("rating");
+      expect(res.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining("rating:")]),
+      );
       expect(prisma.book.update).not.toHaveBeenCalled();
     });
 

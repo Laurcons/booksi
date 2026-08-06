@@ -95,7 +95,7 @@ export class BooksController {
   @ApiOkResponse({ schema: arrayOf("Book") })
   @ApiBadRequestResponse({
     description: "Coloană de sortare din afara listei permise.",
-    schema: ref("ValidationError"),
+    schema: ref("HttpError"),
   })
   @Get()
   list(
@@ -192,7 +192,7 @@ export class BooksController {
       "Titlu lipsă, dată care nu e `YYYY-MM-DD`, rating pe o carte care nu e " +
       "terminată sau abandonată (S2.3), sau un câmp care aparține unui sprint " +
       "viitor (`favorite`, S5.2) — respins explicit, nu ignorat în tăcere.",
-    schema: ref("ValidationError"),
+    schema: ref("HttpError"),
   })
   @Post()
   create(
@@ -240,7 +240,7 @@ export class BooksController {
     description:
       "Aceleași reguli ca la creare, plus ratingul dat unei cărți care nu " +
       "ajunge în `FINISHED` sau `ABANDONED` (S2.3).",
-    schema: ref("ValidationError"),
+    schema: ref("HttpError"),
   })
   @ApiNotFoundResponse({
     description: "Inexistentă sau a altcuiva — vezi `GET /books/{id}`.",
