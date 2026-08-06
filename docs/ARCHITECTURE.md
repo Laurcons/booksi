@@ -85,6 +85,9 @@ model User {
   avatarUrl String?  @db.Text
   createdAt DateTime @default(now())
 
+  // Incrementat la delogare; token-ul rămas în urmă e refuzat — vezi D23.
+  tokenVersion Int @default(0)
+
   books    Book[]
   settings Settings?
 }

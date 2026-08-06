@@ -17,7 +17,9 @@
     "test": "npm run test --workspace backend && npm run build:shared && npm run test --workspace frontend",
     "test:api": "npm run test --workspace backend",
     "test:web": "npm run build:shared && npm run test --workspace frontend",
-    "test:e2e": "npm run build:shared && npm run test:e2e --workspace frontend"
+    "test:e2e": "npm run build:shared && npm run test:e2e --workspace frontend",
+    "typecheck": "npm run build:shared && npm run typecheck --workspace backend && npm run typecheck --workspace frontend",
+    "lint": "npm run lint --workspace frontend"
   },
   "allowScripts": {
     "prisma@6.19.3": true,

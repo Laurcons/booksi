@@ -228,6 +228,39 @@ mapele sunt singurul lucru care se dublează — restul codului nu se atinge.
 `frontend/` și `backend/` la rădăcină, nu `apps/web` și `apps/api`. Gestionar: npm workspaces,
 declarate în `package.json`-ul rădăcină.
 
+### D23 — Delogarea invalidează token-ul, prin `tokenVersion`
+Ștergerea cookie-ului ia doar copia din browser. Token-ul e semnat și se verifică singur, deci
+orice copie făcută înainte de delogare rămâne valabilă încă 30 de zile — delogarea „reușea"
+fără să încheie sesiunea.
+
+`User` are un contor `tokenVersion`. Fiecare token poartă valoarea de la semnare, iar
+`JwtStrategy` refuză token-ul a cărui valoare a rămas în urmă. Delogarea incrementează
+contorul. Verificarea nu costă nimic în plus: strategia interoga oricum rândul la fiecare
+cerere, ca să confirme că utilizatorul mai există.
+
+**Un singur contor per utilizator, deci delogarea închide sesiunile de pe toate
+dispozitivele.** Revocarea per-dispozitiv cere un tabel de sesiuni active, adică o funcționalitate
+în sine — S0.2 cere o delogare explicită care chiar funcționează, nu managementul sesiunilor.
+
+Ruta rămâne `@Public()`: un tab cu sesiunea deja expirată trebuie să se poată deloga. Citește
+cookie-ul „pe cât se poate" — un token care nu se verifică pur și simplu n-are ce revoca.
+
+### D24 — Parametrul `state` la OAuth, într-un cookie propriu
+Fără el, callback-ul acceptă orice cod de autorizare care ajunge la el. Un atacator parcurge
+fluxul Google cu contul lui, se oprește înainte de ultimul redirect și determină browserul
+victimei să viziteze callback-ul cu acel cod: victima e autentificată în tăcere **ca atacatorul**,
+iar cărțile pe care le adaugă ajung în biblioteca lui. Nimic nu pare stricat, și tocmai de-asta
+merită apărat.
+
+Se generează un nonce la pornirea fluxului, se trimite la Google ca să fie returnat identic, și
+se ține între timp într-un cookie `httpOnly` cu viață scurtă, limitat la `/auth`. Callback-ul
+compară cele două **înainte** să ruleze passport, deci un callback falsificat e refuzat fără ca
+codul lui să fie vreodată schimbat cu Google. Cookie-ul se șterge în ambele cazuri: nonce-ul e
+de unică folosință.
+
+Passport știe să facă asta singur, dar numai printr-un session store, iar §D20 rulează passport
+cu `session: false` — sesiunea *e* cookie-ul JWT. De aceea nonce-ul primește un cookie al lui.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial
