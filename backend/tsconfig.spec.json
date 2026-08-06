@@ -11,6 +11,14 @@
    * some time: a change to `signSessionToken`'s signature left every call in
    * them wrong, and the suite stayed green because the two sides of a
    * comparison were both `undefined`.
+   *
+   * The fix is the `typecheck` script running `tsc` over this config, not
+   * turning `isolatedModules` off so that ts-jest checks types itself. One tsc
+   * pass holds one program and covers every file in `src/`; ts-jest holds one
+   * program *per worker* and only ever sees what a spec imports. Worse
+   * coverage for fifteen times the memory — enough, on a 16-core WSL VM, to
+   * exhaust it and take the host down with it. `typecheck:watch` is the way to
+   * get the same feedback while editing.
    */
   "exclude": ["node_modules", "dist"],
   "include": ["src/**/*"]
