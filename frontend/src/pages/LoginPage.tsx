@@ -30,12 +30,12 @@ export function LoginPage() {
           Biblioteca ta, <span className="font-display italic">așa cum o ții minte</span>.
         </p>
 
-        {params.get("error") === "auth" && (
+        {loginError(params.get("error")) && (
           <p
             role="alert"
             className="mt-6 rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink-2"
           >
-            Autentificarea nu a reușit. Mai încearcă o dată.
+            {loginError(params.get("error"))}
           </p>
         )}
 
@@ -56,6 +56,26 @@ export function LoginPage() {
       </div>
     </main>
   );
+}
+
+/**
+ * The reasons `OAuthFailureFilter` can send somebody back here, in the two
+ * shapes it distinguishes. They need different words: "try again" is the right
+ * advice after a failed sign-in and precisely the wrong advice after being rate
+ * limited, where trying again is the thing that just got refused.
+ *
+ * An unrecognised code shows nothing at all rather than a generic apology —
+ * arriving at a login screen is not by itself evidence anything went wrong.
+ */
+function loginError(code: string | null): string | null {
+  switch (code) {
+    case "auth":
+      return "Autentificarea nu a reușit. Mai încearcă o dată.";
+    case "rate":
+      return "Prea multe încercări de autentificare. Așteaptă un minut și încearcă din nou.";
+    default:
+      return null;
+  }
 }
 
 /** White disc so the brand mark keeps its own colours on the brass button. */

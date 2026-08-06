@@ -20,6 +20,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
+import { Throttle, minutes } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import type { AuthUser } from "@bookcsi/shared";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
@@ -29,6 +30,20 @@ import { ref } from "../docs/openapi";
 import { AuthService } from "./auth.service";
 import { OAuthFailureFilter } from "./oauth-failure.filter";
 import { SESSION_COOKIE, sessionCookieOptions } from "./session";
+
+/**
+ * Tighter than the global ceiling, and on the two routes that deserve it: they
+ * are the only ones reachable with no session at all, and a login attempt is a
+ * human clicking a button — a dozen a minute is already generous, while the
+ * app-wide limit is sized for a page that fires several queries at once.
+ *
+ * Both windows are overridden. Leaving the burst window at its default would
+ * cap the minute and still let 25 requests through in the first second of it.
+ */
+const LOGIN_RATE = {
+  short: { ttl: 1000, limit: 5 },
+  long: { ttl: minutes(1), limit: 15 },
+};
 
 @ApiTags("auth")
 @Controller("auth")
@@ -54,6 +69,7 @@ export class AuthController {
   })
   @ApiFoundResponse({ description: "Redirect către ecranul de consimțământ Google." })
   @Public()
+  @Throttle(LOGIN_RATE)
   @UseFilters(OAuthFailureFilter)
   @UseGuards(AuthGuard("google"))
   @Get("google")
@@ -81,6 +97,7 @@ export class AuthController {
       "redirect către login — vezi `OAuthFailureFilter`.",
   })
   @Public()
+  @Throttle(LOGIN_RATE)
   @UseFilters(OAuthFailureFilter)
   @UseGuards(AuthGuard("google"))
   @Get("google/callback")
