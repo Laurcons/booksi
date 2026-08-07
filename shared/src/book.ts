@@ -107,7 +107,7 @@ const nullableText = (max: number) =>
  * a relative epsilon, so 59.9 passes despite its binary expansion, and the
  * constraint also survives into the generated OpenAPI schema.
  */
-const money = z
+export const moneySchema = z
   .number()
   .nonnegative("Suma nu poate fi negativă")
   .max(99_999_999.99, "Sumă prea mare")
@@ -236,7 +236,7 @@ export const createBookSchema = z.strictObject({
    * (§D6). Only this one feeds the Sprint 6 budget, which is the whole reason
    * the two are not one column.
    */
-  paidPrice: money.nullable().optional(),
+  paidPrice: moneySchema.nullable().optional(),
 
   /**
    * S3.2 — what the user guesses a wishlist book will cost. Open Library
@@ -251,7 +251,7 @@ export const createBookSchema = z.strictObject({
    * estimate is worth keeping after the purchase: it is what the paid price
    * gets compared against.
    */
-  estimatedPrice: money.nullable().optional(),
+  estimatedPrice: moneySchema.nullable().optional(),
 
   // Supplying a date explicitly overrides the automatic one (S1.5).
   purchasedOn: calendarDateSchema.nullable().optional(),

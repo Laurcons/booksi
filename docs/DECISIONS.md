@@ -48,7 +48,9 @@ Toate populate din profilul Google la prima autentificare (S0.1).
 
 ### Entitatea `Settings`
 Una per utilizator: `userId` (PK), `monthlyBudget` (decimal, nullable),
-`yearlyBudget` (decimal, nullable), `currency` (default RON).
+`yearlyBudget` (decimal, nullable), `currency` (default RON). Rândul se creează la prima
+salvare, nu la înregistrare. Doar `monthlyBudget` e expus în API: celelalte două coloane
+rămân nefolosite (§D31).
 
 ### Valori derivate — nu se stochează niciodată
 `progres_procent`, `total_cheltuit`, `total_pagini_citite`, `total_carti_citite`,
@@ -168,6 +170,9 @@ de pagini, culoarea din gen, ordonare după data cumpărării.
 ### D16 — Monedă
 O singură monedă globală, RON implicit, configurabilă în setări (story S6.4). Nu se face
 conversie valutară: schimbarea monedei schimbă simbolul, nu recalculează sumele existente.
+
+> **Nu se implementează.** S6.4 a fost scos din Sprint 6. Sumele rămân în lei, scris în
+> interfață; coloana `currency` rămâne în tabel cu implicitul ei. Vezi §D31.
 
 ### D17 — Lista controlată de genuri
 Genul e user-input dintr-o listă fixă, cu **o singură valoare per carte**. Multi-gen ar fi mai
@@ -389,6 +394,40 @@ adăuga un al doilea fel de a scrie o coloană, fără să câștige nimic.
 Marcajul se pune de pe cardul din galerie, unde DESIGN.md îl așază (colț dreapta-sus, peste
 copertă). Tabelul nu primește coloană de favorit: lista de coloane din S1.2 nu o conține.
 
+### D31 — Bugetul e lunar, iar S6.4 nu se implementează
+
+Story-ul S6.3 cerea „buget lunar **sau** anual", iar tabelul are de la prima migrare două
+coloane. Ce însemna „cât mai am disponibil" când sunt setate amândouă n-a spus nimeni
+niciodată — și nici care dintre ele semnalează depășirea.
+
+**Decizie: bugetul e lunar.** O singură limită, o singură fereastră, o singură cifră de
+citit. `yearlyBudget` rămâne coloană nefolosită, ca și `currency` după scoaterea S6.4:
+migrarea există deja, iar ziua în care un story le cere sunt acolo. Niciuna nu apare în DTO —
+un câmp expus pe care nu-l onorează nimeni e mai rău decât unul absent.
+
+**Ce înseamnă „disponibil".** `buget − cheltuit în luna curentă`, fără report (§D9): fiecare
+lună pornește de la bugetul întreg, iar economia lunii trecute nu se adună. Cifra **devine
+negativă** la depășire, fiindcă semnul e exact semnalul cerut de S6.3; oprită la zero, s-ar
+pierde singurul caz care merita afișat. Depășirea rămâne strict vizuală — nu blochează nimic.
+
+**Banii fără dată sunt bani la fel.** O carte cumpărată înainte să existe aplicația se
+introduce direct ca `Terminat`, iar `purchasedOn` se stampilează doar la tranziția în
+`Cumpărat` (S1.5) — deci pentru cine își introduce biblioteca existentă, „preț plătit, fără
+dată" e cazul obișnuit, nu excepția. Regula:
+
+- intră în totalul de la S6.1;
+- nu intră în nicio lună, deci nici în grafic (S6.2) și nici în cifra lunii (S6.3);
+- **ambele suprafețe raportează diferența**, cu număr de cărți *și* sumă. Numărul singur
+  lasă cititorul să scadă două totaluri în cap.
+
+**Graficul e dens.** Lunile fără cumpărături apar cu zero, de la prima cumpărare datată până
+la luna curentă. Fără ele, ianuarie ar sta lângă aprilie la lățime egală, iar axa ar înceta să
+mai fie timp. O bibliotecă fără nicio cumpărare datată dă o serie goală, nu o bară de zero.
+
+**Un singur răspuns pentru S6.1 și S6.3.** `GET /budget/summary` le duce pe amândouă, fiindcă
+sunt același ecran: două cereri separate pot pica de o parte și de alta a miezului nopții
+dintre 31 și 1, iar pagina ar afișa două luni diferite fără să știe.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial
@@ -406,6 +445,6 @@ copertă). Tabelul nu primește coloană de favorit: lista de coloane din S1.2 n
   era incomplet.
 - **S1.5 — datele de status** (D1).
 - **S1.6 — persistență** (D2).
-- **S6.4 — alegerea monedei** (D16).
+- **S6.4 — alegerea monedei** (D16). Adăugat, apoi scos înainte de implementare (§D31).
 - **O.1 — export/import**, în backlogul opțional.
 - **Statusul `Abandonat`** (D11).

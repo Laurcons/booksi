@@ -4,12 +4,14 @@ import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule, minutes, seconds } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { BooksModule } from "./books/books.module";
+import { BudgetModule } from "./budget/budget.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { AppExceptionFilter } from "./common/filters/app-exception.filter";
 import { validateEnv } from "./config/env";
 import { CoversModule } from "./covers/covers.module";
 import { OpenLibraryModule } from "./openlibrary/open-library.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { SettingsModule } from "./settings/settings.module";
 
 @Module({
   imports: [
@@ -47,6 +49,10 @@ import { PrismaModule } from "./prisma/prisma.module";
     // list rather than off another module's imports.
     CoversModule,
     OpenLibraryModule,
+    // Sprint 6. Read-only aggregations (§ „valori derivate”), plus the one
+    // setting they read: S6.3's monthly budget.
+    BudgetModule,
+    SettingsModule,
   ],
   providers: [
     // Order matters: these run in the sequence they are declared. Throttling

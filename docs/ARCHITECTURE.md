@@ -39,8 +39,9 @@ bookcsi/
 │       ├── books/            # Sprint 1-2
 │       ├── covers/           # Sprint 4
 │       ├── openlibrary/      # Sprint 4
+│       ├── budget/           # Sprint 6 (doar citiri, agregări)
 │       ├── settings/         # Sprint 6
-│       └── stats/            # Sprint 6-8 (doar citiri, agregări)
+│       └── stats/            # Sprint 7-8 (doar citiri, agregări)
 ├── frontend/                 # Vite + React
 │   ├── public/coperti/       # coperți descărcate o dată, nu la randare
 │   └── src/
@@ -333,15 +334,29 @@ nu se recalculează în JavaScript peste toată biblioteca.
 |---|---|
 | `GET /stats/overview` | S7.1 și dashboard-ul S8.1 — aceleași cifre, aceeași sursă |
 | `GET /stats/by-month` | S7.2, grupare pe `finishedOn` |
-| `GET /budget/summary` | S6.1, S6.3 |
-| `GET /budget/by-month` | S6.2, grupare pe `purchasedOn` |
+| `GET /budget/summary` | S6.1 (`total`) **și** S6.3 (`month`), într-un singur răspuns |
+| `GET /budget/by-month` | S6.2, grupare pe `purchasedOn`, serie densă |
+| `GET /settings` · `PUT /settings` | S6.3 — bugetul lunar, singurul câmp (§D31) |
 
 Regula de agregare a paginilor (S7.1) trăiește într-un singur loc, în modulul `stats`.
 Dashboard-ul consumă același endpoint ca pagina de statistici — altfel cele două ecrane ajung
 inevitabil să afișeze cifre diferite.
 
-Cărțile fără dată sunt excluse din grafice, dar numărate în răspuns, ca frontendul să poată
-afișa avertismentul cerut de S6.2 și S7.2.
+Cărțile fără dată sunt excluse din grafice, dar numărate în răspuns — cu număr **și** sumă
+(`undated`), ca frontendul să poată afișa avertismentul cerut de S6.2 și S7.2.
+
+Note despre bugetul din Sprint 6:
+
+- **Doar `paidPrice`.** Estimarea din wishlist (§D6) nu apare în nicio clauză de aici.
+- **`/budget/summary` duce amândouă story-urile**, fiindcă sunt același ecran: două cereri
+  separate pot cădea de o parte și de alta a miezului nopții dintre 31 și 1 și ar afișa luni
+  diferite (§D31).
+- **`remaining` devine negativ** la depășire; nu se oprește la zero, și nu se reportează (§D9).
+- **Gruparea pe lună e o interogare raw**, fiindcă `groupBy` din Prisma grupează după o
+  coloană, iar cheia aici e o *funcție* de coloană (`DATE_FORMAT`). `userId` intră ca parametru
+  legat prin template tag, niciodată concatenat în SQL (S0.3).
+- **Seria e densă**: lunile goale apar cu `0` de la prima cumpărare datată până la luna
+  curentă; o bibliotecă fără cumpărări datate dă o listă goală.
 
 ---
 

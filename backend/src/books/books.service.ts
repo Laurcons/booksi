@@ -15,6 +15,7 @@ import {
   type WishlistSummary,
 } from "@bookcsi/shared";
 import { AppError } from "../common/app-error";
+import { toDecimal, toNumber } from "../common/money";
 import { ownedOrNotFound } from "../common/ownership";
 import { coverUrl } from "../covers/cover-url";
 import { CoversService } from "../covers/covers.service";
@@ -354,26 +355,6 @@ function writeData(input: BookWriteInput): BookWriteData {
   };
 }
 
-/**
- * S2.4. `undefined` and `null` pass through unchanged — Prisma reads them as
- * "leave it" and "clear it", the same two meanings the request carries.
- *
- * A number becomes a `Decimal` through its two-decimal string rather than
- * directly: `new Prisma.Decimal(59.9)` starts from the double, and the column
- * is `DECIMAL(10,2)`. Going via `toFixed(2)` puts the rounding here, where the
- * value has already been validated to have no third decimal, instead of
- * leaving it to the driver.
- */
-function toDecimal(
-  value: number | null | undefined,
-): Prisma.Decimal | null | undefined {
-  if (value === undefined || value === null) {
-    return value;
-  }
-
-  return new Prisma.Decimal(value.toFixed(2));
-}
-
 function providedDate(
   input: BookWriteInput,
   key: "purchasedOn" | "startedOn" | "finishedOn",
@@ -420,6 +401,3 @@ function toBook(row: BookRowWithCover): Book {
   };
 }
 
-function toNumber(value: Prisma.Decimal | null): number | null {
-  return value === null ? null : value.toNumber();
-}

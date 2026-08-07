@@ -315,18 +315,20 @@ Ca utilizator, vreau un grafic cu banii cheltuiți pe cărți în timp, ca să-m
 - Cărțile fără `data_cumparare` sunt excluse din grafic, dar incluse în totalul de la S6.1,
   iar diferența e semnalată vizibil.
 
-### S6.3 — Buget lunar/anual
-Ca utilizator, vreau să-mi setez un buget lunar sau anual și să văd cât mai am disponibil.
+### S6.3 — Buget lunar
+Ca utilizator, vreau să-mi setez un buget lunar și să văd cât mai am disponibil.
 
+- Doar lunar — nu și anual (§D31). „Disponibil" = bugetul minus cheltuiala lunii curente.
 - Restul nu se reportează: fiecare lună pornește de la bugetul complet. Vezi §D9.
-- Depășirea e semnalată vizual, dar nu blochează nicio acțiune.
+- Depășirea e semnalată vizual (cifra devine negativă), dar nu blochează nicio acțiune.
+- Cărțile fără `data_cumparare` nu intră în cifra lunii, la fel ca în grafic, iar diferența
+  se arată și aici.
 
-### S6.4 — Îmi aleg moneda
+### S6.4 — Îmi aleg moneda — **nu se implementează**
 Ca utilizator, vreau să setez moneda în care se afișează toate sumele, ca cifrele să însemne ceva.
 
-- O singură monedă globală, aplicată peste tot (wishlist, preț plătit, buget, grafice).
-- Implicit RON. Nu se face conversie valutară — schimbarea monedei schimbă doar simbolul afișat,
-  nu recalculează valorile deja introduse.
+- Scos din sprint. Sumele rămân în lei, scris în interfață; nu există ecran de setare a
+  monedei și nici câmp în API. Coloana `currency` rămâne în tabel, cu implicitul ei (§D31).
 
 ---
 

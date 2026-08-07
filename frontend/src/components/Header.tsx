@@ -9,15 +9,16 @@ import { useCurrentUser, useLogout } from "../api/auth";
  * honest about what is coming.
  *
  * `to` is what makes an entry real. Sprint 3 gives the wishlist one (S3.1),
- * Sprint 5 the gallery (S5.1, §D28); the remaining three get theirs in the
- * sprints that build them — `/budget` in Sprint 6, `/stats` in Sprint 7.
+ * Sprint 5 the gallery (S5.1, §D28), Sprint 6 the budget (S6.1–S6.3); the
+ * remaining two get theirs in the sprints that build them — `/stats` in
+ * Sprint 7, the tracker in Sprint 8.
  */
 const NAV: { label: string; to?: string }[] = [
   { label: "Bibliotecă", to: "/" },
   { label: "Galerie", to: "/gallery" },
   { label: "Tracker" },
   { label: "Wishlist", to: "/wishlist" },
-  { label: "Buget" },
+  { label: "Buget", to: "/budget" },
   { label: "Statistici" },
 ];
 

@@ -5,12 +5,16 @@ import {
   authUserSchema,
   bookSchema,
   bookSuggestionSchema,
+  budgetByMonthSchema,
+  budgetSummarySchema,
   coverRefSchema,
   createBookSchema,
   httpErrorSchema,
   isbnDuplicateSchema,
   openLibraryResultSchema,
+  settingsSchema,
   updateBookSchema,
+  updateSettingsSchema,
   wishlistSummarySchema,
 } from "@bookcsi/shared";
 
@@ -56,6 +60,10 @@ export type SchemaName =
   | "OpenLibraryResult"
   | "BookSuggestion"
   | "CoverRef"
+  | "BudgetSummary"
+  | "BudgetByMonth"
+  | "Settings"
+  | "UpdateSettingsInput"
   | "HttpError";
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
@@ -68,6 +76,11 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   OpenLibraryResult: toOpenApiSchema(openLibraryResultSchema, "output"),
   BookSuggestion: toOpenApiSchema(bookSuggestionSchema, "output"),
   CoverRef: toOpenApiSchema(coverRefSchema, "output"),
+  // Sprint 6 — all derived on request, so the response side is the only side.
+  BudgetSummary: toOpenApiSchema(budgetSummarySchema, "output"),
+  BudgetByMonth: toOpenApiSchema(budgetByMonthSchema, "output"),
+  Settings: toOpenApiSchema(settingsSchema, "output"),
+  UpdateSettingsInput: toOpenApiSchema(updateSettingsSchema, "input"),
   HttpError: toOpenApiSchema(httpErrorSchema, "output"),
 };
 
