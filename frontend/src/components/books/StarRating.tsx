@@ -78,9 +78,9 @@ export function StarRatingInput({
           <label
             key={star}
             className={
-              "cursor-pointer text-xl leading-none transition-colors duration-150 " +
+              "text-xl leading-none transition-colors duration-150 " +
               (star <= selected ? FILLED : EMPTY) +
-              (disabled ? " cursor-not-allowed opacity-50" : " hover:text-accent-hover")
+              (disabled ? " opacity-50" : " hover:text-accent-hover")
             }
           >
             <input
@@ -106,8 +106,8 @@ export function StarRatingInput({
           any status, so this is never the thing that blocks a save. */}
       <label
         className={
-          "cursor-pointer text-xs text-ink-3 transition-colors duration-150 " +
-          (disabled ? "cursor-not-allowed opacity-50" : "hover:text-ink-2")
+          "text-xs text-ink-3 transition-colors duration-150 " +
+          (disabled ? "opacity-50" : "hover:text-ink-2")
         }
       >
         <input

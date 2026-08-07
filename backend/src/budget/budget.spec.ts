@@ -266,31 +266,51 @@ describe("budget routes (Sprint 6)", () => {
   });
 
   describe("GET /budget/by-month (S6.2)", () => {
+    /**
+     * `byMonth` runs two raw queries — the monthly totals and the ranked
+     * purchases behind the tooltip — so the stub answers by *which* statement
+     * it was handed rather than by call order, for the same reason `spending`
+     * above does: they are issued inside one `Promise.all`.
+     */
+    const raw = ({
+      totals = [] as unknown[],
+      top = [] as unknown[],
+    }: {
+      totals?: unknown[];
+      top?: unknown[];
+    }) => {
+      prisma.$queryRaw.mockImplementation((strings: string[]) =>
+        Promise.resolve(strings.join(" ").includes("ROW_NUMBER") ? top : totals),
+      );
+    };
+
     it("groups by month, oldest first, filling the empty ones", async () => {
-      prisma.$queryRaw.mockResolvedValue([
-        { month: "2026-01", total: decimal("120.00") },
-        { month: "2026-03", total: decimal("60.00") },
-      ]);
+      raw({
+        totals: [
+          { month: "2026-01", total: decimal("120.00"), books: 1n },
+          { month: "2026-03", total: decimal("60.00"), books: 1n },
+        ],
+      });
 
       const res = await as("get", "/budget/by-month").expect(200);
 
       expect(res.body.months.slice(0, 3)).toEqual([
-        { month: "2026-01", spent: 120 },
-        { month: "2026-02", spent: 0 },
-        { month: "2026-03", spent: 60 },
+        { month: "2026-01", spent: 120, top: [], others: 1 },
+        { month: "2026-02", spent: 0, top: [], others: 0 },
+        { month: "2026-03", spent: 60, top: [], others: 1 },
       ]);
     });
 
     it("reads a SUM that arrived as a string from the driver", async () => {
-      prisma.$queryRaw.mockResolvedValue([{ month: "2026-01", total: "120.00" }]);
+      raw({ totals: [{ month: "2026-01", total: "120.00", books: 1n }] });
 
       const res = await as("get", "/budget/by-month").expect(200);
 
-      expect(res.body.months[0]).toEqual({ month: "2026-01", spent: 120 });
+      expect(res.body.months[0].spent).toBe(120);
     });
 
     it("returns an empty series when nothing dated was ever bought", async () => {
-      prisma.$queryRaw.mockResolvedValue([]);
+      raw({});
 
       const res = await as("get", "/budget/by-month").expect(200);
 
@@ -300,9 +320,7 @@ describe("budget routes (Sprint 6)", () => {
 
     it("reports the books the chart cannot draw", async () => {
       spending({ undated: "75.00", undatedBooks: 2 });
-      prisma.$queryRaw.mockResolvedValue([
-        { month: "2026-01", total: decimal("120.00") },
-      ]);
+      raw({ totals: [{ month: "2026-01", total: decimal("120.00"), books: 1n }] });
 
       const res = await as("get", "/budget/by-month").expect(200);
 
@@ -318,6 +336,81 @@ describe("budget routes (Sprint 6)", () => {
       const sql = strings.join(" ");
       expect(sql).toContain("`paidPrice` IS NOT NULL");
       expect(sql).toContain("`purchasedOn` IS NOT NULL");
+    });
+
+    describe("the month's dearest purchases", () => {
+      it("attaches them to the month they belong to, dearest first", async () => {
+        raw({
+          totals: [{ month: "2026-01", total: decimal("210.00"), books: 3n }],
+          top: [
+            { month: "2026-01", title: "Gödel, Escher, Bach", paidPrice: decimal("120.00") },
+            { month: "2026-01", title: "Solaris", paidPrice: "60.00" },
+            { month: "2026-01", title: "Maitreyi", paidPrice: decimal("30.00") },
+          ],
+        });
+
+        const res = await as("get", "/budget/by-month").expect(200);
+
+        expect(res.body.months[0].top).toEqual([
+          { title: "Gödel, Escher, Bach", paidPrice: 120 },
+          { title: "Solaris", paidPrice: 60 },
+          { title: "Maitreyi", paidPrice: 30 },
+        ]);
+        expect(res.body.months[0].others).toBe(0);
+      });
+
+      it("counts the purchases it did not name", async () => {
+        raw({
+          totals: [{ month: "2026-01", total: decimal("400.00"), books: 7n }],
+          top: [
+            { month: "2026-01", title: "A", paidPrice: decimal("100.00") },
+            { month: "2026-01", title: "B", paidPrice: decimal("90.00") },
+            { month: "2026-01", title: "C", paidPrice: decimal("80.00") },
+          ],
+        });
+
+        const res = await as("get", "/budget/by-month").expect(200);
+
+        // Seven bought, three named — the tooltip has to be able to say so
+        // rather than implying three was all of it.
+        expect(res.body.months[0].others).toBe(4);
+      });
+
+      it("leaves an invented empty month with nothing to name", async () => {
+        raw({
+          totals: [
+            { month: "2026-01", total: decimal("120.00"), books: 1n },
+            { month: "2026-03", total: decimal("60.00"), books: 1n },
+          ],
+          top: [{ month: "2026-01", title: "Solaris", paidPrice: decimal("120.00") }],
+        });
+
+        const res = await as("get", "/budget/by-month").expect(200);
+
+        // February is a real zero `denseMonths` filled in; it held no purchases,
+        // so neither list nor count may claim otherwise.
+        expect(res.body.months[1]).toEqual({
+          month: "2026-02",
+          spent: 0,
+          top: [],
+          others: 0,
+        });
+      });
+
+      it("ranks inside the database, scoped to the session's user", async () => {
+        await as("get", "/budget/by-month").expect(200);
+
+        const ranked = prisma.$queryRaw.mock.calls.find(([strings]) =>
+          (strings as string[]).join(" ").includes("ROW_NUMBER"),
+        );
+
+        expect(ranked).toBeDefined();
+        const [strings, ...params] = ranked as [string[], ...unknown[]];
+        // S0.3 — the user id reaches MariaDB as a bound parameter, never as
+        // text spliced into the statement.
+        expect(strings.join(" ")).toContain("PARTITION BY");
+        expect(params).toContain(storedUser.id);
+      });
     });
   });
 });

@@ -25,8 +25,14 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: () => void }) {
   const src = apiImageSrc(book.coverUrl);
 
   return (
-    <article className="overflow-hidden rounded-xl border border-line bg-surface-2 transition duration-150 hover:-translate-y-0.5 hover:border-accent-quiet">
-      <div className="relative aspect-[2/3] overflow-hidden rounded-[2px]">
+    /* `h-full` is what makes a row of cards line up. The grid stretches the
+       `<li>` to the tallest card in its row, but the card inside it shrinks to
+       its own content unless told otherwise — so a two-line title, a missing
+       author or a progress bar left every card in a row ending at a different
+       height. Stretching here, and pushing the metadata row down with `mt-auto`
+       below, aligns the bottoms without forcing every row to the same height. */
+    <article className="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface-2 transition duration-150 hover:-translate-y-0.5 hover:border-accent-quiet">
+      <div className="relative aspect-[2/3] shrink-0 overflow-hidden rounded-[2px]">
         {src === null ? (
           <CoverPlaceholder title={book.title} author={book.author} variant="card" />
         ) : (
@@ -45,7 +51,7 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: () => void }) {
         <FavoriteStar book={book} />
       </div>
 
-      <div className="flex flex-col gap-1.5 p-3">
+      <div className="flex flex-1 flex-col gap-1.5 p-3">
         <button
           type="button"
           onClick={onOpen}
@@ -58,7 +64,7 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: () => void }) {
           <p className="line-clamp-1 text-sm text-ink-3">{book.author}</p>
         )}
 
-        <div className="mt-0.5 flex items-center justify-between gap-2">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-0.5">
           <StarRating rating={book.rating} />
           <StatusPill status={book.status} />
         </div>

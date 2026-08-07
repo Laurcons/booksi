@@ -15,8 +15,8 @@ const SUMMARY: BudgetSummary = {
 
 const BY_MONTH: BudgetByMonth = {
   months: [
-    { month: "2026-07", spent: 280.6 },
-    { month: "2026-08", spent: 59.9 },
+    { month: "2026-07", spent: 280.6, top: [], others: 0 },
+    { month: "2026-08", spent: 59.9, top: [], others: 0 },
   ],
   undated: { books: 0, total: 0 },
 };

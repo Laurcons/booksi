@@ -25,7 +25,7 @@ export function BudgetPage() {
     <div className="min-h-dvh">
       <Header />
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
+      <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <div>
           <h1 className="font-display text-4xl text-ink">
             Buget<span className="text-accent">.</span>
@@ -70,7 +70,16 @@ export function BudgetPage() {
           />
         )}
 
-        {byMonth.data && <SpendChart data={byMonth.data} />}
+        {/* The budget comes from the *summary* request, not the chart's — S6.3
+            owns the number and there is no reason for two endpoints to report
+            it. The chart simply draws nothing when that request has not landed
+            yet, or when no budget was ever set. */}
+        {byMonth.data && (
+          <SpendChart
+            data={byMonth.data}
+            budget={summary.data?.month.budget ?? null}
+          />
+        )}
       </main>
     </div>
   );

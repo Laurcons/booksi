@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import type { BudgetByMonth, BudgetSummary, UndatedSpend } from "@bookcsi/shared";
+import {
+  TOP_PURCHASES,
+  type BudgetByMonth,
+  type BudgetSummary,
+  type MonthPurchase,
+  type UndatedSpend,
+} from "@bookcsi/shared";
 import { toAmount, toNumber, round2 } from "../common/money";
 import { currentMonth, denseMonths, monthRange } from "../common/month";
 import { PrismaService } from "../prisma/prisma.service";
@@ -11,7 +17,19 @@ import { PrismaService } from "../prisma/prisma.service";
  * nothing (which cannot happen here, since the grouping only sees non-null
  * prices).
  */
-type MonthRow = { month: string; total: Prisma.Decimal | string | null };
+type MonthRow = {
+  month: string;
+  total: Prisma.Decimal | string | null;
+  /** `COUNT(*)` comes back as a BIGINT, which the driver hands over as `bigint`. */
+  books: bigint | number;
+};
+
+/** One of a month's dearest purchases, straight off the ranked query. */
+type TopRow = {
+  month: string;
+  title: string;
+  paidPrice: Prisma.Decimal | string | null;
+};
 
 /**
  * Sprint 6 — the budget, computed in SQL on every request and stored nowhere.
@@ -89,10 +107,11 @@ export class BudgetService {
    * thing a raw query must not get wrong (S0.3).
    */
   async byMonth(userId: string): Promise<BudgetByMonth> {
-    const [rows, undated] = await Promise.all([
+    const [rows, top, undated] = await Promise.all([
       this.prisma.$queryRaw<MonthRow[]>`
         SELECT DATE_FORMAT(\`purchasedOn\`, '%Y-%m') AS month,
-               SUM(\`paidPrice\`) AS total
+               SUM(\`paidPrice\`) AS total,
+               COUNT(*) AS books
         FROM \`Book\`
         WHERE \`userId\` = ${userId}
           AND \`paidPrice\` IS NOT NULL
@@ -100,6 +119,7 @@ export class BudgetService {
         GROUP BY month
         ORDER BY month
       `,
+      this.topPurchases(userId),
       this.undatedSpend(userId),
     ]);
 
@@ -108,14 +128,71 @@ export class BudgetService {
       value: toAmount(row.total),
     }));
 
+    // How many purchases each month actually held, so a month showing three can
+    // still say how many it is not showing.
+    const counts = new Map(rows.map((row) => [row.month, Number(row.books)]));
+
     // `value` is what `denseMonths` calls the number so that S7.2 can share it;
     // `spent` is what this endpoint's DTO calls it.
-    const months = denseMonths(spending, currentMonth()).map((entry) => ({
-      month: entry.month,
-      spent: entry.value,
-    }));
+    const months = denseMonths(spending, currentMonth()).map((entry) => {
+      const named = top.get(entry.month) ?? [];
+
+      return {
+        month: entry.month,
+        spent: entry.value,
+        top: named,
+        // The months `denseMonths` invented are absent from `counts` and hold
+        // nothing, so both of these come out empty — which is the truth about a
+        // month nobody bought a book in.
+        others: Math.max(0, (counts.get(entry.month) ?? 0) - named.length),
+      };
+    });
 
     return { months, undated };
+  }
+
+  /**
+   * The dearest few purchases of each month, for the chart's tooltip.
+   *
+   * One ranked query rather than a query per month: `ROW_NUMBER` partitions by
+   * month inside the database and returns at most `TOP_PURCHASES` rows per
+   * month, where the obvious alternative — read every priced book, group and
+   * sort in JavaScript — is the shape ARCHITECTURE.md rules out for these
+   * endpoints.
+   *
+   * The tie-break on title is not cosmetic. Two books at the same price would
+   * otherwise swap places between requests, and a tooltip that reshuffles when
+   * nothing changed reads as a bug.
+   */
+  private async topPurchases(userId: string): Promise<Map<string, MonthPurchase[]>> {
+    const rows = await this.prisma.$queryRaw<TopRow[]>`
+      SELECT month, title, paidPrice
+      FROM (
+        SELECT DATE_FORMAT(\`purchasedOn\`, '%Y-%m') AS month,
+               \`title\`,
+               \`paidPrice\`,
+               ROW_NUMBER() OVER (
+                 PARTITION BY DATE_FORMAT(\`purchasedOn\`, '%Y-%m')
+                 ORDER BY \`paidPrice\` DESC, \`title\` ASC
+               ) AS position
+        FROM \`Book\`
+        WHERE \`userId\` = ${userId}
+          AND \`paidPrice\` IS NOT NULL
+          AND \`purchasedOn\` IS NOT NULL
+      ) ranked
+      WHERE position <= ${TOP_PURCHASES}
+      ORDER BY month, position
+    `;
+
+    const byMonth = new Map<string, MonthPurchase[]>();
+
+    for (const row of rows) {
+      const list = byMonth.get(row.month) ?? [];
+      list.push({ title: row.title, paidPrice: toAmount(row.paidPrice) });
+      byMonth.set(row.month, list);
+    }
+
+    return byMonth;
   }
 
   /**

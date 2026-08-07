@@ -46,7 +46,7 @@ export function WishlistPage() {
     <div className="min-h-dvh">
       <Header onAddBook={() => setDialog({ kind: "add" })} />
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
+      <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <div>
           <h1 className="font-display text-4xl text-ink">
             Wishlist<span className="text-accent">.</span>

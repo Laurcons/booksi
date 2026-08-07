@@ -214,6 +214,22 @@ să navighezi nu mai e „la deschiderea aplicației".
 - Coloanele numerice (pagini, preț) aliniate la dreapta, cu `tabular-nums`.
 - Header lipicios la scroll, pe `--surface-2`.
 - Hover pe rând: `--surface-2`.
+- **Lățimi fixe, declarate într-un `<colgroup>` și măsurate** (§D34). Conținutul numeric, data
+  și butoanele sunt `nowrap`: o coloană prea îngustă nu rupe rândul, ci îl împinge peste coloana
+  vecină. Cine schimbă o celulă remăsoară coloana.
+- **Sub `xl` nu există tabel**, ci fișe cu același conținut (§D34). Nouă coloane pe un telefon
+  înseamnă scroll orizontal peste status și peste toate acțiunile.
+
+### Meniul pe ecran îngust
+
+Sub `md`, navigația e un **sertar** deschis din hamburger, nu o bară de taburi jos și nu o
+bandă de pastile care se derulează lateral. Șase destinații e cu una peste cât ține confortabil
+o bară de jos, iar o navigație pe care trebuie s-o tragi cu degetul e o navigație ale cărei
+ultime două intrări nu le găsește nimeni.
+
+Aceleași obligații ca la modal: Escape, fundal care închide, Tab prins înăuntru, pagina din
+spate blocată, focusul întors pe hamburger. Navigarea îl închide — inclusiv prin butonul de
+back al browserului, de-aia e legat de rută, nu de `onClick`-ul fiecărui link.
 
 ### Stelele
 
@@ -234,6 +250,19 @@ Se aplică metoda din skill-ul dataviz. Punctele care contează aici:
 - **Grilă recesivă:** linii `--border`, doar orizontale, fără contur de plot.
 - **Tooltip la hover, implicit**, pe fiecare grafic. Un grafic HTML e interactiv; unul static e o
   imagine.
+- **Tooltipul numește, nu doar însumează.** Pe buget, luna își arată cele mai scumpe trei
+  achiziții și numără restul („și încă 4 cărți"). Totalul spune cât a costat luna; titlurile
+  spun de ce. Un „și altele" fără cifră ascunde exact ce ar trebui să spună.
+- **Unitatea se scrie o dată**, ca legendă mică `--ink-muted` deasupra axei Y — nu lipită de
+  fiecare tick. Cinci repetări ale aceleiași constante nu sunt informație.
+- **Bugetul lunar e o linie de referință, nu o a doua serie:** punctată, în `--ink-3`, etichetată
+  „buget lunar". Poartă token de text tocmai fiindcă e o adnotare peste serie, deci regula „o
+  singură axă, o singură serie" rămâne întreagă. De reținut ce *nu* spune: `monthlyBudget` e o
+  setare curentă, nu un istoric, deci linia înseamnă „atât îți propui să dai", nu „atât aveai
+  bugetat în martie 2025".
+- Domeniul axei se rotunjește în sus la o valoare pe care ar fi ales-o un om. Fixarea plafonului
+  face loc liniei de buget când stă peste toate barele, dar îi ia lui Recharts alegerea
+  tick-urilor, iar axa ajunge să se termine în `556.24`.
 - **Textul poartă tokenuri de text**, niciodată culoarea seriei. Valorile și etichetele stau în
   `--ink-primary` / `--ink-secondary`.
 - Sub fiecare grafic, numărul de cărți excluse din cauza datelor lipsă (cerut de S6.2 și S7.2), în

@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { GENRE_LABEL, type Book } from "@bookcsi/shared";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
 import { progressLabel, progressRatio } from "../lib/progress";
@@ -81,17 +83,31 @@ function Spine({ book, onOpen }: { book: Book; onOpen: () => void }) {
   const height = spineHeight(book);
   const base = spineColor(book.genre);
 
+  // The card used to be a sibling `div` shown by `group-hover`, which cannot
+  // work here any more: it is portalled out of the shelf's scroll container
+  // (see `SpineCard`), so it is no longer a descendant for CSS to reach. The
+  // two ways in stay exactly what they were — the mouse and the keyboard.
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [showing, setShowing] = useState(false);
+
   return (
-    <div className="group relative">
+    <div
+      className="group relative"
+      onPointerEnter={() => setShowing(true)}
+      onPointerLeave={() => setShowing(false)}
+    >
       <button
+        ref={anchorRef}
         type="button"
         onClick={onOpen}
+        onFocus={() => setShowing(true)}
+        onBlur={() => setShowing(false)}
         // The spine carries no readable text at 14px, and none at all below
         // the threshold, so the accessible name is spelled out here.
         aria-label={
           book.author === null ? book.title : `${book.title}, ${book.author}`
         }
-        className="relative block cursor-pointer rounded-t-[3px] transition-transform duration-150 ease-out group-hover:-translate-y-2.5 focus-visible:-translate-y-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:focus-visible:translate-y-0"
+        className="relative block rounded-t-[3px] transition-transform duration-150 ease-out group-hover:-translate-y-2.5 focus-visible:-translate-y-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:focus-visible:translate-y-0"
         style={{
           width,
           height,
@@ -126,23 +142,98 @@ function Spine({ book, onOpen }: { book: Book; onOpen: () => void }) {
         )}
       </button>
 
-      <SpineCard book={book} />
+      {showing && <SpineCard book={book} anchor={anchorRef} />}
     </div>
   );
 }
 
+/** Card width, in px. Fixed, so the placement maths can run before layout. */
+const CARD_WIDTH = 256;
+
+/** Breathing room between the card and both the spine and the viewport edge. */
+const GAP = 12;
+const MARGIN = 8;
+
 /**
  * The detail card. A shelf you cannot read is decoration, not a library — so it
- * answers to keyboard focus (`group-focus-within`) as well as to the mouse.
- * Still `pointer-events-none`: it is a label for the spine, not a second target
- * to hit, and catching the pointer would make the spine beside it unclickable.
+ * answers to keyboard focus as well as to the mouse. Still `pointer-events-none`:
+ * it is a label for the spine, not a second target to hit, and catching the
+ * pointer would make the spine beside it unclickable.
+ *
+ * **Portalled, and that is the fix rather than a flourish.** The card sat above
+ * the spines inside a wrapper carrying `overflow-x-auto`, and CSS resolves the
+ * *other* axis to `auto` the moment one axis stops being `visible` — so a
+ * container that only ever meant to scroll sideways was clipping the card
+ * vertically, leaving one line of it visible over the top edge of the shelf.
+ * Padding the wrapper would not hold: the card's height moves with the progress
+ * bar and the rating, and it would still be cut off at the left and right ends
+ * of the plank.
+ *
+ * So it is placed against the viewport instead, from the spine's own rect:
+ * above the book when there is room, flipped below when there is not, and
+ * nudged sideways to stay on screen at either end of the shelf.
  */
-function SpineCard({ book }: { book: Book }) {
+function SpineCard({
+  book,
+  anchor,
+}: {
+  book: Book;
+  anchor: React.RefObject<HTMLButtonElement | null>;
+}) {
   const ratio = progressRatio(book);
   const src = apiImageSrc(book.coverUrl);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState<{ top: number; left: number } | null>(null);
 
-  return (
-    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-4 w-64 -translate-x-1/2 rounded-xl border border-line bg-surface-3 p-3 opacity-0 shadow-2xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+  useLayoutEffect(() => {
+    const place = () => {
+      const spine = anchor.current?.getBoundingClientRect();
+      const card = cardRef.current?.getBoundingClientRect();
+
+      if (!spine || !card) {
+        return;
+      }
+
+      // Centred on the spine, then pulled back inside the viewport — the first
+      // and last books on a plank would otherwise hang off the edge.
+      const left = clamp(
+        spine.left + spine.width / 2 - CARD_WIDTH / 2,
+        MARGIN,
+        window.innerWidth - CARD_WIDTH - MARGIN,
+      );
+
+      const above = spine.top - card.height - GAP;
+      const top = above >= MARGIN ? above : spine.bottom + GAP;
+
+      setAt({ top, left });
+    };
+
+    place();
+
+    // The shelf scrolls sideways under the pointer, and the page scrolls under
+    // a focused spine. Both move the anchor out from under a `fixed` card.
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [anchor]);
+
+  return createPortal(
+    <div
+      ref={cardRef}
+      style={{
+        top: at?.top ?? 0,
+        left: at?.left ?? 0,
+        width: CARD_WIDTH,
+        // Hidden for the one frame between mounting and being measured, so the
+        // card never flashes in the top-left corner on its way to the spine.
+        visibility: at === null ? "hidden" : "visible",
+      }}
+      className="pointer-events-none fixed z-40 rounded-xl border border-line bg-surface-3 p-3 shadow-2xl"
+    >
       <div className="flex gap-3">
         {src !== null ? (
           <img
@@ -192,8 +283,15 @@ function SpineCard({ book }: { book: Book }) {
           </p>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  // `max` can fall below `min` on a viewport narrower than the card itself,
+  // and then the left edge is the one to keep.
+  return Math.max(min, Math.min(value, max));
 }
 
 function Stars({ value }: { value: number }) {

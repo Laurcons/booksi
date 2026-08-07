@@ -8,6 +8,7 @@ import {
   showsProgressBar,
 } from "../../lib/progress";
 import { NEXT_STATUS, NEXT_STATUS_LABEL } from "../../lib/status";
+import { useMediaQuery } from "../../lib/use-media-query";
 import { StatusPill } from "../StatusPill";
 import { CoverThumb } from "./CoverThumb";
 import { StarRating } from "./StarRating";
@@ -31,6 +32,23 @@ import { StartReadingDialog } from "./StartReadingDialog";
  * The one difference is which price the money column holds: a wishlist book has
  * no paid price by definition, so showing that column there would be a row of
  * dashes. Same table, one prop — not a wider table with both prices in it.
+ *
+ * **Nine columns need real width, so below `xl` this is not a table at all.**
+ * It used to be one at every size, inside `max-lg:overflow-x-auto`, and that
+ * cost two separate bugs. On a phone you could see three and a half columns and
+ * had to scroll sideways — past the status, past every action — to reach the
+ * rest, while the sticky header measured its offset against the scroll
+ * container instead of the viewport and parked itself on top of the first row.
+ * On a desktop the table's *min-content* width (1151px, forced by nine
+ * `whitespace-nowrap` headers) exceeded the `w-full` it was given, so it spilled
+ * out of the card framing it: the row rules ran 48px past the card's own right
+ * border, which is the "crooked table" you could see.
+ *
+ * Both go away together here. `table-fixed` with the column widths declared
+ * once in a `<colgroup>` means the table is exactly as wide as its frame, never
+ * wider, and the title column absorbs whatever slack is left. Narrower than
+ * `xl`, `BookCards` below renders the same rows as cards — which removes the
+ * scroll container, and with it the sticky-header bug, rather than patching it.
  */
 export function BookTable({
   books,
@@ -48,6 +66,11 @@ export function BookTable({
   /** Which of §D6's two prices this view is about. */
   price?: PriceColumn;
 }) {
+  // Phrased as the *narrow* condition on purpose: `useMediaQuery` answers
+  // `false` where there is no `matchMedia` to ask, and in jsdom that has to
+  // come out as the full table rather than as the phone layout.
+  const narrow = useMediaQuery("(max-width: 1279.98px)");
+
   const sortBy = (sort: BookSort) => {
     // Same column flips direction; a new column starts in the direction that
     // is actually useful for it — A→Z for names, newest first for dates.
@@ -63,20 +86,52 @@ export function BookTable({
     onQueryChange({ sort, order });
   };
 
+  if (narrow) {
+    return (
+      <BookCards
+        books={books}
+        query={query}
+        onQueryChange={onQueryChange}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        price={price}
+      />
+    );
+  }
+
   return (
-    // The horizontal scroll is deliberately conditional. `overflow-x: auto`
-    // makes this div the nearest scroll container, and a sticky header then
-    // measures `top` against *it* rather than the viewport — which pushes the
-    // header 64px down over the first row. Above `lg` the table fits, so no
-    // scroll container is created and the header sticks under the app bar as
-    // docs/DESIGN.md asks; below it, horizontal scrolling matters more.
-    <div className="rounded-xl border border-line max-lg:overflow-x-auto">
-      <table className="w-full min-w-[860px] border-collapse text-sm">
+    // No `overflow` of any kind: the table below is `table-fixed`, so it cannot
+    // be wider than this box, and a scroll container here is what used to break
+    // the sticky header by becoming the thing its `top` was measured against.
+    <div className="rounded-xl border border-line">
+      <table className="w-full table-fixed border-collapse text-sm">
+        {/* The column widths, declared once. Everything but the title is fixed;
+            the title takes the remainder, which is the column that actually
+            benefits from a wide screen.
+
+            These are measured, not guessed — each one is what its widest real
+            cell needs, padding included, with a little air on top. Under-size
+            any of them and the content does not wrap, it slides under the
+            column beside it: the numbers, the date and the buttons are all
+            `whitespace-nowrap` on purpose. */}
+        <colgroup>
+          <col className="w-16" />
+          <col />
+          <col className="w-[136px]" />
+          <col className="w-[124px]" />
+          {/* The widest cell in the table: a progress bar, a gap and "494/569". */}
+          <col className="w-[168px]" />
+          <col className="w-[92px]" />
+          <col className="w-[108px]" />
+          <col className="w-[132px]" />
+          <col className="w-[244px]" />
+        </colgroup>
+
         <thead>
           {/* `group` so the idle sort arrows surface on hover of the header
               row rather than sitting there permanently. */}
           <tr className="group border-b border-line text-left">
-            <Th className="w-14">
+            <Th>
               <span className="sr-only">Copertă</span>
             </Th>
             <Th sort="title" query={query} onSort={sortBy}>
@@ -116,17 +171,15 @@ export function BookTable({
   );
 }
 
-function Row({
-  book,
-  price,
-  onEdit,
-  onDelete,
-}: {
-  book: Book;
-  price: PriceColumn;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
+/**
+ * S1.4 — proposing the one next natural step, and taking it.
+ *
+ * A hook rather than a function because the wide row and the narrow card offer
+ * the same button and must not drift: the same three cases, the same dialog,
+ * the same pending flag. Every transition other than this one lives in the edit
+ * form, where §D12 belongs.
+ */
+function useAdvance(book: Book) {
   const update = useUpdateBook();
   const purchase = usePurchaseBook();
   const [asking, setAsking] = useState(false);
@@ -155,7 +208,27 @@ function Row({
     }
   };
 
-  const advancing = update.isPending || purchase.isPending;
+  return {
+    next,
+    advance,
+    advancing: update.isPending || purchase.isPending,
+    asking,
+    stopAsking: () => setAsking(false),
+  };
+}
+
+function Row({
+  book,
+  price,
+  onEdit,
+  onDelete,
+}: {
+  book: Book;
+  price: PriceColumn;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { next, advance, advancing, asking, stopAsking } = useAdvance(book);
 
   return (
     <tr className="group h-14 border-b border-line last:border-b-0 transition-colors duration-150 hover:bg-surface-2">
@@ -204,12 +277,205 @@ function Row({
           <RowAction onClick={onEdit}>Editează</RowAction>
           <RowAction onClick={onDelete}>Șterge</RowAction>
 
-          {asking && (
-            <StartReadingDialog book={book} onClose={() => setAsking(false)} />
-          )}
+          {asking && <StartReadingDialog book={book} onClose={stopAsking} />}
         </div>
       </Td>
     </tr>
+  );
+}
+
+/**
+ * The same library, on a screen too narrow for nine columns.
+ *
+ * Not a stripped-down table — every field the wide layout shows is here, just
+ * stacked instead of ranged across. What changes is the actions: on a phone
+ * there is no hover, so "Editează" and "Șterge" cannot hide until the pointer
+ * arrives the way they do in a row. They are simply visible.
+ *
+ * The sort control is the one thing that has nowhere to live without a header
+ * row, so it gets its own strip. Dropping it instead would have quietly made
+ * S1.2's "sortable" a desktop-only feature.
+ */
+function BookCards({
+  books,
+  query,
+  onQueryChange,
+  onEdit,
+  onDelete,
+  price,
+}: {
+  books: Book[];
+  query: ListBooksQuery;
+  onQueryChange: (query: ListBooksQuery) => void;
+  onEdit: (book: Book) => void;
+  onDelete: (book: Book) => void;
+  price: PriceColumn;
+}) {
+  return (
+    <div className="space-y-3">
+      <SortStrip query={query} onQueryChange={onQueryChange} />
+
+      <ul className="space-y-3">
+        {books.map((book) => (
+          <li key={book.id}>
+            <BookRowCard
+              book={book}
+              price={price}
+              onEdit={() => onEdit(book)}
+              onDelete={() => onDelete(book)}
+            />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function SortStrip({
+  query,
+  onQueryChange,
+}: {
+  query: ListBooksQuery;
+  onQueryChange: (query: ListBooksQuery) => void;
+}) {
+  const sort = query.sort ?? "createdAt";
+  const order = query.order ?? "desc";
+
+  return (
+    <div className="flex items-center gap-2">
+      <label className="sr-only" htmlFor="book-sort">
+        Sortează după
+      </label>
+      <select
+        id="book-sort"
+        value={sort}
+        onChange={(event) =>
+          onQueryChange({ sort: event.target.value as BookSort, order })
+        }
+        className="flex-1 rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 focus:border-accent"
+      >
+        {SORT_OPTIONS.map((option) => (
+          <option key={option.sort} value={option.sort}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+
+      <button
+        type="button"
+        onClick={() => onQueryChange({ sort, order: order === "asc" ? "desc" : "asc" })}
+        aria-label={order === "asc" ? "Crescător" : "Descrescător"}
+        title={order === "asc" ? "Crescător" : "Descrescător"}
+        className="grid size-9 shrink-0 place-items-center rounded-lg border border-line text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
+      >
+        <span aria-hidden>{order === "asc" ? "↑" : "↓"}</span>
+      </button>
+    </div>
+  );
+}
+
+const SORT_OPTIONS: { sort: BookSort; label: string }[] = [
+  { sort: "createdAt", label: "Adăugată" },
+  { sort: "title", label: "Titlu" },
+  { sort: "author", label: "Autor" },
+  { sort: "status", label: "Status" },
+];
+
+function BookRowCard({
+  book,
+  price,
+  onEdit,
+  onDelete,
+}: {
+  book: Book;
+  price: PriceColumn;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { next, advance, advancing, asking, stopAsking } = useAdvance(book);
+  const money = price === "paid" ? book.paidPrice : book.estimatedPrice;
+
+  return (
+    <article className="rounded-xl border border-line bg-surface-1 p-3">
+      <div className="flex gap-3">
+        <CoverThumb title={book.title} coverUrl={book.coverUrl} />
+
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="line-clamp-2 text-left font-medium text-ink transition-colors duration-150 hover:text-accent"
+          >
+            {book.title}
+          </button>
+
+          <p className="mt-0.5 line-clamp-1 text-sm text-ink-2">
+            {book.author ?? <Empty />}
+          </p>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <StatusPill status={book.status} />
+            <StarRating rating={book.rating} />
+          </div>
+        </div>
+      </div>
+
+      {/* The numbers, on one quiet line. Same three the table ranges across
+          three columns — pages or progress, money, and when it arrived. */}
+      <div className="tabular mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
+        <span>
+          <Pages book={book} />
+        </span>
+        <Dot />
+        <span>
+          {money === null ? <Empty /> : `${money.toFixed(2)} lei`}
+        </span>
+        <Dot />
+        <span className="whitespace-nowrap">{formatDate(book.createdAt)}</span>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2 border-t border-line pt-3">
+        {next && (
+          <button
+            type="button"
+            disabled={advancing}
+            onClick={advance}
+            className="rounded-lg border border-accent-quiet px-2.5 py-1.5 text-xs font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-50"
+          >
+            {NEXT_STATUS_LABEL[book.status]}
+          </button>
+        )}
+
+        {/* Pushed to the right so the primary action keeps the left edge, where
+            a thumb starts reading the row. */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg px-2 py-1.5 text-xs text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
+          >
+            Editează
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded-lg px-2 py-1.5 text-xs text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
+          >
+            Șterge
+          </button>
+        </div>
+      </div>
+
+      {asking && <StartReadingDialog book={book} onClose={stopAsking} />}
+    </article>
+  );
+}
+
+function Dot() {
+  return (
+    <span aria-hidden className="text-line">
+      ·
+    </span>
   );
 }
 

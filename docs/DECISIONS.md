@@ -487,6 +487,61 @@ Intervalul specului câștigă și pe fond, nu doar fiindcă e specul: e singuru
 
 ---
 
+### D34 — Tabelul de cărți: coloane fixe, iar sub `xl` nu mai e tabel
+
+Tabelul din S1.2 avea `w-full min-w-[860px]` într-un container cu `max-lg:overflow-x-auto`, și
+asta producea două defecte diferite, în două locuri diferite.
+
+Pe desktop, lățimea *min-content* a tabelului — 1151px, impusă de nouă anteturi `nowrap` și de
+celula de acțiuni — depășea `w-full`, deci tabelul ieșea din cardul care îl încadra: liniile de
+rând treceau cu ~48px dincolo de bordura din dreapta a cardului. Trei muchii diferite pe același
+tabel. Pe telefon se vedeau trei coloane și jumătate, statusul și toate acțiunile cereau scroll
+orizontal, iar antetul `sticky top-16` își măsura offsetul față de containerul de scroll în loc
+de viewport și se așeza peste primul rând.
+
+**Decizie:** `table-fixed`, cu lățimile declarate o dată într-un `<colgroup>` și **măsurate**,
+nu estimate — fiecare coloană cât îi cere cea mai lată celulă reală, cu titlul absorbind restul.
+Tabelul nu mai poate fi mai lat decât cadrul lui, deci containerul de scroll dispare cu totul, și
+odată cu el defectul antetului lipicios.
+
+Sub `xl`, aceleași rânduri se desenează ca **fișe**, nu ca un tabel îngustat. Nouă coloane n-au
+ce căuta pe 390px, iar alternativa — scroll orizontal — ascunde exact ce contează. Cele două
+variante se exclud în JavaScript (`useMediaQuery`), nu prin `display: none`: ambele randate ar
+pune fiecare carte de două ori în arborele de accesibilitate. Interogarea e scrisă ca *narrow*
+tocmai pentru ca „nu se potrivește" — cazul jsdom, unde nu există `matchMedia` — să însemne
+tabelul complet.
+
+Sortarea primește o bandă proprie deasupra fișelor. Fără antet n-are unde locui, iar S1.2 nu
+spune „sortabil pe desktop".
+
+### D35 — Șasiul trece la `max-w-7xl`
+
+Consecința directă a lui §D34: la `max-w-6xl` (1152px minus gutter, deci ~1104px utilizabili),
+nouă coloane pur și simplu **nu încap** — suma lățimilor măsurate era 1181px. Alternativele erau
+să ciuntim patru celule deodată (bara de progres, data, ratingul, butoanele de acțiune), fiecare
+cu propria pierdere de lizibilitate.
+
+**Decizie:** șasiul aplicației trece la `max-w-7xl`, peste tot — header inclusiv, altfel bara de
+sus și conținutul nu se mai aliniază. Tabelul primește 1230px și încape fără să schimbăm nimic
+din ce e *în* celule. „Densitate mică" din DESIGN.md rămâne intactă: marginile și spațierea nu se
+schimbă, doar plafonul.
+
+### D36 — Cursorul e o regulă, nu o clasă pusă din când în când
+
+Browserele desenează `<button>` cu săgeata obișnuită, iar preflight-ul Tailwind nu intervine. În
+practică două elemente din toată aplicația își asumau `cursor-pointer` — cotorul din raft și
+stelele de rating — și încă vreo patruzeci de butoane identice, nu.
+
+**Decizie:** o singură regulă în `@layer base`, iar clasele per-componentă se șterg. Citirea e:
+**pointer** = un clic aici face ceva · **not-allowed** = e un control, dar e oprit · **text** =
+poți selecta sau scrie (implicitul browserului, neatins) · **default** = e o suprafață.
+
+`select` intră la pointer: un select închis e un lucru pe care îl apeși ca să se deschidă,
+indiferent ce spune cursorul lui nativ. `span[aria-disabled]` din nav rămâne la `default` —
+înseamnă „încă n-are unde duce", iar „interzis" e o afirmație mai tare decât atât.
+
+---
+
 ## Ce a fost eliminat din backlogul inițial
 
 - **Cele două story-uri „ca developer"** (cache pe Covers API, fallback Google Books). Primul

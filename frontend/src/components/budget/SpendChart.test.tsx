@@ -1,9 +1,19 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { BudgetByMonth } from "@bookcsi/shared";
-import { SpendChart } from "./SpendChart";
+import type { BudgetByMonth, BudgetMonth, MonthPurchase } from "@bookcsi/shared";
+import { SpendChart, SpendTooltip } from "./SpendChart";
 
 const NONE = { books: 0, total: 0 };
+
+/** A month with nothing named in it, which is most of what these tests need. */
+function month(
+  month: string,
+  spent: number,
+  top: MonthPurchase[] = [],
+  others = 0,
+): BudgetMonth {
+  return { month, spent, top, others };
+}
 
 /**
  * The bars themselves are an SVG measured against a layout jsdom does not have,
@@ -17,9 +27,9 @@ describe("SpendChart (S6.2)", () => {
   it("lists every month it draws, oldest first", () => {
     const data: BudgetByMonth = {
       months: [
-        { month: "2026-01", spent: 120 },
-        { month: "2026-02", spent: 0 },
-        { month: "2026-03", spent: 60 },
+        month("2026-01", 120),
+        month("2026-02", 0),
+        month("2026-03", 60),
       ],
       undated: NONE,
     };
@@ -36,8 +46,8 @@ describe("SpendChart (S6.2)", () => {
     // would stop being time (§D31).
     const data: BudgetByMonth = {
       months: [
-        { month: "2026-01", spent: 120 },
-        { month: "2026-02", spent: 0 },
+        month("2026-01", 120),
+        month("2026-02", 0),
       ],
       undated: NONE,
     };
@@ -57,7 +67,7 @@ describe("SpendChart (S6.2)", () => {
 
   it("reports the books it cannot draw, under the chart", () => {
     const data: BudgetByMonth = {
-      months: [{ month: "2026-01", spent: 120 }],
+      months: [month("2026-01", 120)],
       undated: { books: 2, total: 75 },
     };
 
@@ -72,7 +82,7 @@ describe("SpendChart (S6.2)", () => {
     // The total says every sum is dated; repeating it here would read as a
     // rendering bug rather than as a second warning.
     render(
-      <SpendChart data={{ months: [{ month: "2026-01", spent: 12 }], undated: NONE }} />,
+      <SpendChart data={{ months: [month("2026-01", 12)], undated: NONE }} />,
     );
 
     expect(screen.queryByText(/dată de cumpărare/)).not.toBeInTheDocument();
@@ -82,5 +92,68 @@ describe("SpendChart (S6.2)", () => {
     render(<SpendChart data={{ months: [], undated: NONE }} />);
 
     expect(screen.getByText(/Niciun grafic încă/)).toBeInTheDocument();
+  });
+
+  it("names the unit once rather than on every tick", () => {
+    render(
+      <SpendChart data={{ months: [month("2026-01", 12)], undated: NONE }} />,
+    );
+
+    // The axis ticks are inside the `aria-hidden` SVG and have no layout in
+    // jsdom; what matters is that the caption naming the unit is on the page.
+    expect(screen.getAllByText("lei").length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The tooltip is asserted directly. Recharts only builds one in response to a
+ * pointer event over an SVG measured against a layout jsdom does not have, so
+ * driving it through the chart would test the mock, not the component.
+ */
+describe("SpendChart — the month tooltip", () => {
+  const render1 = (entry: BudgetMonth) =>
+    render(
+      <SpendTooltip
+        active
+        label={entry.month}
+        payload={[{ value: entry.spent, payload: entry }]}
+      />,
+    );
+
+  it("names the month's dearest purchases under the total", () => {
+    render1(
+      month("2026-01", 210, [
+        { title: "Gödel, Escher, Bach", paidPrice: 120 },
+        { title: "Solaris", paidPrice: 60 },
+        { title: "Maitreyi", paidPrice: 30 },
+      ]),
+    );
+
+    expect(screen.getByText("ianuarie 2026")).toBeInTheDocument();
+    expect(screen.getByText(/210.00/)).toBeInTheDocument();
+    expect(screen.getByText("Gödel, Escher, Bach")).toBeInTheDocument();
+    expect(screen.getByText("120.00")).toBeInTheDocument();
+  });
+
+  it("counts what it did not name, rather than implying three is all there was", () => {
+    render1(
+      month("2026-01", 400, [{ title: "Solaris", paidPrice: 60 }], 4),
+    );
+
+    expect(screen.getByText(/și încă 4 cărți/)).toBeInTheDocument();
+  });
+
+  it("says nothing extra when the month is fully named", () => {
+    render1(month("2026-01", 60, [{ title: "Solaris", paidPrice: 60 }]));
+
+    expect(screen.queryByText(/și încă/)).not.toBeInTheDocument();
+  });
+
+  it("holds up for a month nobody bought anything in", () => {
+    // A real zero in a dense series (§D31) — total, no list, no count.
+    render1(month("2026-02", 0));
+
+    expect(screen.getByText("februarie 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 });

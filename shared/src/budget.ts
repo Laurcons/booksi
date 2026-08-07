@@ -73,9 +73,40 @@ export const budgetSummarySchema = z.object({
 
 export type BudgetSummary = z.infer<typeof budgetSummarySchema>;
 
+/**
+ * One purchase, named and priced, for the month tooltip.
+ *
+ * A total answers "how much did August cost"; it does not answer "why". The
+ * three biggest purchases usually do, and they are the difference between a
+ * chart you read and a chart you act on.
+ */
+export const monthPurchaseSchema = z.object({
+  title: z.string(),
+  paidPrice: z.number(),
+});
+
+export type MonthPurchase = z.infer<typeof monthPurchaseSchema>;
+
+/** How many purchases a month's tooltip names before it starts counting. */
+export const TOP_PURCHASES = 3;
+
 export const budgetMonthSchema = z.object({
   month: monthSchema,
   spent: z.number(),
+
+  /**
+   * The month's largest purchases, dearest first, at most `TOP_PURCHASES` of
+   * them. Empty for a month nobody bought anything in — those are real zeros
+   * that stay in the series (see below), and a zero month has nothing to name.
+   */
+  top: z.array(monthPurchaseSchema),
+
+  /**
+   * How many purchases the `top` list leaves out, so the tooltip can say "și
+   * încă 4" instead of implying three is all there was. Zero when the month is
+   * fully named.
+   */
+  others: z.number().int(),
 });
 
 export type BudgetMonth = z.infer<typeof budgetMonthSchema>;

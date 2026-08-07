@@ -45,7 +45,7 @@ export function LibraryPage() {
     <div className="min-h-dvh">
       <Header onAddBook={() => setDialog({ kind: "add" })} />
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
+      <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <Greeting books={books} />
 
         {/* S8.1 — the dashboard, at the top of the screen the app opens on

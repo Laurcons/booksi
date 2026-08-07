@@ -55,6 +55,47 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/**
+ * One rule for what the cursor means, instead of a `cursor-pointer` class
+ * remembered on some controls and forgotten on the rest.
+ *
+ * Browsers render `<button>` with the plain arrow and Tailwind's preflight
+ * leaves that alone, so before this the shelf spine and the rating stars were
+ * the only two things in the app that admitted to being clickable — forty
+ * identical buttons did not. Consistency is the whole point; the reading is:
+ *
+ *   pointer      clicking here does something
+ *   not-allowed  it is a control, but it is off right now
+ *   text         you can select or type in it (browser default, untouched)
+ *   default      this is a surface
+ *
+ * `select` is included deliberately: a closed select is a thing you click to
+ * open, whatever its native cursor says.
+ */
+@layer base {
+  button,
+  [role="button"],
+  summary,
+  select,
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  label:has(> input:disabled),
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Not a control — the nav greys these out to mean "nowhere to go yet", and
+     "forbidden" is a louder thing to say than that. */
+  span[aria-disabled="true"] {
+    cursor: default;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

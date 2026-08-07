@@ -403,11 +403,7 @@ export function BookFormDialog({
             </h3>
 
             <div className="mt-4 grid gap-5 sm:grid-cols-3">
-              <Field
-                label="Pagina la care am ajuns"
-                error={errors.pagesRead}
-                hint="S2.1"
-              >
+              <Field label="Pagina la care am ajuns" error={errors.pagesRead}>
                 <input
                   {...register("pagesRead")}
                   type="number"
