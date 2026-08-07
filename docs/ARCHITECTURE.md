@@ -49,12 +49,24 @@ bookcsi/
 │       ├── data/
 │       ├── api/              # hooks TanStack Query
 │       └── lib/
-├── shared/                   # scheme zod + tipuri, importate de ambele părți
+├── kobo-frontend/            # Express + HTML randat pe server, zero JS de client (§D37)
+│   └── src/
+│       ├── config/
+│       ├── lib/              # html.ts (templating), ui-choice.ts (regula de rutare)
+│       └── routes/
+├── shared/                   # scheme zod + tipuri, importate de toate părțile
+├── docker/
+│   └── kobo-routing.conf     # nginx: alege între cele două frontend-uri, după User-Agent
 ├── docs/
 └── local/                    # credențiale — NU se commituie
 ```
 
 Gestionar de pachete: **npm workspaces**, declarate în `package.json`-ul rădăcină.
+
+Cele două frontend-uri stau pe **aceeași origine**, iar proxy-ul alege între ele per cerere
+(§D37). Nu e o preferință de stil: cookie-ul de sesiune e host-only, deci un al doilea nume de
+gazdă n-ar primi nicio sesiune. `kobo-frontend/` nu conține logică de business — randează, iar
+ce trebuie calculat vine din API sau din `shared/`.
 
 `shared/` există ca să nu apară două definiții ale aceluiași DTO. Schema zod scrisă o dată e
 folosită de Nest pentru validare (`ZodValidationPipe`) și de react-hook-form pe frontend.

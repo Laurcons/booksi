@@ -1,0 +1,30 @@
+{
+  "name": "kobo-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput & node --watch dist/main.js",
+    "test": "npm run typecheck && vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit -p tsconfig.spec.json"
+  },
+  "dependencies": {
+    "@bookcsi/shared": "*",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.13.3",
+    "supertest": "^7.1.4",
+    "@types/supertest": "^6.0.3",
+    "oxlint": "^1.75.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.10"
+  }
+}

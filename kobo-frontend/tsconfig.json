@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    // Same module resolution as `backend/`, and for the same reason: this is a
+    // Node process, and `@bookcsi/shared` publishes both a `require` and an
+    // `import` condition. Staying on node16/CommonJS picks the former, which
+    // is what the backend already exercises.
+    "module": "node16",
+    "moduleResolution": "node16",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "declaration": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"]
+}

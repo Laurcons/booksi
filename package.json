@@ -5,7 +5,8 @@
   "workspaces": [
     "shared",
     "backend",
-    "frontend"
+    "frontend",
+    "kobo-frontend"
   ],
   "scripts": {
     "db:up": "docker compose up -d",
@@ -13,13 +14,15 @@
     "build:shared": "npm run build --workspace shared",
     "dev:api": "npm run build:shared && npm run start:dev --workspace backend",
     "dev:web": "npm run dev --workspace frontend",
-    "build": "npm run build:shared && npm run build --workspace backend && npm run build --workspace frontend",
-    "test": "npm run test --workspace backend && npm run build:shared && npm run test --workspace frontend",
+    "dev:kobo": "npm run build:shared && npm run dev --workspace kobo-frontend",
+    "build": "npm run build:shared && npm run build --workspace backend && npm run build --workspace frontend && npm run build --workspace kobo-frontend",
+    "test": "npm run test --workspace backend && npm run build:shared && npm run test --workspace frontend && npm run test --workspace kobo-frontend",
     "test:api": "npm run test --workspace backend",
     "test:web": "npm run build:shared && npm run test --workspace frontend",
+    "test:kobo": "npm run build:shared && npm run test --workspace kobo-frontend",
     "test:e2e": "npm run build:shared && npm run test:e2e --workspace frontend",
-    "typecheck": "npm run build:shared && npm run typecheck --workspace backend && npm run typecheck --workspace frontend",
-    "lint": "npm run lint --workspace frontend"
+    "typecheck": "npm run build:shared && npm run typecheck --workspace backend && npm run typecheck --workspace frontend && npm run typecheck --workspace kobo-frontend",
+    "lint": "npm run lint --workspace frontend && npm run lint --workspace kobo-frontend"
   },
   "allowScripts": {
     "prisma@6.19.3": true,

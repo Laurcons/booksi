@@ -1,0 +1,12 @@
+{
+  // The build config excludes the specs so they stay out of `dist/`, which
+  // means `tsc -p tsconfig.json` type-checks everything *except* the tests.
+  // Same trap `backend/` hit: specs that compile in no configuration are specs
+  // nothing verifies. This one exists purely for `npm run typecheck`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

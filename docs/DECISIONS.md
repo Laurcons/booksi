@@ -234,6 +234,8 @@ mapele sunt singurul lucru care se dublează — restul codului nu se atinge.
 `frontend/` și `backend/` la rădăcină, nu `apps/web` și `apps/api`. Gestionar: npm workspaces,
 declarate în `package.json`-ul rădăcină.
 
+Amendat de §D37: s-a adăugat `kobo-frontend/`, al doilea frontend.
+
 ### D23 — Delogarea invalidează token-ul, prin `tokenVersion`
 Ștergerea cookie-ului ia doar copia din browser. Token-ul e semnat și se verifică singur, deci
 orice copie făcută înainte de delogare rămâne valabilă încă 30 de zile — delogarea „reușea"
@@ -539,6 +541,50 @@ poți selecta sau scrie (implicitul browserului, neatins) · **default** = e o s
 `select` intră la pointer: un select închis e un lucru pe care îl apeși ca să se deschidă,
 indiferent ce spune cursorul lui nativ. `span[aria-disabled]` din nav rămâne la `default` —
 înseamnă „încă n-are unde duce", iar „interzis" e o afirmație mai tare decât atât.
+
+### D37 — Interfața pentru Kobo e un al doilea frontend, pe același domeniu, ales după User-Agent
+
+Browserul unui Kobo Libra Colour e un WebKit vechi de peste zece ani. Aplicația existentă —
+React 19, react-router, TanStack Query, Recharts, Tailwind 4 — nu se degradează acolo, ci nu
+pornește deloc: Tailwind 4 își construiește tot sistemul pe proprietăți personalizate și
+`oklch()`, iar bundle-ul e JS modern. Nu e o problemă de stilizare, deci nu se rezolvă
+stilizând.
+
+**Decizie:** un al patrulea workspace, `kobo-frontend/`, Express cu HTML randat pe server și
+zero JavaScript de client. Amendează §D22: structura devine `shared/`, `backend/`, `frontend/`,
+`kobo-frontend/`.
+
+**Express, nu Nest.** Nest merită prețul acolo unde există un strat de servicii cu dependențe
+de injectat. Aici nu există: workspace-ul randează și atât, iar datele vin de la API.
+
+**Un singur domeniu.** Cookie-ul de sesiune se pune fără atributul `Domain`
+(`backend/src/auth/session.ts`), deci e *host-only* — un al doilea nume de gazdă n-ar primi
+nicio sesiune. Aceeași origine înseamnă zero modificări la cookie și la CORS-ul din §D20.
+
+**Alegerea se face după User-Agent, nu după prefix de rută.** Un prefix `/kobo/*` ar fi fost mai
+simplu de rutat, dar ar fi rupt legăturile dintre cele două interfețe: aceeași carte ar fi avut
+două URL-uri. Prețul e că regula se scrie de două ori — în `kobo-frontend/src/lib/ui-choice.ts`
+și ca blocuri `map` în `docker/kobo-routing.conf` — fiindcă decizia trebuie luată înainte ca
+cererea să ajungă la vreuna dintre aplicații, iar acolo e doar proxy-ul.
+
+**Cookie-ul `ui` bate User-Agent-ul.** Fără portiță de ieșire, interfața lite ar fi accesibilă
+exclusiv de pe dispozitivul care produce șirul potrivit: nedezvoltabilă și netestabilă.
+`/ui/lite`, `/ui/full` și `/ui/auto` merg întotdeauna la aplicația Kobo, altfel portița s-ar
+încuia pe dinăuntru.
+
+**`Vary: User-Agent, Cookie` e obligatoriu.** Două documente diferite răspund la același URL.
+Un cache care ignoră asta servește mai devreme sau mai târziu shell-ul React unui e-reader,
+adică exact eșecul pe care tot aranjamentul îl evită.
+
+**Regula de conținut:** `kobo-frontend/` nu are logică de business. Orice îi trebuie calculat
+vine din API sau din `shared/`. Altfel cele două frontend-uri o iau razna fiecare în direcția
+lui, iar `progress.ts` — al cărui comentariu spune explicit că există ca formularea să nu difere
+între suprafețe — ar fi primul care se dublează.
+
+**Ce nu s-a decis încă.** Ce poate face motorul aflăm de la `/probe`, nu dintr-o presupunere:
+niciun tabel public de User-Agent nu trece de dispozitive din 2012. Autentificarea rămâne
+deschisă — Google refuză consimțământul în browsere pe care le consideră nesigure, deci pe
+dispozitiv va trebui o împerechere prin cod, nu fluxul OAuth obișnuit.
 
 ---
 

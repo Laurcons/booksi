@@ -1,0 +1,38 @@
+# The build installs from the lockfile and compiles from source; anything
+# already built on the host is both useless in the image and, for
+# node_modules, large enough to make the context transfer the slowest part of
+# the build.
+node_modules
+**/node_modules
+dist
+**/dist
+build
+**/build
+*.tsbuildinfo
+
+# Credentials and local configuration — these must never reach an image layer.
+local
+.env
+.env.*
+!.env.example
+
+# Test and CI artefacts
+test-results
+**/test-results
+playwright-report
+**/playwright-report
+**/*.spec.ts
+# frontend/e2e stays in the context: `tsc -b` type-checks playwright.config.ts,
+# which imports from it, so the frontend build fails without it.
+
+.git
+.github
+.gitignore
+docs
+docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+*.log
+.vscode
+.idea
