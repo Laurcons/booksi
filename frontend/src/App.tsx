@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { RequireAuth } from "./components/RequireAuth";
 import { queryClient } from "./lib/query-client";
+import { GalleryPage } from "./pages/GalleryPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { LoginPage } from "./pages/LoginPage";
 import { WishlistPage } from "./pages/WishlistPage";
@@ -19,6 +20,9 @@ export default function App() {
             <Route path="/" element={<LibraryPage />} />
             {/* S3.1 — a view of the same books, not a second collection. */}
             <Route path="/wishlist" element={<WishlistPage />} />
+            {/* S5.1 — the gallery is its own screen, not a toggle over the
+                table (§D28). English path, Romanian label, as everywhere. */}
+            <Route path="/gallery" element={<GalleryPage />} />
             <Route path="*" element={<LibraryPage />} />
           </Route>
         </Routes>

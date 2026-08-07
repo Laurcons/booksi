@@ -8,12 +8,13 @@ import { useCurrentUser, useLogout } from "../api/auth";
  * rather than hidden — the nav has read this way since Sprint 1, and it is
  * honest about what is coming.
  *
- * `to` is what makes an entry real. Sprint 3 gives the wishlist one (S3.1);
- * the remaining four get theirs in the sprints that build them.
+ * `to` is what makes an entry real. Sprint 3 gives the wishlist one (S3.1),
+ * Sprint 5 the gallery (S5.1, §D28); the remaining three get theirs in the
+ * sprints that build them — `/budget` in Sprint 6, `/stats` in Sprint 7.
  */
 const NAV: { label: string; to?: string }[] = [
   { label: "Bibliotecă", to: "/" },
-  { label: "Galerie" },
+  { label: "Galerie", to: "/gallery" },
   { label: "Tracker" },
   { label: "Wishlist", to: "/wishlist" },
   { label: "Buget" },

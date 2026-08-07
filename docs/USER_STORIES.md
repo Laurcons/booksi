@@ -256,17 +256,27 @@ fi scris la fiecare editare și nu s-ar fi citit niciodată; a fost scos și din
 ### S5.1 — Grid de coperți
 Ca utilizator, vreau să văd toate cărțile ca grid de coperți, ca să le recunosc vizual rapid.
 
+- Ecran propriu — intrarea „Galerie" din navigație, gri de la Sprint 1 încoace. Nu înlocuiește
+  tabelul din S1.2 și nu e un comutator peste el. Vezi §D28.
+- Fără control de sortare: rămâne ordinea implicită a bibliotecii, cele mai noi întâi.
+
 ### S5.2 — Marchez cărți ca favorite
 Ca utilizator, vreau să marchez o carte ca favorită.
 
 - `favorit` e un flag ortogonal statusului: se poate marca și o carte din wishlist,
   necitită încă.
+- Se scrie prin ruta de editare, ca orice alt câmp, fără rută proprie (§D30). Steluța stă pe
+  cardul din galerie; tabelul din S1.2 nu primește coloană de favorit.
 
 ### S5.3 — Filtrez galeria
 Ca utilizator, vreau să filtrez după status, gen literar și favorite.
 
 - Filtrele sunt combinabile (ex. „gen = SF" + „favorite" + „status = Terminat").
 - Filtrul de status acceptă selecție multiplă.
+- Se aplică în SQL, pe aceeași rută de listare ca tabelul, nu în client (§D29). Un filtru
+  nebifat nu trimite parametrul: absent înseamnă „fără filtru".
+- Când filtrele nu potrivesc nimic, mesajul e despre filtre și oferă resetarea lor — nu
+  „încă n-ai nicio carte", care ar fi fals cu biblioteca plină.
 
 ### S5.4 — Văd ratingul pe card
 Ca utilizator, vreau să văd rating-ul în stele direct pe cardul cărții, fără să intru în detalii.

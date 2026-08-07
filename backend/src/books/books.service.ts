@@ -37,6 +37,7 @@ type BookWriteData = {
   genre?: Genre | null;
   olEditionKey?: string | null;
   status?: Status;
+  favorite?: boolean;
   pagesRead?: number;
   rating?: number | null;
   paidPrice?: Prisma.Decimal | null;
@@ -129,10 +130,13 @@ export class BooksService {
     return toBook(version === null ? row : { ...row, cover: { updatedAt: version } });
   }
 
-  /** S1.2, and with the filter applied, the wishlist view of S3.1. */
+  /**
+   * S1.2; with the status filter, the wishlist view of S3.1; and with all
+   * three, the gallery of S5.3.
+   */
   async findAll(userId: string, query: ListBooksQuery): Promise<Book[]> {
     const rows = await this.prisma.book.findMany({
-      where: { userId, ...(query.status === undefined ? {} : { status: query.status }) },
+      where: listWhere(userId, query),
       // `id` breaks ties so that two books sharing an author (or a status, or
       // a creation timestamp) keep a stable order between requests instead of
       // swapping places on every reload.
@@ -307,6 +311,26 @@ export class BooksService {
   }
 }
 
+/**
+ * S5.3 — the three filters, combined with `AND`, which is what "combinabile"
+ * asks for: "SF" + "favourite" + "finished" narrows, it does not union.
+ *
+ * Each one is spread in only when present, so an absent parameter is no
+ * predicate at all rather than a predicate matching nothing. That distinction
+ * is the whole reason an unticked filter sends no parameter (§D29): a `status`
+ * of `[]` would otherwise return an empty library and read as data loss.
+ */
+function listWhere(userId: string, query: ListBooksQuery): Prisma.BookWhereInput {
+  return {
+    userId,
+    // `in` over one value is the same query the single-status view has always
+    // run — S3.1 gets no new behaviour out of S5.3 widening the parameter.
+    ...(query.status === undefined ? {} : { status: { in: query.status } }),
+    ...(query.genre === undefined ? {} : { genre: query.genre }),
+    ...(query.favorite === undefined ? {} : { favorite: query.favorite }),
+  };
+}
+
 function writeData(input: BookWriteInput): BookWriteData {
   return {
     title: input.title,
@@ -316,6 +340,7 @@ function writeData(input: BookWriteInput): BookWriteData {
     genre: input.genre,
     olEditionKey: input.olEditionKey,
     status: input.status,
+    favorite: input.favorite,
     pagesRead: input.pagesRead,
     rating: input.rating,
     paidPrice: toDecimal(input.paidPrice),

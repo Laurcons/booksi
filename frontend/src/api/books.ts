@@ -28,12 +28,24 @@ export const BOOKS_KEY = ["books"] as const;
  * the key present with value `undefined`, which serialises to the *string*
  * `"undefined"` — and the API validates that against the five statuses and
  * answers 400. The whole library would stop loading.
+ *
+ * S5.3's filters follow the same rule, and the multi-select one is `append`,
+ * not `set`: the API reads a repeated `status` as a list (§D29), while `set`
+ * would keep only the last box the user ticked.
  */
 export function listParams(query: ListBooksQuery): URLSearchParams {
   const params = new URLSearchParams({ sort: query.sort, order: query.order });
 
-  if (query.status !== undefined) {
-    params.set("status", query.status);
+  for (const status of query.status ?? []) {
+    params.append("status", status);
+  }
+
+  if (query.genre !== undefined) {
+    params.set("genre", query.genre);
+  }
+
+  if (query.favorite !== undefined) {
+    params.set("favorite", String(query.favorite));
   }
 
   return params;

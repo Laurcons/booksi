@@ -34,8 +34,10 @@ export function WishlistPage() {
   const [dialog, setDialog] = useState<Dialog>(null);
 
   // The filter is not part of the sort state: it is what this page *is*, and
-  // a header click must not be able to drop it.
-  const query: ListBooksQuery = { ...sort, status: "WISHLIST" };
+  // a header click must not be able to drop it. A one-element list since S5.3
+  // made the parameter multi-valued (§D29) — the wire still accepts the bare
+  // string, but the parsed query is an array on both sides of it.
+  const query: ListBooksQuery = { ...sort, status: ["WISHLIST"] };
 
   const books = useBooks(query);
   const summary = useWishlistSummary();

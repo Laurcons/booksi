@@ -26,6 +26,7 @@ import {
 } from "@nestjs/swagger";
 import {
   BOOK_SORT_VALUES,
+  GENRE_VALUES,
   STATUS_VALUES,
   createBookSchema,
   isbnDuplicatesQuerySchema,
@@ -69,14 +70,36 @@ export class BooksController {
       "un blob per rând.\n\n" +
       "**Wishlist-ul (S3.1)** e aceeași rută cu `status=WISHLIST`, nu o " +
       "entitate separată. Totalul care însoțește vederea se ia din " +
-      "`GET /books/wishlist-summary`.",
+      "`GET /books/wishlist-summary`.\n\n" +
+      "**Galeria (S5.3)** e tot aceeași rută: filtrele de status, gen și " +
+      "favorite se combină cu `AND` și se aplică în SQL (§D29). Un filtru " +
+      "nebifat nu trimite parametrul.",
   })
   @ApiQuery({
     name: "status",
     required: false,
     enum: STATUS_VALUES,
+    isArray: true,
     description:
-      "S3.1 — filtrează pe un singur status. Absent: toată biblioteca.",
+      "S3.1 filtrează pe un singur status; S5.3 acceptă mai multe, ca " +
+      "parametru repetat (`?status=READING&status=FINISHED`). Absent: toată " +
+      "biblioteca.",
+  })
+  @ApiQuery({
+    name: "genre",
+    required: false,
+    enum: GENRE_VALUES,
+    description:
+      "S5.3 — o singură valoare: o carte are un singur gen (§D17). Absent: " +
+      "toate genurile.",
+  })
+  @ApiQuery({
+    name: "favorite",
+    required: false,
+    type: Boolean,
+    description:
+      "S5.3 — `true` pentru doar favoritele, `false` pentru restul. Absent: " +
+      "fără filtru.",
   })
   @ApiQuery({
     name: "sort",
@@ -182,8 +205,9 @@ export class BooksController {
       "cererea nu o trimite explicit, se completează automat cu ziua curentă " +
       "(S1.5). O dată trimisă explicit are întotdeauna prioritate.\n\n" +
       "Se pot da din start și `pagesRead` (S2.1), `rating` (S2.3), " +
-      "`paidPrice` (S2.4) și `estimatedPrice` (S3.2) — o carte terminată acum " +
-      "trei ani se introduce dintr-o singură cerere, cu tot cu stele.",
+      "`paidPrice` (S2.4), `estimatedPrice` (S3.2) și `favorite` (S5.2) — o " +
+      "carte terminată acum trei ani se introduce dintr-o singură cerere, cu " +
+      "tot cu stele.",
   })
   @ApiBody({ schema: ref("CreateBookInput") })
   @ApiCreatedResponse({ schema: ref("Book") })
@@ -191,7 +215,7 @@ export class BooksController {
     description:
       "Titlu lipsă, dată care nu e `YYYY-MM-DD`, rating pe o carte care nu e " +
       "terminată sau abandonată (S2.3), sau un câmp care aparține unui sprint " +
-      "viitor (`favorite`, S5.2) — respins explicit, nu ignorat în tăcere.",
+      "viitor — respins explicit, nu ignorat în tăcere.",
     schema: ref("HttpError"),
   })
   @Post()
@@ -231,6 +255,9 @@ export class BooksController {
       "ce compara suma plătită.\n\n" +
       "Tot pe aici se corectează, ulterior, cele trei câmpuri scrise dintr-un " +
       "click de `POST /books/{id}/purchase` (S3.4).\n\n" +
+      "**Favorit (S5.2).** `favorite` e o editare ca oricare alta, fără rută " +
+      "proprie (§D30), și e ortogonal statusului: se poate marca și o carte " +
+      "din wishlist (§D14).\n\n" +
       "Trimite doar câmpurile schimbate: un câmp absent rămâne neatins.",
   })
   @ApiParam({ name: "id", description: "Id-ul cărții (cuid)." })

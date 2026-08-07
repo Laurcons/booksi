@@ -276,6 +276,35 @@ adică încă un round-trip per autor.
 
 ---
 
+## Galeria (Sprint 5)
+
+Grila e o rută proprie în frontend (`/gallery`, §D28), dar **nicio rută nouă în API**: e
+aceeași listare ca tabelul, cu filtrele din S5.3 aplicate în SQL (§D29).
+
+| Parametru | Formă | Serveste |
+|---|---|---|
+| `sort` | `title \| author \| status \| createdAt`, implicit `createdAt` | S1.2 |
+| `order` | `asc \| desc`, implicit `desc` | S1.2 |
+| `status` | unul sau mai mulți, ca parametru repetat: `?status=READING&status=FINISHED` | S3.1 (unul), S5.3 (mai mulți) |
+| `genre` | o singură valoare — o carte are un singur gen (§D17) | S5.3 |
+| `favorite` | `true` / `false` | S5.3 |
+
+Absent = fără filtru, pentru toate trei. Combinarea lor e un `AND`: „SF" + „favorite" +
+„status ∈ {Terminat}" e o singură clauză `where`.
+
+Două capcane, ambele în parsarea unui query string:
+
+- **Parametrul repetat ajunge array de la Express** (`qs`), iar o singură apariție ajunge
+  string. Schema acceptă ambele forme și normalizează la array, ca `?status=WISHLIST` să
+  rămână valid cuvânt cu cuvânt — altfel S3.1 s-ar strica la o schimbare care nu e a lui.
+- **Booleanul vine ca text.** `z.coerce.boolean("false")` e `true`, fiindcă șirul e nevid;
+  `favorite` se parsează explicit din `"true" | "false"`.
+
+`favorite` devine în același sprint câmp scriptibil pe `POST /books` și `PATCH /books/:id`
+(§D30), fără rută dedicată.
+
+---
+
 ## Erori (§D27)
 
 Un singur criteriu: *poate utilizatorul face ceva?*

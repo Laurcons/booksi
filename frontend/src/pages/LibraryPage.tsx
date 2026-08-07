@@ -6,6 +6,7 @@ import { LoadFailure, Note } from "../components/Note";
 import { BookFormDialog } from "../components/books/BookFormDialog";
 import { BookTable } from "../components/books/BookTable";
 import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
+import { EmptyLibrary } from "../components/books/EmptyLibrary";
 import { plural } from "../lib/plural";
 
 /**
@@ -94,22 +95,4 @@ function Greeting({ books }: { books: Book[] | undefined }) {
   );
 }
 
-function EmptyLibrary({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="rounded-xl border border-line bg-surface-1 px-6 py-16 text-center">
-      <p className="font-display text-2xl text-ink">Încă n-ai nicio carte</p>
-      <p className="mx-auto mt-3 max-w-sm text-sm text-ink-2">
-        Adaugă prima carte completând titlul. Restul câmpurilor — autor, pagini,
-        gen, ISBN — sunt opționale și le poți completa oricând.
-      </p>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="mt-6 rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet"
-      >
-        Adaugă o carte
-      </button>
-    </div>
-  );
-}
 

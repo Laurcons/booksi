@@ -5,8 +5,10 @@ import { olEditionKeySchema } from "./openlibrary.js";
 /**
  * Contracts for the library itself: S1.1–S1.5, the three columns Sprint 2
  * opens for writing — `pagesRead` (S2.1), `rating` (S2.3), `paidPrice` (S2.4) —
- * and Sprint 3's wishlist: `estimatedPrice` (S3.2), the `status` filter behind
- * the wishlist view (S3.1) and the summary its total is read from (S3.3).
+ * Sprint 3's wishlist: `estimatedPrice` (S3.2), the `status` filter behind the
+ * wishlist view (S3.1) and the summary its total is read from (S3.3) — and
+ * Sprint 5's gallery: `favorite` (S5.2) and the filters it is browsed with
+ * (S5.3).
  *
  * Two conventions worth stating once, because both are load-bearing:
  *
@@ -16,11 +18,11 @@ import { olEditionKeySchema } from "./openlibrary.js";
  *    "finished on the 5th" come back as the 4th. `YYYY-MM-DD` has no such
  *    failure mode.
  * 2. **Write schemas are strict.** They accept only the fields the sprints
- *    delivered so far own. `favorite` (S5.2) is already a column and is
- *    already returned on read — S1.2 wants that table column visible but
- *    empty — yet a request that tries to set it is rejected loudly rather than
- *    silently dropped. It becomes writable in the sprint that owns it, the way
- *    `estimatedPrice` just did in S3.2.
+ *    delivered so far own, and a request carrying anything else is rejected
+ *    loudly rather than silently dropped. `favorite` spent four sprints on the
+ *    refused side of that rule — a column since the first migration, returned
+ *    on read, but unwritable — and S5.2 is the sprint that owns it, so it moves
+ *    across here rather than getting a route of its own (§D30).
  *
  * There is no `progress` field anywhere here, and that is S2.2 working as
  * specified: the percentage is `pagesRead / totalPages`, derived on display and
@@ -173,6 +175,15 @@ export const createBookSchema = z.strictObject({
   status: statusSchema.optional(),
 
   /**
+   * S5.2 — orthogonal to status (§D14): a wishlist book nobody has bought yet
+   * can be a favourite, so this carries no cross-field rule of its own.
+   *
+   * Not nullable, and not a tri-state: the column is `Boolean @default(false)`,
+   * and "not a favourite" is the same answer as "never marked one".
+   */
+  favorite: z.boolean().optional(),
+
+  /**
    * S4.1 / S4.2 — the edition the user picked, and the whole mechanism behind
    * §D8's "the image is stored, not the URL": given this key at creation, the
    * server fetches the cover from Open Library and writes it into the `Cover`
@@ -272,22 +283,62 @@ export const BOOK_SORT_VALUES = [
 export const bookSortSchema = z.enum(BOOK_SORT_VALUES);
 export type BookSort = z.infer<typeof bookSortSchema>;
 
+/**
+ * A query-string boolean, spelled out rather than coerced. `z.coerce.boolean`
+ * asks JavaScript whether the string is truthy, and `"false"` is a non-empty
+ * string — so the coercing version answers `true` to the one input a reader
+ * would bet the most on.
+ */
+const queryBoolean = z
+  .enum(["true", "false"])
+  .transform((value) => value === "true");
+
 export const listBooksQuerySchema = z.strictObject({
   sort: bookSortSchema.default("createdAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
 
   /**
    * S3.1 — the wishlist is `status=WISHLIST` on this route, not a second
-   * entity and not a second table. Absent means the whole library.
+   * entity and not a second table. S5.3 makes the same parameter repeatable
+   * (`?status=READING&status=FINISHED`), because the gallery's status filter is
+   * multi-select. Absent means the whole library.
+   *
+   * Both shapes are accepted and normalised to an array: Express hands over a
+   * string for one occurrence and an array for several, and S3.1's single-value
+   * call must keep working exactly as written — a Sprint 5 filter is no reason
+   * for a Sprint 3 view to change.
    *
    * Server-side rather than a client-side `filter()` even though S1.2 loads
    * every row: the summary in S3.3 is computed in SQL over exactly this
    * predicate, and a list filtered by a different rule than the total below it
-   * is how the two quietly stop agreeing.
+   * is how the two quietly stop agreeing. §D29 extends that reasoning to the
+   * other two filters below.
    */
-  status: statusSchema.optional(),
+  status: z
+    .union([statusSchema, statusSchema.array().min(1)])
+    .transform((value) => (Array.isArray(value) ? value : [value]))
+    .optional(),
+
+  /**
+   * S5.3 — one value, not a set, because a book has exactly one genre (§D17).
+   * A multi-valued filter here would advertise a data model that does not
+   * exist.
+   */
+  genre: genreSchema.optional(),
+
+  /**
+   * S5.3 — filters on the flag's value. The gallery only ever sends `true`
+   * ("just the favourites"), but `false` is accepted and means what it says,
+   * which is cheaper than a special case that rejects half of a boolean.
+   */
+  favorite: queryBoolean.optional(),
 });
 
+/**
+ * The parsed query — `status` already normalised to an array. Callers building
+ * a request (rather than reading one) therefore pass `["WISHLIST"]`, not
+ * `"WISHLIST"`; the wire still accepts either.
+ */
 export type ListBooksQuery = z.infer<typeof listBooksQuerySchema>;
 
 /**

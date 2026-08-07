@@ -279,11 +279,13 @@ describe("books routes (Sprints 1–3)", () => {
     });
 
     it("rejects fields that belong to later sprints", async () => {
-      // favorite is S5.2. Silently dropping it would look like the API
-      // accepted the value.
+      // Nothing on the write schema yet claims `progress`: S2.2 derives it on
+      // display and never stores it (§D4). Silently dropping the key would
+      // look like the API accepted the value.
       await as("post", "/books")
-        .send({ title: "Dune", favorite: true })
+        .send({ title: "Dune", progress: 40 })
         .expect(400);
+      expect(prisma.book.create).not.toHaveBeenCalled();
     });
 
     it("takes progress, rating and price for a book read years ago (Sprint 2)", async () => {
@@ -630,9 +632,11 @@ describe("books routes (Sprints 1–3)", () => {
 
       await as("get", "/books?status=WISHLIST").expect(200);
 
+      // A single value still arrives as a single value on the wire; `in` over
+      // a one-element list is the same query S3.1 has always run.
       expect(prisma.book.findMany.mock.calls[0][0].where).toEqual({
         userId: "user-1",
-        status: "WISHLIST",
+        status: { in: ["WISHLIST"] },
       });
     });
 
@@ -652,12 +656,152 @@ describe("books routes (Sprints 1–3)", () => {
       await as("get", "/books?status=WISHLIST&sort=title&order=asc").expect(200);
 
       const call = prisma.book.findMany.mock.calls[0][0];
-      expect(call.where.status).toBe("WISHLIST");
+      expect(call.where.status).toEqual({ in: ["WISHLIST"] });
       expect(call.orderBy).toEqual([{ title: "asc" }, { id: "asc" }]);
     });
 
     it("rejects a status that is not one of the five", async () => {
       await as("get", "/books?status=BORROWED").expect(400);
+    });
+  });
+
+  describe("GET /books filters (S5.3)", () => {
+    /** The `where` the gallery's filters ended up producing. */
+    const whereFor = async (queryString: string) => {
+      prisma.book.findMany.mockResolvedValue([]);
+      await as("get", `/books?${queryString}`).expect(200);
+      return prisma.book.findMany.mock.calls[0][0].where;
+    };
+
+    it("takes several statuses from a repeated parameter", async () => {
+      expect(await whereFor("status=READING&status=FINISHED")).toEqual({
+        userId: "user-1",
+        status: { in: ["READING", "FINISHED"] },
+      });
+    });
+
+    it("filters by genre, one value only (§D17)", async () => {
+      expect(await whereFor("genre=SCIFI")).toEqual({
+        userId: "user-1",
+        genre: "SCIFI",
+      });
+    });
+
+    it("filters by the favourite flag", async () => {
+      expect(await whereFor("favorite=true")).toEqual({
+        userId: "user-1",
+        favorite: true,
+      });
+    });
+
+    it("reads favorite=false as false, not as a non-empty string", async () => {
+      // The reason the parameter is parsed from "true" | "false" rather than
+      // coerced: `Boolean("false")` is `true`, and the filter would silently
+      // return the opposite of what was asked for.
+      expect(await whereFor("favorite=false")).toEqual({
+        userId: "user-1",
+        favorite: false,
+      });
+    });
+
+    it("combines the three filters with AND", async () => {
+      expect(
+        await whereFor("status=FINISHED&genre=SCIFI&favorite=true"),
+      ).toEqual({
+        userId: "user-1",
+        status: { in: ["FINISHED"] },
+        genre: "SCIFI",
+        favorite: true,
+      });
+    });
+
+    it("keeps the user scope whatever the filters say", async () => {
+      // S0.3 is not something a query parameter may widen.
+      expect(await whereFor("favorite=true&genre=POETRY")).toMatchObject({
+        userId: "user-1",
+      });
+    });
+
+    it("rejects a genre outside the controlled list", async () => {
+      await as("get", "/books?genre=SF").expect(400);
+      expect(prisma.book.findMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects a favorite that is neither true nor false", async () => {
+      await as("get", "/books?favorite=1").expect(400);
+      expect(prisma.book.findMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unknown filter instead of ignoring it", async () => {
+      // The query schema is strict for the same reason the write schemas are:
+      // a typo that returns the whole library looks like a working filter.
+      await as("get", "/books?favourite=true").expect(400);
+    });
+  });
+
+  describe("favorite (S5.2)", () => {
+    beforeEach(() => {
+      prisma.book.findFirst.mockResolvedValue(storedBook);
+      prisma.book.update.mockResolvedValue({ ...storedBook, favorite: true });
+    });
+
+    it("marks a book through the ordinary edit route (§D30)", async () => {
+      await as("patch", "/books/book-1").send({ favorite: true }).expect(200);
+
+      expect(writtenData(prisma.book.update).favorite).toBe(true);
+    });
+
+    it("unmarks it again", async () => {
+      prisma.book.findFirst.mockResolvedValue({ ...storedBook, favorite: true });
+      prisma.book.update.mockResolvedValue(storedBook);
+
+      await as("patch", "/books/book-1").send({ favorite: false }).expect(200);
+
+      expect(writtenData(prisma.book.update).favorite).toBe(false);
+    });
+
+    it("marks a wishlist book, which is the point of §D14", async () => {
+      // Orthogonal to status: no cross-field rule stands between a book
+      // nobody has bought yet and the star on its card.
+      prisma.book.findFirst.mockResolvedValue({
+        ...storedBook,
+        status: "WISHLIST",
+      });
+
+      await as("patch", "/books/book-1").send({ favorite: true }).expect(200);
+
+      expect(writtenData(prisma.book.update).favorite).toBe(true);
+      expect(writtenData(prisma.book.update).status).toBeUndefined();
+    });
+
+    it("leaves the flag alone when the request does not mention it", async () => {
+      await as("patch", "/books/book-1").send({ title: "Dune Messiah" }).expect(200);
+
+      expect(writtenData(prisma.book.update).favorite).toBeUndefined();
+    });
+
+    it("takes the flag at creation too", async () => {
+      prisma.book.create.mockResolvedValue({ ...storedBook, favorite: true });
+
+      await as("post", "/books")
+        .send({ title: "Dune", favorite: true })
+        .expect(201);
+
+      expect(writtenData(prisma.book.create).favorite).toBe(true);
+    });
+
+    it("refuses a value that is not a boolean", async () => {
+      await as("patch", "/books/book-1").send({ favorite: "true" }).expect(400);
+
+      expect(prisma.book.update).not.toHaveBeenCalled();
+    });
+
+    it("returns the flag on read, as it has since Sprint 1", async () => {
+      prisma.book.findFirst.mockResolvedValue({ ...storedBook, favorite: true });
+
+      const res = await as("get", "/books/book-1").expect(200);
+
+      expect(res.body.favorite).toBe(true);
     });
   });
 

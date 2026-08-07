@@ -137,10 +137,13 @@ describe("OpenAPI document", () => {
       expect(schema().required).toEqual(["title"]);
     });
 
-    it("accepts the fields Sprints 1 to 4 own", () => {
+    it("accepts the fields Sprints 1 to 5 own", () => {
       expect(Object.keys(schema().properties ?? {}).sort()).toEqual([
         "author",
         "estimatedPrice",
+        // S5.2 — writable from the sprint that owns it, and through this route
+        // rather than one of its own (§D30).
+        "favorite",
         "finishedOn",
         "genre",
         "isbn",
@@ -158,10 +161,11 @@ describe("OpenAPI document", () => {
       ]);
     });
 
-    it("keeps fields belonging to later sprints out", () => {
-      // `favorite` is a column already and is returned on read, but a request
-      // that sets it is rejected — so it must not appear as writable here.
-      expect(schema().properties).not.toHaveProperty("favorite");
+    it("keeps derived values out", () => {
+      // The progress percentage is `pagesRead / totalPages`, computed on
+      // display and never stored (§D4) — so it is not a field a client may
+      // send, and must not appear here as one.
+      expect(schema().properties).not.toHaveProperty("progress");
     });
 
     it("carries the money constraints into the schema (S2.4, S3.2)", () => {

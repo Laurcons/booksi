@@ -327,6 +327,68 @@ Consecințe:
 - Un cod necunoscut e ignorat la citire. Vine de pe rețea; nu se promovează singur în „serverul
   zice că se poate afișa".
 
+### D28 — Galeria e o rută proprie, nu un comutator de vedere peste tabel
+
+Sprint 5 cere „toate cărțile ca grid de coperți" (S5.1), dar niciun story nu spunea *unde*:
+un comutator tabel/grilă pe `/`, o rută separată, sau o înlocuire a tabelului.
+
+**Decizie: rută proprie, `/gallery`.** Răspunsul era deja în produs — bara de navigație
+poartă din Sprint 1 toate cele șase destinații (`Bibliotecă`, `Galerie`, `Tracker`,
+`Wishlist`, `Buget`, `Statistici`), cele neconstruite fiind gri, fără `to`. Sprint 5 e
+sprintul care aprinde `Galerie`; a o transforma într-un comutator ar goli o intrare pe care
+utilizatorul o vede de la prima autentificare.
+
+Consecințe:
+- Tabelul de la S1.2 rămâne neatins pe `/`. Grila nu-l înlocuiește și nu-l dublează:
+  sunt două suprafețe cu rosturi diferite — una de citit în detaliu, una de recunoscut vizual.
+- Calea e engleză (`/gallery`), eticheta e română (§D21), exact ca `/wishlist`.
+- Aceeași regulă rezolvă și sprinturile următoare: `Buget` → `/budget` (Sprint 6),
+  `Statistici` → `/stats` (Sprint 7). Nu mai e o întrebare deschisă la începutul fiecărui
+  sprint.
+- Grila **nu** primește control de sortare: S1.2 deține explicit „tabelul e sortabil", iar
+  S5.1/S5.3 nu cer așa ceva. Ordinea implicită (`createdAt desc`) e suficientă.
+
+### D29 — Filtrele galeriei sunt server-side, pe aceeași rută de listare
+
+S5.3 cere filtre combinabile după status (selecție multiplă), gen și favorite. Ruta de
+listare accepta un singur status opțional, iar tentația evidentă era un `filter()` în client,
+peste lista deja încărcată.
+
+**Decizie: filtrele intră în `GET /books`, server-side**, din același motiv scris la S3.1 —
+o listă filtrată după o altă regulă decât totalurile afișate lângă ea e felul în care cele
+două încetează în tăcere să mai fie de acord.
+
+- **`status` acceptă mai multe valori**, ca parametru repetat (`?status=READING&status=FINISHED`).
+  O singură valoare rămâne validă, deci wishlist-ul (S3.1) nu se schimbă deloc.
+- **`genre` e o singură valoare**, fiindcă o carte are un singur gen (§D17). Un filtru
+  multi-valoare ar sugera un model de date care nu există.
+- **`favorite` filtrează pe valoarea flagului.** Interfața trimite doar `true` („doar
+  favoritele"), dar `false` e acceptat și înseamnă ce scrie.
+- Absent = fără filtru. Un filtru golit de utilizator nu trimite parametrul, deci nu există
+  cazul „listă goală fiindcă n-ai bifat nimic".
+
+Filtrele galeriei nu ating wishlist-ul: `/wishlist` e o rută cu statusul fixat, nu o vedere
+filtrabilă, iar §D14 rămâne valabil — favorit se combină liber cu orice status, inclusiv cu
+o carte încă necumpărată.
+
+**Starea goală e a filtrelor, nu a bibliotecii.** „Încă n-ai nicio carte" e un mesaj greșit
+când biblioteca e plină și doar filtrele sunt prea înguste; sunt două stări goale distincte,
+a doua cu o cale de întoarcere (resetarea filtrelor).
+
+### D30 — `favorite` devine scriptibil prin ruta de editare, fără rută proprie
+
+S5.2 e prima poveste care scrie coloana `favorite`, existentă din prima migrare și returnată
+la citire de la bun început (o cerere care încerca s-o seteze era respinsă explicit, nu
+ignorată în tăcere).
+
+**Decizie:** câmpul intră în schema de scriere, ca `estimatedPrice` în S3.2. Fără
+`PUT /books/:id/favorite`: o steluță e o editare ca oricare alta, iar rândurile din tabel
+declanșează deja mutații direct (schimbarea de status, „Am cumpărat-o"). O rută proprie ar
+adăuga un al doilea fel de a scrie o coloană, fără să câștige nimic.
+
+Marcajul se pune de pe cardul din galerie, unde DESIGN.md îl așază (colț dreapta-sus, peste
+copertă). Tabelul nu primește coloană de favorit: lista de coloane din S1.2 nu o conține.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

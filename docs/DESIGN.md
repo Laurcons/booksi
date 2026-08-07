@@ -174,7 +174,7 @@ de metadate cu stelele și pastila de status.
 - Bara de progres apare **doar** pe cărțile cu status `Citesc`.
 - Hover: `translateY(-2px)` și conturul devine `--accent-quiet`. Atât.
 
-### Placeholderul de copertă (S4.3)
+### Placeholderul de copertă (S5.5)
 
 Nu e o iconiță generică. E o „copertă" desenată de noi: fundal `--surface-3`, un chenar interior
 subțire de 1px alamă la 30% opacitate, titlul cu Playfair centrat și autorul dedesubt. Trebuie să
