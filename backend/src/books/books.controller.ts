@@ -107,7 +107,11 @@ export class BooksController {
     enum: BOOK_SORT_VALUES,
     description:
       "Implicit `createdAt`. Sortarea pe `status` urmează ordinea fluxului " +
-      "(wishlist → cumpărat → citesc → terminat → abandonat), nu alfabetul.",
+      "(wishlist → cumpărat → citesc → terminat → abandonat), nu alfabetul.\n\n" +
+      "`purchasedOn` există pentru raftul din S8.2, a cărui ordine implicită e " +
+      "ziua cumpărării. E singura coloană rară din listă: cărțile fără dată " +
+      "ies la coadă sub `desc`, ceea ce pe raft e acceptabil, iar în tabel n-a " +
+      "fost niciodată cerut.",
   })
   @ApiQuery({
     name: "order",

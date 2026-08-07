@@ -188,10 +188,14 @@ ar strica raftul.
 prin contrast cu restul.
 
 - Grosimea cotorului derivă din `totalPagini`, între 14px și 44px; cărțile fără număr de pagini
-  primesc 24px.
+  primesc 24px. Maparea e `[80, 900] pagini → [14, 44]px`, cu tăiere la capete: proporțional cu
+  zero, capătul de jos n-ar fi atins de nicio carte reală (§D33).
 - Culoarea cotorului derivă din gen, dintr-o rampă pastel **decorativă**, separată de paleta de
   grafice — aici nu se citesc valori, deci nu se aplică regulile de dataviz.
-- Cotoarele au titlul rotit la 90°, afișat doar când grosimea depășește 20px.
+- Cotoarele au titlul rotit la 90°, afișat doar când grosimea depășește 20px — prag care cade
+  înăuntrul intervalului, deci se aplică efectiv (§D33).
+- Cotorul e un buton, nu un dreptunghi: se ajunge la el cu tastatura, iar detaliile cărții se
+  deschid și la `Enter`, nu doar la hover cu mausul.
 - Raftul are o umbră subtilă sub muchie și o linie de lemn dedesubt. Fără texturi fotografice.
 
 ### Cifrele din dashboard (S8.1)
@@ -199,6 +203,9 @@ prin contrast cu restul.
 Cifră mare Playfair în `--ink-primary`, etichetă mică uppercase în `--ink-muted` dedesubt, fără
 card separat pentru fiecare — un singur rând, despărțit de linii verticale `--border`. Nu e un
 grafic, deci nu primește culoare de serie.
+
+Stau sus pe `/`, deasupra tabelului, nu pe o rută proprie (§D32) — un dashboard pe care trebuie
+să navighezi nu mai e „la deschiderea aplicației".
 
 ### Tabelul (S1.2)
 

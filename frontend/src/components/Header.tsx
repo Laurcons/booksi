@@ -4,22 +4,24 @@ import type { AuthUser } from "@bookcsi/shared";
 import { useCurrentUser, useLogout } from "../api/auth";
 
 /**
- * The whole product's shape, with the screens that do not exist yet greyed
- * rather than hidden — the nav has read this way since Sprint 1, and it is
- * honest about what is coming.
+ * The whole product's shape. Every entry is a real destination as of Sprint 8;
+ * until then the unbuilt ones were greyed rather than hidden, which is how the
+ * nav read from Sprint 1 and how §D28 settled where each screen would live.
  *
- * `to` is what makes an entry real. Sprint 3 gives the wishlist one (S3.1),
- * Sprint 5 the gallery (S5.1, §D28), Sprint 6 the budget (S6.1–S6.3); the
- * remaining two get theirs in the sprints that build them — `/stats` in
- * Sprint 7, the tracker in Sprint 8.
+ * The third entry said "Tracker" for eight sprints and no story ever delivered
+ * anything by that name — USER_STORIES.md uses the word for the app as a whole.
+ * §D32 gave the slot to the one screen that had nowhere to go: S8.2's shelf.
+ * The dashboard is not in this list on purpose; S8.1 puts it at the top of
+ * "Bibliotecă", because a dashboard you have to navigate to is not one you see
+ * on opening the app.
  */
 const NAV: { label: string; to?: string }[] = [
   { label: "Bibliotecă", to: "/" },
   { label: "Galerie", to: "/gallery" },
-  { label: "Tracker" },
+  { label: "Raft", to: "/shelf" },
   { label: "Wishlist", to: "/wishlist" },
   { label: "Buget", to: "/budget" },
-  { label: "Statistici" },
+  { label: "Statistici", to: "/stats" },
 ];
 
 const NAV_ITEM =

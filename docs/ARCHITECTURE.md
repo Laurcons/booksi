@@ -342,8 +342,12 @@ Regula de agregare a paginilor (S7.1) trăiește într-un singur loc, în modulu
 Dashboard-ul consumă același endpoint ca pagina de statistici — altfel cele două ecrane ajung
 inevitabil să afișeze cifre diferite.
 
-Cărțile fără dată sunt excluse din grafice, dar numărate în răspuns — cu număr **și** sumă
-(`undated`), ca frontendul să poată afișa avertismentul cerut de S6.2 și S7.2.
+Cărțile fără dată sunt excluse din grafice, dar numărate în răspuns, ca frontendul să poată
+afișa avertismentul cerut de S6.2 și S7.2. Forma diferă însă între cele două, fiindcă
+întrebarea diferă: la buget e număr **și** sumă (`UndatedSpend`) — „câte cărți nu-ți arată
+graficul, și ce bani înseamnă" — iar la statistici e doar numărul cărților terminate fără
+`finishedOn`. O sumă de bani sub un grafic de cărți citite ar răspunde la altă întrebare decât
+cea pusă.
 
 Note despre bugetul din Sprint 6:
 

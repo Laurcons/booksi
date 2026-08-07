@@ -1,4 +1,5 @@
-import type { BookWithCover } from "../lib/covers";
+import type { Book } from "@bookcsi/shared";
+import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
 import { progressLabel, progressRatio } from "../lib/progress";
 
 /**
@@ -10,7 +11,7 @@ import { progressLabel, progressRatio } from "../lib/progress";
  * with the table's about a zero page count and formatted the label a second
  * time by hand.
  */
-export function CurrentlyReading({ books }: { books: BookWithCover[] }) {
+export function CurrentlyReading({ books }: { books: Book[] }) {
   const reading = books.filter((book) => book.status === "READING");
 
   if (reading.length === 0) {
@@ -32,10 +33,16 @@ export function CurrentlyReading({ books }: { books: BookWithCover[] }) {
               key={book.id}
               className="flex gap-4 rounded-xl border border-line bg-surface-1 p-4 transition-colors duration-150 hover:border-accent-quiet"
             >
-              {book.cover && (
+              {/* §D18 — the API gives a path, and it needs the session cookie
+                  to load; `lib/media.ts` owns both halves of that. This read a
+                  `cover` field off a mock's book type until Sprint 8 deleted
+                  the mock. */}
+              {apiImageSrc(book.coverUrl) !== null && (
                 <img
-                  src={book.cover}
+                  {...CREDENTIALED_IMAGE}
+                  src={apiImageSrc(book.coverUrl) ?? undefined}
                   alt=""
+                  loading="lazy"
                   className="h-[96px] w-16 shrink-0 rounded-[2px] object-cover"
                 />
               )}

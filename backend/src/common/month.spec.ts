@@ -43,39 +43,39 @@ describe("monthRange", () => {
   });
 });
 
-describe("denseMonths (S6.2)", () => {
+describe("denseMonths (S6.2, S7.2)", () => {
   it("fills the months nobody bought anything in", () => {
     // Without the zeros, January would sit next to April at equal width and
     // the axis would stop being time.
     const months = denseMonths(
       [
-        { month: "2026-01", spent: 120 },
-        { month: "2026-04", spent: 60 },
+        { month: "2026-01", value: 120 },
+        { month: "2026-04", value: 60 },
       ],
       "2026-04",
     );
 
     expect(months).toEqual([
-      { month: "2026-01", spent: 120 },
-      { month: "2026-02", spent: 0 },
-      { month: "2026-03", spent: 0 },
-      { month: "2026-04", spent: 60 },
+      { month: "2026-01", value: 120 },
+      { month: "2026-02", value: 0 },
+      { month: "2026-03", value: 0 },
+      { month: "2026-04", value: 60 },
     ]);
   });
 
   it("runs to the current month even after a spending pause", () => {
-    const months = denseMonths([{ month: "2026-06", spent: 40 }], "2026-08");
+    const months = denseMonths([{ month: "2026-06", value: 40 }], "2026-08");
 
     expect(months.map((entry) => entry.month)).toEqual([
       "2026-06",
       "2026-07",
       "2026-08",
     ]);
-    expect(months.at(-1)).toEqual({ month: "2026-08", spent: 0 });
+    expect(months.at(-1)).toEqual({ month: "2026-08", value: 0 });
   });
 
   it("crosses a year boundary", () => {
-    const months = denseMonths([{ month: "2025-11", spent: 10 }], "2026-02");
+    const months = denseMonths([{ month: "2025-11", value: 10 }], "2026-02");
 
     expect(months.map((entry) => entry.month)).toEqual([
       "2025-11",
@@ -91,21 +91,21 @@ describe("denseMonths (S6.2)", () => {
   });
 
   it("keeps a purchase dated past the current month rather than dropping it", () => {
-    const months = denseMonths([{ month: "2026-10", spent: 25 }], "2026-08");
+    const months = denseMonths([{ month: "2026-10", value: 25 }], "2026-08");
 
-    expect(months).toEqual([{ month: "2026-10", spent: 25 }]);
+    expect(months).toEqual([{ month: "2026-10", value: 25 }]);
   });
 
   it("starts at the first purchase, however old the library is", () => {
     const months = denseMonths(
       [
-        { month: "2020-01", spent: 5 },
-        { month: "2020-03", spent: 5 },
+        { month: "2020-01", value: 5 },
+        { month: "2020-03", value: 5 },
       ],
       "2020-03",
     );
 
     expect(months).toHaveLength(3);
-    expect(months[0]).toEqual({ month: "2020-01", spent: 5 });
+    expect(months[0]).toEqual({ month: "2020-01", value: 5 });
   });
 });

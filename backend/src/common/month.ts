@@ -1,15 +1,25 @@
-import type { BudgetMonth } from "@bookcsi/shared";
 import { todayCalendarDate } from "../books/calendar-date";
 
 /**
- * Calendar months, the way S6.2 and S6.3 need them: `YYYY-MM` strings on the
- * outside, integer arithmetic on the inside.
+ * Calendar months, the way the monthly aggregations need them: `YYYY-MM`
+ * strings on the outside, integer arithmetic on the inside.
  *
  * Months are counted as `year * 12 + (month - 1)` rather than by adding to a
  * `Date`, because adding a month to a `Date` is the classic wrong answer —
  * January 31st plus one month is March 3rd. An index has no such opinion, and
  * December to January is the same `+ 1` as every other step.
+ *
+ * In `common/` rather than in `budget/`, where it started: Sprint 7 groups
+ * finished books by month exactly as Sprint 6 groups purchases, and the second
+ * copy of "what does dense mean, and when does December roll over" is the copy
+ * that gets one of the two wrong.
  */
+
+/** A month with a number attached — spending in S6.2, books finished in S7.2. */
+export interface MonthValue {
+  month: string;
+  value: number;
+}
 
 /**
  * The month the user is in, from the *local* day — the same choice
@@ -37,23 +47,27 @@ export function monthRange(month: string): { start: Date; next: Date } {
 }
 
 /**
- * S6.2 — the series the chart draws: every month from the first purchase to
- * `through`, with the empty ones present at zero.
+ * S6.2 and S7.2 — the series a chart draws: every month from the first one with
+ * data to `through`, with the empty ones present at zero.
  *
- * The zeros are the point. A month nobody bought a book in is a real zero, and
- * dropping the row would place January beside April at equal width — a bar
- * chart whose axis quietly stops being time. `through` is normally the current
- * month, so the series runs to today even after a spending pause; a purchase
- * dated beyond it still extends the series rather than falling off the end.
+ * The zeros are the point. A month nobody bought a book in — or finished one in
+ * — is a real zero, and dropping the row would place January beside April at
+ * equal width, a bar chart whose axis quietly stops being time. `through` is
+ * normally the current month, so the series runs to today even after a pause; a
+ * row dated beyond it still extends the series rather than falling off the end.
+ *
+ * Neutral in its field name (`value`, not `spent` or `finished`) so that one
+ * implementation serves both charts; each service renames it on the way out to
+ * the word its own DTO uses.
  */
 export function denseMonths(
-  spending: Iterable<{ month: string; spent: number }>,
+  rows: Iterable<MonthValue>,
   through: string,
-): BudgetMonth[] {
+): MonthValue[] {
   const byMonth = new Map<string, number>();
 
-  for (const row of spending) {
-    byMonth.set(row.month, row.spent);
+  for (const row of rows) {
+    byMonth.set(row.month, row.value);
   }
 
   if (byMonth.size === 0) {
@@ -65,10 +79,10 @@ export function denseMonths(
   const first = Math.min(...indices);
   const last = Math.max(...indices, toIndex(through));
 
-  const months: BudgetMonth[] = [];
+  const months: MonthValue[] = [];
   for (let index = first; index <= last; index += 1) {
     const month = toMonth(index);
-    months.push({ month, spent: byMonth.get(month) ?? 0 });
+    months.push({ month, value: byMonth.get(month) ?? 0 });
   }
 
   return months;

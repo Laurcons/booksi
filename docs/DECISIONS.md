@@ -428,6 +428,63 @@ mai fie timp. O bibliotecă fără nicio cumpărare datată dă o serie goală, 
 sunt același ecran: două cereri separate pot pica de o parte și de alta a miezului nopții
 dintre 31 și 1, iar pagina ar afișa două luni diferite fără să știe.
 
+### D32 — Unde stau dashboard-ul și raftul, și ce era „Tracker"
+
+§D28 a rezolvat locul galeriei, al bugetului și al statisticilor, dar a lăsat neatinsă a șasea
+intrare din navigație — `Tracker` — gri din Sprint 1. Sprintul 8 e ultimul, deci e ultima
+ocazie s-o aprindă. Între timp, S8.1 cere cifrele „la deschiderea aplicației", iar §D28 spune
+în litere că tabelul de la S1.2 **rămâne neatins pe `/`**. Cele două citite laolaltă păreau să
+se contrazică.
+
+Nu se contrazic: „la deschidere" e o cerință despre *ecranul de start*, nu despre înlocuirea
+lui.
+
+**Decizie, în trei părți.**
+
+1. **Cifrele stau sus pe `/`, deasupra tabelului.** Nu o rută proprie: o pagină de dashboard
+   pe care trebuie să navighezi nu mai e „la deschiderea aplicației", e încă un ecran. Banda
+   ia locul salutului generic care era acolo — care oricum spunea mai puțin decât patru cifre.
+   §D28 rămâne intact: tabelul nu e nici înlocuit, nici dublat.
+2. **Raftul primește a șasea intrare, `/shelf`, cu eticheta `Raft`.** Nu „Tracker": niciun
+   story din backlog n-a livrat vreodată un lucru numit așa, iar USER_STORIES.md folosește
+   cuvântul pentru aplicația întreagă („un tracker de cărți complet funcțional", livrabilul
+   Sprintului 1), nu pentru un ecran. Eticheta a fost dintotdeauna un loc gol care aștepta un
+   nume; S8.2 e story-ul care i-l dă. Calea în engleză, eticheta în română (§D21), ca peste
+   tot.
+3. **Raftul nu stă pe `/`.** E o suprafață deschisă la culoare, singura din aplicație
+   (DESIGN.md §Raftul), și funcționează prin contrast — lipită deasupra unui tabel, ar fi doar
+   o bandă luminoasă în mijlocul unui ecran întunecat.
+
+**Consecință asupra cifrelor.** S8.1 numește exact patru: cărți citite, în curs, pagini citite
+și *cheltuit luna asta*. Ultima nu vine din `/stats/overview`, ci din `/budget/summary` — care
+o calculează deja pentru S6.3. Dashboard-ul face deci două cereri, iar criteriul „același
+endpoint ca pagina de statistici" se referă la metricile de lectură, singurele care s-ar fi
+putut dubla. Ratingul mediu **nu** e pe dashboard: e a treia cifră a lui S7.1 și rămâne pe
+`/stats`.
+
+### D33 — Geometria cotorului: intervalul din DESIGN.md, dar altfel calculat
+
+Prototipul raftului și DESIGN.md §Raftul dădeau numere diferite (20–56px față de 14–44px,
+implicit 32 față de 24). Verificate, amândouă erau greșite, fiecare în felul ei — și nu din
+cauza intervalului, ci a formulei.
+
+**Regula moartă din prototip.** Titlul rotit se afișa „doar când grosimea depășește 20px", dar
+grosimea minimă *era* 20px: condiția nu putea fi falsă niciodată. O regulă care nu se aplică
+nu e o regulă, e cod care induce în eroare.
+
+**Regula moartă din spec.** Grosimea se calcula proporțional cu `totalPages / 750`, pornind de
+la zero pagini. Dar zero pagini nu există — o carte fără număr de pagini primește grosimea
+implicită (§D4) — așa că o carte de 200 de pagini ieșea deja la 22px, iar capătul de jos al
+intervalului era la fel de inaccesibil ca cel de sus.
+
+**Decizie:** se păstrează intervalul din DESIGN.md — **14–44px, implicit 24px, titlul peste
+20px** — și se schimbă maparea: `[80, 900] pagini → [14, 44]px`, cu tăiere la capete. O carte
+subțire chiar ajunge la 14px și chiar își pierde titlul; una de 900 de pagini chiar atinge
+44px. Ambele capete devin atinse de cărți reale, iar condiția titlului redevine o condiție.
+
+Intervalul specului câștigă și pe fond, nu doar fiindcă e specul: e singurul dintre cele două
+în care pragul de 20px cade *înăuntru*.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

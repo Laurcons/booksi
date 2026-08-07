@@ -13,6 +13,8 @@ import type {
   WishlistSummary,
 } from "@bookcsi/shared";
 import { apiFetch } from "../lib/api";
+import { BUDGET_KEY } from "./budget";
+import { STATS_KEY } from "./stats";
 
 /**
  * Every mutation invalidates this prefix rather than a single sorted list:
@@ -21,6 +23,23 @@ import { apiFetch } from "../lib/api";
  * editing a price has to move the number above the table, not just the row.
  */
 export const BOOKS_KEY = ["books"] as const;
+
+/**
+ * A write to a book invalidates the aggregates as well, not just the lists.
+ *
+ * They are derived from the same rows, and until Sprint 8 nothing showed an
+ * aggregate on the same screen as the books it came from — a stale entry was
+ * refetched on the way to `/budget` and nobody could see the gap. S8.1 puts the
+ * figures at the top of `/`, above the table that edits them: tick a book off
+ * as finished and "cărți citite" has to move, in that moment, on that screen.
+ */
+function invalidateBookData(queryClient: {
+  invalidateQueries: (filters: { queryKey: readonly unknown[] }) => unknown;
+}): void {
+  for (const key of [BOOKS_KEY, STATS_KEY, BUDGET_KEY]) {
+    void queryClient.invalidateQueries({ queryKey: key });
+  }
+}
 
 /**
  * Exported for its own test. Spreading the query straight into
@@ -80,7 +99,7 @@ export function usePurchaseBook() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch<Book>(`/books/${id}/purchase`, { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }),
+    onSuccess: () => invalidateBookData(queryClient),
   });
 }
 
@@ -94,7 +113,7 @@ export function useCreateBook() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }),
+    onSuccess: () => invalidateBookData(queryClient),
   });
 }
 
@@ -108,7 +127,7 @@ export function useUpdateBook() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }),
+    onSuccess: () => invalidateBookData(queryClient),
   });
 }
 
@@ -118,7 +137,7 @@ export function useDeleteBook() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch<void>(`/books/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }),
+    onSuccess: () => invalidateBookData(queryClient),
   });
 }
 

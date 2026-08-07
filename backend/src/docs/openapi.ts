@@ -13,6 +13,8 @@ import {
   isbnDuplicateSchema,
   openLibraryResultSchema,
   settingsSchema,
+  statsByMonthSchema,
+  statsOverviewSchema,
   updateBookSchema,
   updateSettingsSchema,
   wishlistSummarySchema,
@@ -64,6 +66,8 @@ export type SchemaName =
   | "BudgetByMonth"
   | "Settings"
   | "UpdateSettingsInput"
+  | "StatsOverview"
+  | "StatsByMonth"
   | "HttpError";
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
@@ -81,6 +85,9 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   BudgetByMonth: toOpenApiSchema(budgetByMonthSchema, "output"),
   Settings: toOpenApiSchema(settingsSchema, "output"),
   UpdateSettingsInput: toOpenApiSchema(updateSettingsSchema, "input"),
+  // Sprints 7-8 — derived on request as well, so likewise output-only.
+  StatsOverview: toOpenApiSchema(statsOverviewSchema, "output"),
+  StatsByMonth: toOpenApiSchema(statsByMonthSchema, "output"),
   HttpError: toOpenApiSchema(httpErrorSchema, "output"),
 };
 
@@ -138,6 +145,12 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       "covers",
       "Coperta unei cărți: descărcată la creare sau încărcată manual, " +
         "stocată în baza de date (§D8, §D18) și servită de aici (Sprint 4)",
+    )
+    .addTag(
+      "stats",
+      "Statisticile de lectură: cifrele generale și cărțile terminate pe " +
+        "lună (Sprint 7), plus cifrele pe care dashboard-ul le arată la " +
+        "deschidere (S8.1) — același endpoint pentru ambele ecrane",
     )
     .build();
 

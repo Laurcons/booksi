@@ -270,14 +270,23 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
  * S1.2. Sorting by `status` orders by the enum's declaration order, which is
  * the reading flow itself (wishlist → purchased → reading → finished →
  * abandoned) rather than alphabetical — the useful order, and free.
- * "Date" is the date the book entered the library; the three status dates are
- * sparse by nature and would sort mostly nulls.
+ * "Date" is the date the book entered the library; `createdAt` is when the book
+ * entered the library, which is the one date every row has.
+ *
+ * `purchasedOn` joined the list for S8.2, whose default shelf order is the day
+ * a book was bought. It was left out originally because the status dates are
+ * sparse and would sort mostly nulls — still true, and still the reason the
+ * *table* does not offer it as a column header. On the shelf the sparseness is
+ * bounded and harmless: the shelf shows owned books only, and MariaDB puts
+ * NULLs last under `desc`, so the undated ones queue at the far end instead of
+ * leading with a block of blanks.
  */
 export const BOOK_SORT_VALUES = [
   "title",
   "author",
   "status",
   "createdAt",
+  "purchasedOn",
 ] as const;
 
 export const bookSortSchema = z.enum(BOOK_SORT_VALUES);

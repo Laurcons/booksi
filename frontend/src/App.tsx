@@ -6,6 +6,8 @@ import { BudgetPage } from "./pages/BudgetPage";
 import { GalleryPage } from "./pages/GalleryPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { LoginPage } from "./pages/LoginPage";
+import { ShelfPage } from "./pages/ShelfPage";
+import { StatsPage } from "./pages/StatsPage";
 import { WishlistPage } from "./pages/WishlistPage";
 
 export default function App() {
@@ -26,6 +28,13 @@ export default function App() {
             <Route path="/gallery" element={<GalleryPage />} />
             {/* S6.1–S6.3 — the budget screen (§D28, §D31). */}
             <Route path="/budget" element={<BudgetPage />} />
+            {/* S7.1–S7.2 — the reading statistics, on the route §D28 named for
+                them a sprint in advance. */}
+            <Route path="/stats" element={<StatsPage />} />
+            {/* S8.2 — the shelf, on the sixth nav entry, which carried the
+                placeholder label "Tracker" until §D32. S8.1's dashboard has no
+                route of its own: it is the band at the top of `/`. */}
+            <Route path="/shelf" element={<ShelfPage />} />
             <Route path="*" element={<LibraryPage />} />
           </Route>
         </Routes>

@@ -15,4 +15,5 @@ export * from "./enums.js";
 export * from "./errors.js";
 export * from "./openlibrary.js";
 export * from "./settings.js";
+export * from "./stats.js";
 export * from "./user.js";

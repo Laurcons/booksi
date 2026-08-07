@@ -9,10 +9,10 @@ import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { currentMonth, monthRange } from "../common/month";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { BudgetModule } from "./budget.module";
-import { currentMonth, monthRange } from "./month";
 
 const storedUser = {
   id: "user-1",

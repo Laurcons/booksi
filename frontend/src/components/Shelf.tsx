@@ -1,7 +1,14 @@
-import { GENRE_LABEL } from "@bookcsi/shared";
-import type { BookWithCover } from "../lib/covers";
+import { GENRE_LABEL, type Book } from "@bookcsi/shared";
+import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
 import { progressLabel, progressRatio } from "../lib/progress";
-import { shelfRows, spineColor, spineHeight, spineWidth } from "../lib/shelf";
+import {
+  ROW_WIDTH,
+  shelfRows,
+  spineColor,
+  spineHeight,
+  spineWidth,
+  SPINE_TITLE_WIDTH,
+} from "../lib/shelf";
 import { StatusPill } from "./StatusPill";
 
 /**
@@ -10,41 +17,58 @@ import { StatusPill } from "./StatusPill";
  * with everything else.
  *
  * The geometry lives in `lib/shelf.ts` rather than here — thickness from the
- * page count, deterministic jitter, the pastel ramp — because it is arithmetic
- * with rules behind it, and arithmetic buried in JSX is arithmetic nobody
- * checks. What is left in this file is the drawing.
+ * page count (§D33), deterministic jitter, the pastel ramp, how a row fills —
+ * because it is arithmetic with rules behind it, and arithmetic buried in JSX
+ * is arithmetic nobody checks. What is left in this file is the drawing.
+ *
+ * **A spine is a button.** The story asks for a click that opens the book, and
+ * the prototype's `<div className="cursor-pointer">` had no click handler, no
+ * tab stop and a hover card that a touch screen could never summon — a shelf
+ * you can only read with a mouse is decoration. The card now answers to focus
+ * as well as hover, and `Enter` opens the same dialog the gallery does.
  */
-export function Shelf({ books }: { books: BookWithCover[] }) {
-  const rows = shelfRows(books);
+export function Shelf({
+  books,
+  onOpen,
+}: {
+  books: Book[];
+  onOpen: (book: Book) => void;
+}) {
+  const rows = shelfRows(books, (book) => spineWidth(book.totalPages));
 
   return (
-    <section>
-      <div className="mb-5 flex items-baseline justify-between">
-        <h2 className="font-display text-2xl text-ink">
-          Raftul <em className="text-accent">tău</em>
-        </h2>
-        <p className="text-sm text-ink-3">{books.length} cărți în bibliotecă</p>
-      </div>
-
-      <div className="rounded-xl border border-line bg-surface-1 px-6 py-8 sm:px-10">
+    /* The plank is a fixed width and the shelf scrolls sideways rather than
+       reflowing: rows are packed to fill a plank exactly, and a plank that
+       changed width on every viewport would have to repack on every resize. */
+    <div className="overflow-x-auto rounded-xl border border-line bg-surface-1 px-6 py-8 sm:px-10">
+      <div style={{ width: ROW_WIDTH }}>
         {rows.map((row, index) => (
           <ShelfRow
             key={row[0]?.id ?? index}
             books={row}
             last={index === rows.length - 1}
+            onOpen={onOpen}
           />
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 
-function ShelfRow({ books, last }: { books: BookWithCover[]; last: boolean }) {
+function ShelfRow({
+  books,
+  last,
+  onOpen,
+}: {
+  books: Book[];
+  last: boolean;
+  onOpen: (book: Book) => void;
+}) {
   return (
     <div className={last ? "" : "mb-9"}>
       <div className="relative flex items-end gap-[3px] pl-3">
         {books.map((book) => (
-          <Spine key={book.id} book={book} />
+          <Spine key={book.id} book={book} onOpen={() => onOpen(book)} />
         ))}
       </div>
       <Plank />
@@ -52,15 +76,22 @@ function ShelfRow({ books, last }: { books: BookWithCover[]; last: boolean }) {
   );
 }
 
-function Spine({ book }: { book: BookWithCover }) {
+function Spine({ book, onOpen }: { book: Book; onOpen: () => void }) {
   const width = spineWidth(book.totalPages);
   const height = spineHeight(book);
   const base = spineColor(book.genre);
 
   return (
     <div className="group relative">
-      <div
-        className="relative cursor-pointer rounded-t-[3px] transition-transform duration-150 ease-out group-hover:-translate-y-2.5"
+      <button
+        type="button"
+        onClick={onOpen}
+        // The spine carries no readable text at 14px, and none at all below
+        // the threshold, so the accessible name is spelled out here.
+        aria-label={
+          book.author === null ? book.title : `${book.title}, ${book.author}`
+        }
+        className="relative block cursor-pointer rounded-t-[3px] transition-transform duration-150 ease-out group-hover:-translate-y-2.5 focus-visible:-translate-y-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:focus-visible:translate-y-0"
         style={{
           width,
           height,
@@ -78,8 +109,11 @@ function Spine({ book }: { book: BookWithCover }) {
         <span className="absolute inset-x-0 bottom-[13%] h-px bg-[#3a2e24]/25" />
         <span className="absolute inset-x-0 bottom-[17%] h-px bg-[#3a2e24]/25" />
 
-        {width >= 20 && (
+        {/* §D33 — a threshold that now falls inside the range, so a thin book
+            really does go untitled rather than the rule never applying. */}
+        {width > SPINE_TITLE_WIDTH && (
           <span
+            aria-hidden
             className="absolute inset-x-0 top-[24%] bottom-[24%] mx-auto flex items-center justify-center overflow-hidden text-center text-[10px] leading-tight font-medium text-[#3a2e24]"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
@@ -90,24 +124,32 @@ function Spine({ book }: { book: BookWithCover }) {
         {book.favorite && (
           <span className="absolute inset-x-0 bottom-[6%] mx-auto size-1.5 rounded-full bg-[#8a6a1e]" />
         )}
-      </div>
+      </button>
 
       <SpineCard book={book} />
     </div>
   );
 }
 
-/** Hover detail. A shelf you cannot read is decoration, not a library. */
-function SpineCard({ book }: { book: BookWithCover }) {
+/**
+ * The detail card. A shelf you cannot read is decoration, not a library — so it
+ * answers to keyboard focus (`group-focus-within`) as well as to the mouse.
+ * Still `pointer-events-none`: it is a label for the spine, not a second target
+ * to hit, and catching the pointer would make the spine beside it unclickable.
+ */
+function SpineCard({ book }: { book: Book }) {
   const ratio = progressRatio(book);
+  const src = apiImageSrc(book.coverUrl);
 
   return (
-    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-4 w-64 -translate-x-1/2 rounded-xl border border-line bg-surface-3 p-3 opacity-0 shadow-2xl transition-opacity duration-150 group-hover:opacity-100">
+    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-4 w-64 -translate-x-1/2 rounded-xl border border-line bg-surface-3 p-3 opacity-0 shadow-2xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
       <div className="flex gap-3">
-        {book.cover ? (
+        {src !== null ? (
           <img
-            src={book.cover}
+            {...CREDENTIALED_IMAGE}
+            src={src}
             alt=""
+            loading="lazy"
             className="h-[84px] w-14 shrink-0 rounded-[2px] object-cover"
           />
         ) : (
@@ -118,8 +160,10 @@ function SpineCard({ book }: { book: BookWithCover }) {
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-sm text-ink">{book.title}</p>
-          <p className="mt-0.5 truncate text-xs text-ink-3">{book.author}</p>
-          {book.genre && (
+          {book.author !== null && (
+            <p className="mt-0.5 truncate text-xs text-ink-3">{book.author}</p>
+          )}
+          {book.genre !== null && (
             <p className="mt-1.5 text-[11px] text-ink-3">{GENRE_LABEL[book.genre]}</p>
           )}
           <div className="mt-2">

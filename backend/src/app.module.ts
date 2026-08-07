@@ -12,6 +12,7 @@ import { CoversModule } from "./covers/covers.module";
 import { OpenLibraryModule } from "./openlibrary/open-library.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { SettingsModule } from "./settings/settings.module";
+import { StatsModule } from "./stats/stats.module";
 
 @Module({
   imports: [
@@ -53,6 +54,10 @@ import { SettingsModule } from "./settings/settings.module";
     // setting they read: S6.3's monthly budget.
     BudgetModule,
     SettingsModule,
+    // Sprints 7–8. Read-only too, and the only place the page-counting rule
+    // (§D10) is implemented — the dashboard reads it from here rather than
+    // deriving its own copy over a downloaded library.
+    StatsModule,
   ],
   providers: [
     // Order matters: these run in the sequence they are declared. Throttling

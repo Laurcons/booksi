@@ -2,8 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type { BudgetByMonth, BudgetSummary, UndatedSpend } from "@bookcsi/shared";
 import { toAmount, toNumber, round2 } from "../common/money";
+import { currentMonth, denseMonths, monthRange } from "../common/month";
 import { PrismaService } from "../prisma/prisma.service";
-import { currentMonth, denseMonths, monthRange } from "./month";
 
 /**
  * A `SUM` as MariaDB hands it back through a raw query — a decimal string on
@@ -105,10 +105,17 @@ export class BudgetService {
 
     const spending = rows.map((row) => ({
       month: row.month,
-      spent: toAmount(row.total),
+      value: toAmount(row.total),
     }));
 
-    return { months: denseMonths(spending, currentMonth()), undated };
+    // `value` is what `denseMonths` calls the number so that S7.2 can share it;
+    // `spent` is what this endpoint's DTO calls it.
+    const months = denseMonths(spending, currentMonth()).map((entry) => ({
+      month: entry.month,
+      spent: entry.value,
+    }));
+
+    return { months, undated };
   }
 
   /**

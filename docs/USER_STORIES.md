@@ -356,6 +356,11 @@ Ca utilizator, vreau să văd câte cărți am citit pe lună.
 - Grupare lunară pe `data_terminare`.
 - Cărțile terminate fără dată de terminare sunt excluse din grafic, iar numărul lor e afișat
   explicit.
+- Seria e **densă**, ca la S6.2: lunile fără nicio carte terminată apar cu zero, de la prima
+  lună datată până la luna curentă. Aceeași regulă, același motiv (§D31).
+- Se numără doar cărțile în `Terminat`, aceeași populație ca la S7.1 — o recitire duce cartea
+  înapoi în `Citesc` fără să-i șteargă data (S1.5), iar barele trebuie să adune exact cifra
+  scrisă deasupra lor.
 
 ---
 
@@ -369,7 +374,12 @@ Ca utilizator, vreau să văd la deschiderea aplicației un dashboard cu cifrele
 (cărți citite, în curs, pagini citite, cheltuit luna asta), ca să am o privire de ansamblu instantă.
 
 - Toate valorile sunt derivate, cu aceleași reguli ca la S7.1 — nicio metrică nu se recalculează
-  altfel pe dashboard decât în pagina de statistici.
+  altfel pe dashboard decât în pagina de statistici. Concret: aceleași cifre vin din același
+  `GET /stats/overview`, iar „cheltuit luna asta" din `/budget/summary`, care o calculează
+  de la S6.3.
+- **Unde:** sus pe `/`, deasupra tabelului (§D32). „La deschidere" e o cerință despre ecranul
+  de start, nu o înlocuire a lui — §D28 lasă tabelul de la S1.2 neatins.
+- Ratingul mediu nu e printre cele patru cifre: e a treia cifră a lui S7.1 și rămâne pe `/stats`.
 
 ### S8.2 — Raft vizual
 Ca utilizator, vreau biblioteca reprezentată ca un raft cu cotoare de cărți, ca experiență
@@ -380,8 +390,14 @@ estetică/gamificată.
 - Grosimea cotorului e proporțională cu `total_pagini`; cărțile fără număr de pagini primesc
   o grosime medie implicită.
 - Culoarea cotorului e derivată din gen.
-- Ordonare implicită după `data_cumparare`, cu opțiune de sortare alfabetică.
-- Click pe un cotor deschide detaliile cărții.
+- Ordonare implicită după `data_cumparare`, cu opțiune de sortare alfabetică. Amândouă sunt
+  sortări server-side pe ruta de listare (§D29), nu un `sort()` în client.
+- Click pe un cotor deschide detaliile cărții — același dialog pe care îl deschide un card din
+  galerie (S5.1). „Detaliile cărții" sunt un singur ecran în aplicație.
+- Cotorul e un buton: se ajunge la el cu tastatura, iar fișa lui apare și la focus, nu doar la
+  hover. Un raft care se citește doar cu mausul e decor.
+- **Unde:** `/shelf`, pe a șasea intrare din navigație — cea care a scris „Tracker" opt
+  sprinturi fără ca vreun story să livreze ceva cu numele ăsta (§D32).
 
 ---
 

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { Book, ListBooksQuery } from "@bookcsi/shared";
 import { useBooks } from "../api/books";
+import { useBudgetSummary } from "../api/budget";
+import { useStatsOverview } from "../api/stats";
+import { DashboardStats } from "../components/DashboardStats";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { BookFormDialog } from "../components/books/BookFormDialog";
@@ -10,10 +13,14 @@ import { EmptyLibrary } from "../components/books/EmptyLibrary";
 import { plural } from "../lib/plural";
 
 /**
- * Sprint 1 — the library, for real. This page used to render a fixture; that
- * moved to `fixtures/books.ts`, where the shelf (S8.2) and the stats bar (S8.1)
- * still read it while they wait for Sprint 8, but nothing on this screen is a
- * mock any more.
+ * Sprint 1 — the library, for real. This page used to render a fixture, which
+ * survived in `fixtures/books.ts` only so that the shelf and the stats bar had
+ * something to draw while they waited for Sprint 8. They have real data now, so
+ * the fixture is gone and nothing anywhere in the app is a mock.
+ *
+ * Sprint 8 adds the dashboard band above the table (S8.1, §D32) — the numbers
+ * come from the API rather than from the `books` this page already holds, so
+ * that they are the same numbers `/stats` shows.
  *
  * S1.6 needs no code of its own: the list comes from the API on every visit,
  * so the library is the same on any browser or device and there is no local
@@ -40,6 +47,11 @@ export function LibraryPage() {
 
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-12">
         <Greeting books={books} />
+
+        {/* S8.1 — the dashboard, at the top of the screen the app opens on
+            (§D32). Above the table rather than instead of it: §D28 keeps S1.2's
+            table on `/`, and a summary belongs over the thing it summarises. */}
+        <Dashboard />
 
         {isPending && <Note>Se încarcă biblioteca…</Note>}
 
@@ -74,6 +86,26 @@ export function LibraryPage() {
       )}
     </div>
   );
+}
+
+/**
+ * S8.1 — the four figures, from the two endpoints that already own them.
+ *
+ * Neither request blanks the page if it fails, and neither shows a half-filled
+ * row while it loads: four numbers where one is a spinner is worse than four
+ * numbers a moment later. The library below carries the screen meanwhile, which
+ * is the whole reason the dashboard is a band on `/` rather than a page of its
+ * own (§D32).
+ */
+function Dashboard() {
+  const stats = useStatsOverview();
+  const budget = useBudgetSummary();
+
+  if (stats.data === undefined || budget.data === undefined) {
+    return null;
+  }
+
+  return <DashboardStats stats={stats.data} month={budget.data.month} />;
 }
 
 function Greeting({ books }: { books: Book[] | undefined }) {
