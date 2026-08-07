@@ -79,6 +79,12 @@ export class GoogleCallbackGuard extends AuthGuard("google") {
       // `OAuthFailureFilter` turns this into a redirect to the login screen —
       // the victim of a forged callback is a real user with a browser, not an
       // API client, and a JSON 401 in the address bar tells them nothing.
+      //
+      // The one throw left in the codebase that is neither an `AppError` nor a
+      // plain `Error` (§D27), and deliberately so: it never becomes a response.
+      // The route-scoped filter consumes it before the global one sees it, so
+      // this string is a signal between two pieces of our own code — which is
+      // also why it is in English and says something a log reader wants.
       throw new UnauthorizedException("OAuth state mismatch");
     }
 

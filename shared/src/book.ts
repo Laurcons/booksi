@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { genreSchema, statusSchema, type Status } from "./enums.js";
+import { olEditionKeySchema } from "./openlibrary.js";
 
 /**
  * Contracts for the library itself: S1.1–S1.5, the three columns Sprint 2
@@ -134,6 +135,20 @@ export const bookSchema = z.object({
   startedOn: calendarDateSchema.nullable(),
   finishedOn: calendarDateSchema.nullable(),
 
+  /**
+   * S4.3 — where to draw the cover from, or `null` for the books that have
+   * none and get the placeholder instead.
+   *
+   * A path rather than the image, because §D18 keeps the blob in a row of its
+   * own precisely so that listing a library does not carry one per line. A
+   * flag would have done as much, except for the query string: the image is
+   * served `immutable` for a year, so an uploaded replacement has to arrive
+   * under a URL the browser has never seen. `?v=` is that, and it is the
+   * server's business to compute — a client that has to assemble it is a
+   * client that can get it wrong.
+   */
+  coverUrl: z.string().nullable(),
+
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -156,6 +171,24 @@ export const createBookSchema = z.strictObject({
   totalPages: z.number().int().positive().max(100_000).nullable().optional(),
   genre: genreSchema.nullable().optional(),
   status: statusSchema.optional(),
+
+  /**
+   * S4.1 / S4.2 — the edition the user picked, and the whole mechanism behind
+   * §D8's "the image is stored, not the URL": given this key at creation, the
+   * server fetches the cover from Open Library and writes it into the `Cover`
+   * row. Absent, the book is created without one.
+   *
+   * The download happens here rather than at the moment of selection, which is
+   * the one place the wording in §D8 and the route in ARCHITECTURE.md disagree.
+   * The route is right: a book the user searched for, looked at and then
+   * abandoned in the form should not have left a blob behind.
+   *
+   * Failing to fetch it does *not* fail the request. An external service that
+   * is down must not stop a book from being added (the degradation criterion);
+   * the book simply arrives with the placeholder, and S4.3's upload is the way
+   * out.
+   */
+  olEditionKey: olEditionKeySchema.nullable().optional(),
 
   /**
    * S2.1 — one current value, never a history of sessions (§D3).
@@ -310,3 +343,25 @@ export type IsbnDuplicate = z.infer<typeof isbnDuplicateSchema>;
 export function normalizeIsbn(value: string): string {
   return value.replace(/[^0-9Xx]/g, "").toUpperCase();
 }
+
+/**
+ * S4.2 — an ISBN worth asking Open Library about.
+ *
+ * Ten or thirteen digits, counted after the punctuation is stripped, because
+ * that is how it is printed on the back of a book and how someone will type
+ * it. The check is on length alone: the last digit is a checksum and
+ * validating it here would turn a typo into "invalid ISBN" when "we could not
+ * find it" is both truer and more useful.
+ *
+ * Deliberately stricter than the `isbn` column, which accepts anything up to
+ * 20 characters (§D13 — it is the user's data, and some books carry an ISSN or
+ * nothing at all). This one guards a lookup, and a lookup needs a real key.
+ */
+export const isbnLookupSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => [10, 13].includes(normalizeIsbn(value).length),
+    "Un ISBN are 10 sau 13 cifre",
+  )
+  .meta({ examples: ["978-0-441-01359-3"] });

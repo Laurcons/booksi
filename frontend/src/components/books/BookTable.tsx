@@ -160,7 +160,7 @@ function Row({
   return (
     <tr className="group h-14 border-b border-line last:border-b-0 transition-colors duration-150 hover:bg-surface-2">
       <Td>
-        <CoverThumb title={book.title} />
+        <CoverThumb title={book.title} coverUrl={book.coverUrl} />
       </Td>
       <Td>
         <button

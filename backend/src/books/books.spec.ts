@@ -45,7 +45,9 @@ const storedBook = {
   finishedOn: null,
   createdAt: new Date("2026-06-30T10:00:00Z"),
   updatedAt: new Date("2026-07-20T10:00:00Z"),
-  manuallyEditedFields: { fields: ["title"] },
+  // Sprint 4 selects the cover's version alongside every book — never the
+  // blob. A book without a cover row is the ordinary case.
+  cover: null,
 };
 
 describe("books routes (Sprints 1–3)", () => {
@@ -185,12 +187,16 @@ describe("books routes (Sprints 1–3)", () => {
         purchasedOn: "2026-07-01",
         startedOn: "2026-07-20",
         finishedOn: null,
+        // S4.3 — this book has no cover row, and most books never will.
+        coverUrl: null,
         createdAt: "2026-06-30T10:00:00.000Z",
         updatedAt: "2026-07-20T10:00:00.000Z",
       });
-      // S4.4's field is internal; so is the foreign key.
-      expect(res.body[0].manuallyEditedFields).toBeUndefined();
+      // The foreign key is internal, and so is the cover's blob: §D18 keeps it
+      // one route away precisely so that listing a library does not carry one
+      // image per row.
       expect(res.body[0].userId).toBeUndefined();
+      expect(res.body[0].cover).toBeUndefined();
     });
 
     it("defaults to newest first", async () => {

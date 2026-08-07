@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { AppError } from "./app-error";
 
 /**
  * Turns "row absent" and "row belongs to someone else" into the same outcome
@@ -14,7 +14,10 @@ import { NotFoundException } from "@nestjs/common";
  */
 export function ownedOrNotFound<T>(row: T | null | undefined): T {
   if (row === null || row === undefined) {
-    throw new NotFoundException();
+    // A sentence rather than Nest's bare "Not Found": this is shown to
+    // somebody who followed a stale link or a deleted bookmark, and §D27 says
+    // an error they can act on gets words they can read.
+    throw AppError.notFound("Cartea asta nu există sau nu e a ta.");
   }
 
   return row;

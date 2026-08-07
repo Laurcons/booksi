@@ -152,8 +152,6 @@ model Book {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  manuallyEditedFields Json? // field names protected from refresh — see S4.4
-
   cover Cover?
 
   @@index([userId, status])
@@ -170,10 +168,12 @@ model Cover {
   bookId String @id
   book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
-  data      Bytes       @db.LongBlob
-  mimeType  String
-  source    CoverSource
-  createdAt DateTime    @default(now())
+  data     Bytes       @db.LongBlob
+  mimeType String
+  source   CoverSource
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // versiunea din `?v=` — vezi D26
 }
 
 model Settings {
@@ -242,18 +242,56 @@ stocată, iar D18 o pune în baza de date — ambele se pot face doar server-sid
 
 | Rută internă | Ce face |
 |---|---|
-| `GET /openlibrary/search?q=` | proxy peste Search API; returnează rezultate normalizate cu URL de miniatură |
-| `GET /openlibrary/isbn/:isbn` | căutare după ISBN; returnează câmpurile completabile |
+| `GET /openlibrary/search?q=` | proxy peste Search API; cel mult 10 *works* normalizate |
+| `GET /openlibrary/editions/:key` | ediția aleasă, ca set de câmpuri de formular (§D7) |
+| `GET /openlibrary/isbn/:isbn` | același set de câmpuri, ajuns din ISBN |
+| `GET /openlibrary/covers/:key` | proxy peste `covers.openlibrary.org` — miniaturile din lista de rezultate |
 | `POST /books` | la creare, dacă vine cu `olEditionKey`, descarcă coperta și o salvează |
-| `GET /covers/:bookId` | servește blob-ul, cu `Cache-Control: public, max-age=31536000, immutable` |
+| `PUT /books/:id/cover` | upload manual: body brut `image/*`, max 5MB (S4.3) |
+| `GET /covers/:bookId` | servește blob-ul, cu `Cache-Control: max-age=31536000, immutable` |
 
-- **Debounce de 300ms** se aplică în frontend, înainte de a lovi propriul backend.
+Căutarea și lookup-ul după ISBN folosesc două API-uri diferite ale Open Library, din motive
+diferite. Search API dă *works* și e singurul care caută după text liber. Completarea folosește
+**Books API cu `jscmd=data`** (`/api/books?bibkeys=OLID:…`), fiindcă întoarce autorii **cu
+nume** într-o singură cerere; documentul de ediție (`/books/OL…M.json`) i-ar da doar prin cheie,
+adică încă un round-trip per autor.
+
+- **Debounce de 300ms** se aplică în frontend, înainte de a lovi propriul backend. Rutele de
+  proxy au în plus o limită proprie de 10 cereri/secundă.
 - **Nicio randare nu declanșează un apel extern.** După adăugare, cartea se afișează identic
-  și dacă Open Library e complet indisponibil.
+  și dacă Open Library e complet indisponibil. Excepția evidentă e lista de rezultate a unei
+  căutări, care e live prin definiție — dar și ea trece prin proxy-ul nostru.
 - **Works vs. editions (§D7):** Search API returnează *works*; la selecție, backendul rezolvă
   `cover_edition_key` pentru copertă, ISBN și număr de pagini.
+- **Coperta se descarcă la `POST /books`**, nu la selecție: o carte căutată și abandonată în
+  formular nu trebuie să lase un blob în bază. `?default=false` pe URL-ul de copertă e ce
+  transformă „ediția n-are copertă" într-un 404 — fără el se primește un dreptunghi gri cu 200,
+  care ar ajunge stocat ca și cum ar fi o copertă reală.
+- **Formatul imaginilor se citește din primii octeți**, niciodată din `Content-Type`: antetul e
+  al clientului, iar imaginea ajunge servită înapoi de pe originea noastră.
 - **Degradare grațioasă:** orice eroare externă întoarce un răspuns care lasă formularul manual
-  complet funcțional. Open Library indisponibil nu blochează adăugarea unei cărți.
+  complet funcțional — 503 dacă Open Library nu răspunde, 502 dacă răspunde cu ceva de necitit.
+  Open Library indisponibil nu blochează adăugarea unei cărți: cartea se creează, doar fără
+  copertă.
+
+---
+
+## Erori (§D27)
+
+Un singur criteriu: *poate utilizatorul face ceva?*
+
+| | Aruncat ca | Răspuns | Client |
+|---|---|---|---|
+| Poate | `AppError(status, code, mesaj)` | `{ statusCode, code, message }` | afișează `message` verbatim |
+| Nu poate | `Error` obișnuit | `{ statusCode: 500, message: generic }`, **fără cod** | afișează propriile cuvinte |
+
+`AppExceptionFilter` e global și rescrie orice 5xx fără cod, deci un mesaj intern nu poate
+ajunge pe ecran nici din greșeală. Codurile sunt în `shared/src/errors.ts` — ambele capete
+citesc aceeași listă, iar unul necunoscut e ignorat de client.
+
+Statusul nu decide nimic pe frontend: `errorMessage(error, fallback)` se uită la cod. Un 503
+de la Open Library **își păstrează mesajul**, fiindcă „scrie cartea manual" e exact ce poate
+face utilizatorul.
 
 ---
 

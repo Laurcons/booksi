@@ -91,8 +91,6 @@ model Book {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  manuallyEditedFields Json? // field names protected from refresh — see S4.4
-
   cover Cover?
 
   @@index([userId, status])
@@ -109,10 +107,18 @@ model Cover {
   bookId String @id
   book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
-  data      Bytes       @db.LongBlob
-  mimeType  String
-  source    CoverSource
-  createdAt DateTime    @default(now())
+  data     Bytes       @db.LongBlob
+  mimeType String
+  source   CoverSource
+
+  createdAt DateTime @default(now())
+
+  /// The version in the cover's URL, and the reason it exists: the image is
+  /// served with `Cache-Control: immutable` on the premise that a cover never
+  /// changes, which S4.3's upload breaks — replace a cover and the browser
+  /// would keep the old one for a year. `?v=<updatedAt>` moves with the image,
+  /// so the new URL is simply a URL the cache has never seen.
+  updatedAt DateTime @updatedAt
 }
 
 model Settings {

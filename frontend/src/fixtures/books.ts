@@ -54,6 +54,10 @@ function toBook(fixture: FixtureBook): BookWithCover {
     // it has an opinion about.
     startedOn: null,
     finishedOn: fixture.finishedOn ?? null,
+    // The fixture's `cover` is a file in `public/coperti/`, which is what these
+    // screens draw. `coverUrl` is the real API's answer — a route on the API,
+    // served from the database (§D18) — and the fixture has no database.
+    coverUrl: null,
     createdAt: ADDED_ON,
     updatedAt: ADDED_ON,
   };

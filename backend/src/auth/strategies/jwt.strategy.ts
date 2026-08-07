@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import type { Request } from "express";
 import { Strategy } from "passport-jwt";
 import type { AuthUser } from "@bookcsi/shared";
+import { AppError } from "../../common/app-error";
 import type { Env } from "../../config/env";
 import { AuthService, SessionPayload } from "../auth.service";
 import { SESSION_COOKIE } from "../session";
@@ -45,7 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     const user = await this.authService.findById(payload.sub);
 
     if (!user || payload.ver !== user.tokenVersion) {
-      throw new UnauthorizedException();
+      throw AppError.unauthenticated();
     }
 
     return AuthService.toAuthUser(user);

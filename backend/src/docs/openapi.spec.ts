@@ -85,10 +85,16 @@ describe("OpenAPI document", () => {
       "GET /books/isbn-duplicates",
       "GET /books/wishlist-summary",
       "GET /books/{id}",
+      "GET /covers/{bookId}",
+      "GET /openlibrary/covers/{editionKey}",
+      "GET /openlibrary/editions/{editionKey}",
+      "GET /openlibrary/isbn/{isbn}",
+      "GET /openlibrary/search",
       "PATCH /books/{id}",
       "POST /auth/logout",
       "POST /books",
       "POST /books/{id}/purchase",
+      "PUT /books/{id}/cover",
     ]);
   });
 
@@ -131,13 +137,16 @@ describe("OpenAPI document", () => {
       expect(schema().required).toEqual(["title"]);
     });
 
-    it("accepts the fields Sprints 1 to 3 own", () => {
+    it("accepts the fields Sprints 1 to 4 own", () => {
       expect(Object.keys(schema().properties ?? {}).sort()).toEqual([
         "author",
         "estimatedPrice",
         "finishedOn",
         "genre",
         "isbn",
+        // S4.1 — the edition to fetch a cover for (§D8). Writable, unlike the
+        // `coverUrl` it eventually produces.
+        "olEditionKey",
         "pagesRead",
         "paidPrice",
         "purchasedOn",
@@ -182,8 +191,8 @@ describe("OpenAPI document", () => {
     // set them yet.
     expect(book.properties).toHaveProperty("rating");
     expect(book.properties).toHaveProperty("paidPrice");
-    // Internal bookkeeping for S4.4 never leaves the API.
-    expect(book.properties).not.toHaveProperty("manuallyEditedFields");
+    // S4.3 — where to find the cover, never the image itself (§D18).
+    expect(book.properties).toHaveProperty("coverUrl");
     expect(book.properties).not.toHaveProperty("userId");
   });
 

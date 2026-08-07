@@ -1,0 +1,80 @@
+import { z } from "zod";
+
+/**
+ * The error contract, and the rule behind it (§D27).
+ *
+ * Failures are split by one question — **can the person reading this do
+ * something about it?**
+ *
+ * - **Yes** → an `AppError` on the server: a sentence written for them, plus a
+ *   `code` from the list below. The sentence is shown verbatim; the code is
+ *   there for the client that needs to *branch* rather than merely display.
+ * - **No** → an ordinary `Error`, which the global filter turns into a bare
+ *   500. No code, no message, nothing about the inside of the server.
+ *
+ * **The code is the discriminator, not the status.** That is the whole point
+ * of having one. The obvious alternative — "show the message when the status
+ * is under 500" — is wrong in a way that is easy to miss until it bites:
+ * status codes answer *whose fault is it*, and this contract asks *can the
+ * user act*. Those two questions give different answers for an upstream
+ * outage, which is not the client's fault (so: 5xx) but is entirely actionable
+ * ("Open Library is down, type it in yourself"). Keyed on status, that message
+ * gets discarded as though it were a stack frame. Keyed on the code, it
+ * arrives.
+ */
+
+export const ERROR_CODES = [
+  /** A request that does not satisfy the schema, or a cross-field rule. */
+  "VALIDATION_FAILED",
+  /** Absent, or someone else's — the two are deliberately the same (S0.3). */
+  "NOT_FOUND",
+  /** No session, or one that is no longer valid (§D23). */
+  "UNAUTHENTICATED",
+  /** Too many requests too quickly. Actionable: wait. */
+  "RATE_LIMITED",
+  /**
+   * Open Library could not be reached or could not be understood. One code for
+   * both, because there is exactly one thing to do about either and a client
+   * that branched between them would branch to the same place twice. The
+   * status still distinguishes them for whoever reads the logs: 503 for "did
+   * not answer", 502 for "answered with something unusable".
+   */
+  "OPEN_LIBRARY_UNAVAILABLE",
+  /** Open Library has no such edition or ISBN. Ordinary, not a fault. */
+  "OPEN_LIBRARY_NOT_FOUND",
+  /** The uploaded cover is not a JPEG, PNG or WebP (S4.3). */
+  "COVER_FORMAT_UNSUPPORTED",
+  /** The uploaded cover is over the ceiling (S4.3). */
+  "COVER_TOO_LARGE",
+] as const;
+
+export const errorCodeSchema = z.enum(ERROR_CODES);
+
+export type ErrorCode = z.infer<typeof errorCodeSchema>;
+
+/**
+ * What every failed request answers with.
+ *
+ * `message` is a string for most errors and an array when several rules failed
+ * at once — Nest's own convention, and what validation produces.
+ *
+ * `code` is **absent on exactly one kind of response**: the generic 500. Its
+ * absence is therefore meaningful rather than incidental — it says "there is
+ * nothing here written for a user", which is precisely when a client should
+ * substitute its own words.
+ */
+export const httpErrorSchema = z.object({
+  // Bounded so the generated example is a plausible status rather than the
+  // smallest integer a JSON number can hold.
+  statusCode: z.number().int().min(400).max(599),
+  message: z
+    .union([z.string(), z.array(z.string())])
+    .meta({ examples: ["Not Found", ["title: Titlul e obligatoriu"]] }),
+  code: errorCodeSchema.optional(),
+});
+
+export type HttpErrorBody = z.infer<typeof httpErrorSchema>;
+
+/** The generic body, named once so both ends agree on what "no code" means. */
+export const INTERNAL_ERROR_MESSAGE =
+  "Ceva n-a mers bine pe server. Încearcă din nou peste puțin.";

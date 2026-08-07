@@ -4,8 +4,12 @@ import { z } from "zod";
 import {
   authUserSchema,
   bookSchema,
+  bookSuggestionSchema,
+  coverRefSchema,
   createBookSchema,
+  httpErrorSchema,
   isbnDuplicateSchema,
+  openLibraryResultSchema,
   updateBookSchema,
   wishlistSummarySchema,
 } from "@bookcsi/shared";
@@ -36,22 +40,11 @@ import {
  */
 
 /**
- * Errors are part of the contract, so they are modelled like everything else.
- * One shape covers all of them: a validation failure is a 400 whose `message`
- * lists one sentence per problem, each naming its field.
+ * Errors are part of the contract, so they are modelled like everything else —
+ * and now from `shared/`, alongside every other schema, since §D27 made the
+ * error body something the client reads structurally rather than merely
+ * displays.
  */
-const httpErrorSchema = z.object({
-  // Bounded so the generated example is a plausible status rather than the
-  // smallest integer a JSON number can hold.
-  statusCode: z.number().int().min(400).max(599),
-  /**
-   * A string for most errors; an array when several rules failed at once,
-   * which is Nest's own convention and what validation failures produce.
-   */
-  message: z
-    .union([z.string(), z.array(z.string())])
-    .meta({ examples: ["Not Found", ["title: Titlul e obligatoriu"]] }),
-});
 
 export type SchemaName =
   | "AuthUser"
@@ -60,6 +53,9 @@ export type SchemaName =
   | "UpdateBookInput"
   | "IsbnDuplicate"
   | "WishlistSummary"
+  | "OpenLibraryResult"
+  | "BookSuggestion"
+  | "CoverRef"
   | "HttpError";
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
@@ -69,6 +65,9 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   UpdateBookInput: toOpenApiSchema(updateBookSchema, "input"),
   IsbnDuplicate: toOpenApiSchema(isbnDuplicateSchema, "output"),
   WishlistSummary: toOpenApiSchema(wishlistSummarySchema, "output"),
+  OpenLibraryResult: toOpenApiSchema(openLibraryResultSchema, "output"),
+  BookSuggestion: toOpenApiSchema(bookSuggestionSchema, "output"),
+  CoverRef: toOpenApiSchema(coverRefSchema, "output"),
   HttpError: toOpenApiSchema(httpErrorSchema, "output"),
 };
 
@@ -116,6 +115,16 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
         "pagini citite, rating și suma plătită (Sprint 2) și wishlist-ul — " +
         "vedere filtrată, preț estimat, total și cumpărare într-un click " +
         "(Sprint 3)",
+    )
+    .addTag(
+      "open-library",
+      "Căutare, completare din ISBN și miniaturi (Sprint 4). Tot ce ține de " +
+        "openlibrary.org trece pe aici: frontendul nu-l atinge niciodată direct",
+    )
+    .addTag(
+      "covers",
+      "Coperta unei cărți: descărcată la creare sau încărcată manual, " +
+        "stocată în baza de date (§D8, §D18) și servită de aici (Sprint 4)",
     )
     .build();
 

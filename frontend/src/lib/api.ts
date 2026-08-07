@@ -1,3 +1,5 @@
+import { ERROR_CODES, type ErrorCode, type HttpErrorBody } from "@bookcsi/shared";
+
 /**
  * The session lives in an httpOnly cookie (§D20), so every request has to opt
  * into sending credentials — cross-origin fetch drops cookies by default, and
@@ -9,19 +11,45 @@ export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 export class ApiError extends Error {
   readonly status: number;
 
-  constructor(status: number, message: string) {
+  /**
+   * §D27 — present exactly when the API considered this something the user
+   * could act on, which is also exactly when `message` was written for them.
+   * Absent on the generic 500, and on anything the framework raised without
+   * words of our own.
+   */
+  readonly code: ErrorCode | undefined;
+
+  constructor(status: number, message: string, code?: ErrorCode) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
 /** Distinguishable on sight, because a 401 is a routing decision, not a bug. */
 export class UnauthorizedError extends ApiError {
   constructor() {
-    super(401, "Sesiune expirată sau inexistentă");
+    super(401, "Sesiune expirată sau inexistentă", "UNAUTHENTICATED");
     this.name = "UnauthorizedError";
   }
+}
+
+/**
+ * The sentence to put on screen for a failed request.
+ *
+ * The rule is §D27's, and it is deliberately **not** "show it if the status is
+ * under 500". A coded error carries words written for a person and is shown
+ * whatever its status — which is the case that rule got wrong, since an
+ * upstream outage is a 5xx that the user can absolutely act on. Everything
+ * else gets the caller's own fallback: an uncoded failure has, by definition,
+ * nothing addressed to anybody in it, and neither does a network error, which
+ * never reached the API at all.
+ */
+export function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError && error.code !== undefined
+    ? error.message
+    : fallback;
 }
 
 export async function apiFetch<T>(
@@ -42,7 +70,8 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, await readErrorMessage(res));
+    const { message, code } = await readError(res);
+    throw new ApiError(res.status, message, code);
   }
 
   if (res.status === 204) {
@@ -53,31 +82,42 @@ export async function apiFetch<T>(
 }
 
 /**
- * Every call site puts this straight on screen, so what it returns has to be
- * addressed to the user rather than to whoever reads the logs.
+ * The failure, as the API described it (§D27).
  *
- * A 4xx is the client's own request being refused, and the API answers those in
- * sentences written for exactly this purpose — "title: Titlul e obligatoriu" is
- * worth showing verbatim. A 5xx is not: its message is a stack frame, a driver
- * error, a column name. Unhelpful to the reader at best, and at worst a
- * description of the inside of the server on somebody's screen.
+ * This used to decide for itself which messages were fit to show, by status:
+ * pass 4xx through, replace 5xx with an apology, special-case 429. That rule
+ * is gone, and with it two problems. It threw away the one 5xx message that
+ * *was* written for a user — "Open Library is down, type it in manually" —
+ * and it duplicated wording the server already had, in a client that could
+ * only guess at the server's intent.
+ *
+ * The server now says which it is. Everything here does is carry the code
+ * across; `errorMessage` above is where the decision lives, once.
  */
-async function readErrorMessage(res: Response): Promise<string> {
-  if (res.status >= 500) {
-    return "Ceva n-a mers bine pe server. Încearcă din nou peste puțin.";
-  }
-
-  if (res.status === 429) {
-    return "Prea multe cereri într-un timp scurt. Așteaptă un moment.";
-  }
-
+async function readError(
+  res: Response,
+): Promise<{ message: string; code: ErrorCode | undefined }> {
   try {
-    const body = (await res.json()) as { message?: string | string[] };
+    const body = (await res.json()) as Partial<HttpErrorBody>;
     const message = Array.isArray(body.message)
       ? body.message.join(", ")
       : body.message;
-    return message ?? res.statusText;
+
+    return {
+      message: message ?? res.statusText,
+      // Guarded rather than trusted: this is the network talking, and an
+      // unrecognised code must not be treated as though it were showable.
+      code: isErrorCode(body.code) ? body.code : undefined,
+    };
   } catch {
-    return res.statusText;
+    // Not JSON at all — a proxy's error page, a gateway timeout. Nothing here
+    // was written for a user, so it gets no code and the caller substitutes.
+    return { message: res.statusText, code: undefined };
   }
+}
+
+function isErrorCode(value: unknown): value is ErrorCode {
+  return (
+    typeof value === "string" && (ERROR_CODES as readonly string[]).includes(value)
+  );
 }

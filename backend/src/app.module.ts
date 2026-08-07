@@ -1,11 +1,14 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule, minutes, seconds } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { BooksModule } from "./books/books.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
+import { AppExceptionFilter } from "./common/filters/app-exception.filter";
 import { validateEnv } from "./config/env";
+import { CoversModule } from "./covers/covers.module";
+import { OpenLibraryModule } from "./openlibrary/open-library.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
 @Module({
@@ -39,6 +42,11 @@ import { PrismaModule } from "./prisma/prisma.module";
     PrismaModule,
     AuthModule,
     BooksModule,
+    // Sprint 4. `BooksModule` already pulls `CoversModule` in for the download
+    // at creation; both are named here so the app's surface reads off this
+    // list rather than off another module's imports.
+    CoversModule,
+    OpenLibraryModule,
   ],
   providers: [
     // Order matters: these run in the sequence they are declared. Throttling
@@ -47,6 +55,10 @@ import { PrismaModule } from "./prisma/prisma.module";
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Every route requires a session unless it is marked @Public() (S0.3).
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+
+    // §D27 — one shape for every error response, and the guarantee that a 5xx
+    // never carries a message somebody wrote for a log file.
+    { provide: APP_FILTER, useClass: AppExceptionFilter },
   ],
 })
 export class AppModule {}

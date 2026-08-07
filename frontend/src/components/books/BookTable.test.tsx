@@ -205,3 +205,28 @@ describe("BookTable — buying a book (S3.4)", () => {
     expect(lastWrite(calls)).toEqual({ status: "FINISHED" });
   });
 });
+
+describe("BookTable — the cover column (S1.2, filled in by Sprint 4)", () => {
+  it("draws the stored cover when the book has one", () => {
+    renderTable([makeBook({ coverUrl: "/covers/book-1?v=42" })]);
+
+    // Queried by tag, not by role: the cover carries `alt=""` on purpose, so
+    // it is presentational — the title is already the next cell along, and
+    // announcing it twice makes a screen reader read every row's book name two
+    // times.
+    const cover = document.querySelector("img");
+    expect(cover).toHaveAttribute("src", expect.stringContaining("/covers/book-1?v=42"));
+    // The route needs the session cookie, and an `<img>` does not send one
+    // cross-origin unless asked.
+    expect(cover).toHaveAttribute("crossorigin", "use-credentials");
+  });
+
+  it("draws the placeholder when it has none, not a broken image", () => {
+    // Still the majority case, and DESIGN.md asks for a drawn cover rather
+    // than a missing-image icon: a table of these reads as unjacketed books.
+    renderTable([makeBook({ coverUrl: null, title: "Dune" })]);
+
+    expect(document.querySelector("img")).toBeNull();
+    expect(screen.getByText("D")).toBeInTheDocument();
+  });
+});

@@ -35,15 +35,16 @@ textele afișate, prin mape de traducere. Vezi §D21.
 | `purchasedOn` | date, nullable | System-generated, user-overridable |
 | `startedOn` | date, nullable | System-generated, user-overridable |
 | `finishedOn` | date, nullable | System-generated, user-overridable |
-| `manuallyEditedFields` | set de nume de câmpuri | System-generated |
+
+`manuallyEditedFields` a fost eliminat odată cu S4.4 — vezi §D25.
 
 ### Entitatea `User`
 `id` (cuid), `googleId` (unic), `email` (unic), `name`, `avatarUrl`, `createdAt`.
 Toate populate din profilul Google la prima autentificare (S0.1).
 
 ### Entitatea `Cover`
-`bookId` (PK, 1:1 cu `Book`), `data` (LONGBLOB), `mimeType`, `source` (OPEN_LIBRARY | UPLOAD).
-Tabel separat din motivele de la §D18.
+`bookId` (PK, 1:1 cu `Book`), `data` (LONGBLOB), `mimeType`, `source` (OPEN_LIBRARY | UPLOAD),
+`updatedAt`. Tabel separat din motivele de la §D18; `updatedAt` e versiunea din URL (§D26).
 
 ### Entitatea `Settings`
 Una per utilizator: `userId` (PK), `monthlyBudget` (decimal, nullable),
@@ -261,6 +262,71 @@ de unică folosință.
 Passport știe să facă asta singur, dar numai printr-un session store, iar §D20 rulează passport
 cu `session: false` — sesiunea *e* cookie-ul JWT. De aceea nonce-ul primește un cookie al lui.
 
+### D25 — S4.4 se elimină: nu există reîmprospătare
+S4.4 cerea ca un câmp editat manual să fie marcat și să nu mai fie suprascris „de o eventuală
+reîmprospătare ulterioară a datelor externe".
+
+Partea de story era deja livrată de S1.3 — orice câmp e editabil oricând, indiferent de sursa
+care l-a populat. Iar reîmprospătarea nu există: niciun story din Sprinturile 0–8 sau din
+backlogul opțional nu recitește datele unei cărți din Open Library. Coloana s-ar fi scris la
+fiecare editare și nu s-ar fi citit niciodată.
+
+**Decizie:** story-ul se taie, nu se amână, iar `manuallyEditedFields` iese din schemă. Dacă
+apare vreodată un story de refresh, se reintroduce împreună cu el — atunci va avea un cititor.
+
+### D26 — Coperta e `immutable`, deci URL-ul poartă o versiune
+§D18 servește coperta cu `Cache-Control: max-age=1 an, immutable`, pe premisa că nu se schimbă
+niciodată după adăugare. Upload-ul manual din S4.3 e exact premisa aceea căzând: la înlocuirea
+unei coperți, browserul — respectând corect `immutable` — ar păstra imaginea veche un an.
+
+**Decizie:** `Cover.updatedAt` intră în URL ca `?v=`, iar `Book.coverUrl` îl livrează gata
+compus. O copertă înlocuită devine astfel pur și simplu un URL pe care cache-ul nu l-a văzut
+niciodată. Alternativa — slăbirea cache-ului pentru toată lumea — ar plăti pentru un caz care
+apare cel mult o dată per carte.
+
+Consecință: clientul nu construiește niciodată URL-ul coperții singur. Îl ia din `coverUrl`,
+altfel versiunea e primul lucru care se pierde.
+
+### D27 — Erorile se împart după ce poate face utilizatorul, nu după a cui e vina
+Convenția exista în practică, dar nescrisă: aproape toate erorile acționabile aveau deja
+mesaj în română, iar erorile interne ajungeau 500 generic — dar pentru că așa face Nest din
+oficiu, nu pentru că ar fi decis cineva. Nu exista niciun cod de eroare nicăieri, iar clientul
+ramifica pe status HTTP.
+
+**Decizie.** O singură întrebare împarte erorile: *poate utilizatorul face ceva în privința
+asta?*
+
+- **Da** → `AppError` pe server: o propoziție scrisă pentru el, plus un `code` din lista din
+  `shared/errors.ts`. Mesajul se afișează verbatim; codul e pentru clientul care trebuie să
+  **ramifice**, nu doar să afișeze.
+- **Nu** → `Error` obișnuit. Filtrul global îl transformă în 500 gol: fără cod, fără mesaj,
+  fără nimic despre interiorul serverului.
+
+**Codul e discriminatorul, nu statusul.** Asta e tot rostul lui. Alternativa evidentă —
+„arată mesajul dacă statusul e sub 500" — e greșită într-un fel ușor de ratat: **statusurile
+HTTP răspund la «a cui e vina», iar convenția asta întreabă «ce poate face utilizatorul»**.
+Cele două întrebări dau răspunsuri diferite exact pentru o indisponibilitate externă, care nu
+e vina clientului (deci 5xx) dar e complet acționabilă („Open Library e picat, scrie tu
+cartea"). Cu regula pe status, fix acel mesaj se pierde — și chiar s-a pierdut: în Sprint 4
+mesajul de 503 al backendului n-a ajuns niciodată la utilizator, iar cele două componente au
+ajuns să-și scrie propriile variante ale aceleiași propoziții.
+
+**Filtrul aplică regula, nu doar o documentează.** `AppExceptionFilter` rescrie orice 5xx
+**fără cod**, oricât de vorbăreț ar fi. Nimic din TypeScript nu împiedică
+`new InternalServerErrorException(err.message)`, iar fără filtru Nest ar pune fidel părerea
+driverului despre string-ul de conexiune pe ecranul cuiva. Convenția nu se mai poate încălca
+în tăcere — doar deliberat, aruncând un `AppError`.
+
+Consecințe:
+- 429 primește cod aici (`ThrottlerException` vine din bibliotecă, deci n-are cum să-l aducă
+  singur), la fel și 401 — ridicat de passport și de guard-urile Nest, niciodată de codul
+  nostru.
+- Clientul a scăpat de toate ramificările pe status: `errorMessage(error, fallback)` decide
+  o singură dată, iar componenta dă doar propoziția pentru cazul fără cuvinte proprii (eroare
+  de rețea, care n-a ajuns niciodată la API).
+- Un cod necunoscut e ignorat la citire. Vine de pe rețea; nu se promovează singur în „serverul
+  zice că se poate afișa".
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial
@@ -269,6 +335,8 @@ cu `session: false` — sesiunea *e* cookie-ul JWT. De aceea nonce-ul primește 
   nu era un story, ci o constrângere — a devenit criteriu de acceptanță transversal pentru
   Sprint 4 și decizia D8. Al doilea a fost eliminat la cerere: Open Library rămâne singura sursă
   externă.
+- **S4.4 — „suprascriu manual orice câmp automat"**, tăiat la începutul Sprintului 4: era
+  S1.3 repetat, plus un criteriu care apăra împotriva unei funcționalități inexistente (§D25).
 
 ## Ce a fost adăugat
 

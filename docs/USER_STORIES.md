@@ -186,40 +186,66 @@ dintr-o listă cu coperte mici, ca să nu fie nevoie să știu ISBN-ul.
 - Se folosește Open Library Search API.
 - Rezultatele sunt *works*, nu ediții. La selecție se ia automat ediția implicită
   (`cover_edition_key`) pentru copertă, ISBN și nr. de pagini. Vezi §D7.
-- Câmpurile astfel populate rămân toate editabile (S4.4).
+- Câmpurile astfel populate rămân toate editabile — S1.3 le acoperă deja: orice câmp e
+  editabil oricând, indiferent de sursa care l-a populat.
 - Căutarea e debounced la minim 300ms — un request per pauză de tastare, nu per tastă.
+- **Unde stă căutarea:** o bandă în capul dialogului „Adaugă o carte", deasupra câmpului
+  Titlu — nu un ecran separat și nu un pas înaintea formularului. Formularul manual rămâne
+  vizibil tot timpul (S1.1), iar selecția unui rezultat doar îi completează câmpurile.
+  Apare doar la adăugare, nu și la editare.
+- **Miniaturile trec tot prin backend.** Lista de rezultate nu primește URL-uri
+  `covers.openlibrary.org` pe care să le încarce browserul: regula „frontendul nu atinge
+  niciodată openlibrary.org direct" rămâne absolută.
 
 ### S4.2 — Completez o carte din ISBN
 Ca utilizator, vreau ca la introducerea unui ISBN să se completeze automat titlul, autorul,
 numărul de pagini și coperta.
 
-- Acceptă ISBN-10 și ISBN-13.
+- Acceptă ISBN-10 și ISBN-13, cu sau fără cratime.
 - Dacă ISBN-ul nu e găsit, se afișează un mesaj clar și formularul rămâne complet manual.
+- **Ordinea pe câmpul ISBN:** întâi verificarea de duplicat („ai deja această carte", S1.1 /
+  §D13), abia apoi completarea din Open Library. Avertismentul nu blochează completarea —
+  duplicatele sunt legitime, deci se văd amândouă deodată.
+- Cifra de control nu se verifică: un ISBN tastat greșit trebuie să iasă „nu l-am găsit", nu
+  „ISBN invalid".
 
-### S4.3 — Placeholder și upload manual de copertă
-Ca utilizator, vreau ca atunci când Open Library nu are copertă să văd un placeholder și să
-pot încărca eu o imagine, ca să nu rămân cu o carte fără imagine.
+### S4.3 — Încarc manual o copertă
+Ca utilizator, vreau să pot încărca eu o imagine de copertă, ca să nu rămân cu o carte fără
+imagine când Open Library nu are una. Cazul e frecvent.
 
-- Placeholder-ul afișează titlul și autorul, ca să rămână identificabil în galerie.
-- Upload-ul manual folosește exact același mecanism de stocare ca și coperta descărcată (§D8).
+- Upload-ul folosește exact același mecanism de stocare ca și coperta descărcată (§D8, §D18).
+- Formate acceptate: JPEG, PNG, WebP — **verificate după primii octeți, nu după
+  `Content-Type`**. Antetul e afirmația clientului, iar imaginea ajunge servită înapoi de pe
+  originea noastră cu eticheta cu care a fost stocată.
+- Limita e 5MB, verificată și pe `Content-Length`, și pe octeții care chiar sosesc.
+  Frontendul redimensionează înainte (max 1000px pe latura lungă, JPEG q0.85, tipic sub
+  250KB), dar asta e o curtoazie, nu o măsură de securitate.
+- O carte are o singură copertă (§D18, relație 1:1): un upload nou o înlocuiește pe cea veche.
+- Coperta e servită cu `immutable` pe un an, deci URL-ul poartă `?v=<versiune>` — vezi §D25.
 
-### S4.4 — Suprascriu manual orice câmp automat
-Ca utilizator, vreau să pot corecta orice câmp completat automat, în cazul în care datele din
-Open Library sunt greșite sau incomplete.
-
-- Un câmp editat manual e marcat ca atare și **nu** mai e suprascris de o eventuală
-  reîmprospătare ulterioară a datelor externe.
+Placeholder-ul de copertă a fost mutat la **S5.5**: e o preocupare de afișare, nu de
+integrare, iar DESIGN.md îl specifică pentru grila din Sprint 5.
 
 ### Criterii de acceptanță transversale pentru Sprint 4
 Acestea înlocuiesc story-urile „ca developer" din backlogul inițial — nu erau story-uri, ci
 constrângeri asupra celor de mai sus.
 
-- **Cache local:** datele și coperta se descarcă și se salvează local **în momentul selecției**.
-  Nicio randare nu declanșează un apel către Open Library. O carte deja adăugată se afișează
-  identic offline.
-- **Rate limiting:** căutarea e debounced; nu există polling și nici prefetch în masă.
+- **Cache local:** datele se completează în formular la selecție, iar coperta se descarcă și
+  se salvează **la crearea cărții** (`POST /books`), nu în momentul selecției — o carte
+  căutată și abandonată în formular nu trebuie să lase un blob în bază. Nicio randare a unei
+  cărți deja adăugate nu declanșează un apel către Open Library; se afișează identic offline.
+- **Rate limiting:** căutarea e debounced în frontend; rutele de proxy au în plus o limită
+  proprie de 10 cereri/secundă. Fără polling, fără prefetch în masă.
 - **Degradare grațioasă:** dacă Open Library e indisponibil sau răspunde cu eroare, întreg
-  fluxul manual din Sprint 1 rămâne utilizabil, fără blocaje.
+  fluxul manual din Sprint 1 rămâne utilizabil, fără blocaje. În particular, o carte creată
+  cu `olEditionKey` se creează **și** dacă descărcarea coperții eșuează.
+
+### S4.4 — eliminat
+„Suprascriu manual orice câmp automat" a fost tăiat, nu amânat. Partea de story era deja
+livrată de S1.3 („orice câmp e editabil oricând, indiferent de sursa din care a fost
+populat"), iar singurul criteriu nou apăra împotriva unei reîmprospătări ulterioare a datelor
+externe — care nu există nicăieri în backlog. Fără refresh, câmpul `manuallyEditedFields` s-ar
+fi scris la fiecare editare și nu s-ar fi citit niciodată; a fost scos și din schemă.
 
 ---
 
@@ -247,6 +273,19 @@ Ca utilizator, vreau să văd rating-ul în stele direct pe cardul cărții, fă
 
 - Cardul afișează: copertă, titlu, autor, rating (dacă există), bară de progres
   (doar pentru `Citesc`), marcaj de favorit.
+
+### S5.5 — Placeholder de copertă
+Ca utilizator, vreau ca o carte fără copertă să arate tot a carte în galerie, nu a imagine
+lipsă.
+
+Mutat aici din S4.3: e o preocupare de afișare, nu de integrare cu Open Library, iar
+DESIGN.md §Placeholderul de copertă îl specifică explicit pentru grilă.
+
+- Varianta mică există deja din Sprint 1 (`CoverThumb`, în tabelul S1.2): fundal `surface-3`,
+  chenar interior de alamă, inițiala titlului. La 32×48 titlul întreg nu încape.
+- Varianta mare, pentru grid: titlul cu Playfair centrat, autorul dedesubt.
+- Nu e o iconiță generică de „imagine lipsă": în grilă, zeci de placeholdere goale strică
+  raftul.
 
 ---
 

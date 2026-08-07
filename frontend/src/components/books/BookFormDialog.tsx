@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -8,15 +8,22 @@ import {
   GENRE_LABEL,
   GENRE_VALUES,
   isRatable,
+  normalizeIsbn,
   statusSchema,
   STATUS_LABEL,
   STATUS_VALUES,
   type Book,
+  type BookSuggestion,
   type CreateBookInput,
+  type OpenLibraryResult,
 } from "@bookcsi/shared";
 import { useCreateBook, useIsbnDuplicates, useUpdateBook } from "../../api/books";
+import { useEditionSuggestion, useIsbnSuggestion } from "../../api/openlibrary";
+import { errorMessage } from "../../lib/api";
 import { useDebounced } from "../../lib/use-debounced";
 import { Modal } from "../Modal";
+import { CoverUpload } from "./CoverUpload";
+import { OpenLibrarySearch } from "./OpenLibrarySearch";
 import { StarRatingInput } from "./StarRating";
 
 /**
@@ -101,6 +108,13 @@ function ratingFor(
 
 type BookFormValues = z.input<typeof bookFormSchema>;
 
+/**
+ * The four fields Open Library can speak to (S4.1, S4.2). Everything else on
+ * the form is the user's own — a status, a rating, what they paid — and no
+ * external source has an opinion worth pouring into them.
+ */
+type FillableField = "title" | "author" | "isbn" | "totalPages";
+
 const EMPTY: BookFormValues = {
   title: "",
   author: "",
@@ -133,6 +147,8 @@ export function BookFormDialog({
     register,
     handleSubmit,
     watch,
+    setValue,
+    getValues,
     formState: { errors, dirtyFields, isSubmitting },
   } = useForm<BookFormValues, unknown, CreateBookInput>({
     resolver: zodResolver(bookFormSchema),
@@ -141,6 +157,130 @@ export function BookFormDialog({
 
   const isbn = useDebounced(watch("isbn"), 300);
   const duplicates = useIsbnDuplicates(isbn, book?.id);
+
+  /**
+   * S4.1 / §D8 — the edition a cover will be fetched from, if the book came
+   * from Open Library at all.
+   *
+   * Held in state rather than as a form field because it is not the user's to
+   * edit: there is no input that would mean anything, and it travels with the
+   * create request only.
+   */
+  const [olEditionKey, setOlEditionKey] = useState<string | null>(null);
+
+  const edition = useEditionSuggestion();
+
+  /**
+   * S4.2, and the ordering the story is explicit about: the ISBN lookup waits
+   * for the duplicate check to come back. "Ai deja această carte" is the
+   * answer that matters more, so it goes up first; the fill follows it.
+   *
+   * Gated on the field being *dirty* rather than on this being a new book.
+   * Both readings of "when an ISBN is entered" are covered that way, and the
+   * one thing neither should do is happen on open — an edit dialog that starts
+   * rewriting fields the moment it appears is its own kind of wrong.
+   */
+  const isbnSuggestion = useIsbnSuggestion(
+    isbn,
+    dirtyFields.isbn === true && duplicates.isFetched,
+  );
+
+  /**
+   * Which fill has already been applied. Without it the effect below runs
+   * again on every render that touches the query — refetches, cache hits,
+   * a window regaining focus — and each one would undo whatever the user had
+   * typed since.
+   */
+  const applied = useRef<string | null>(null);
+
+  /**
+   * Pour a suggestion into the form.
+   *
+   * `overwrite` is the difference between the two ways a suggestion arrives,
+   * and it is not a detail. **Picking a search result is an explicit "this
+   * book"** — the fields should become that book's, including over anything
+   * half-typed. **Typing an ISBN is not**: someone who has already written a
+   * title and then adds the ISBN wants the gaps filled, not their own words
+   * replaced. Filling blanks only is the behaviour that can never destroy what
+   * the user wrote, which is why it is the one that runs unprompted.
+   *
+   * Memoised, and declared above the effect that uses it, because it *is* one
+   * of that effect's dependencies — react-hook-form's setters are stable, so
+   * this identity never changes and the effect stays keyed on the answer alone.
+   */
+  const fill = useCallback(
+    (suggestion: BookSuggestion, { overwrite }: { overwrite: boolean }) => {
+      const set = (field: FillableField, value: string) => {
+        if (value === "" || (!overwrite && getValues(field).trim() !== "")) {
+          return;
+        }
+
+        // `shouldDirty` is what makes the value survive an edit: `onlyDirty`
+        // sends the fields the user changed, and a silently-set field is one
+        // the form would drop on the way out.
+        setValue(field, value, { shouldDirty: true });
+      };
+
+      set("title", suggestion.title);
+      set("author", suggestion.author ?? "");
+      set("isbn", suggestion.isbn ?? "");
+      set(
+        "totalPages",
+        suggestion.totalPages === null ? "" : String(suggestion.totalPages),
+      );
+    },
+    [getValues, setValue],
+  );
+
+  useEffect(() => {
+    if (!isbnSuggestion.isSuccess) {
+      return;
+    }
+
+    const key = normalizeIsbn(isbn);
+
+    if (applied.current === key) {
+      return;
+    }
+
+    applied.current = key;
+    fill(isbnSuggestion.data, { overwrite: false });
+    setOlEditionKey(isbnSuggestion.data.olEditionKey);
+  }, [isbnSuggestion.isSuccess, isbnSuggestion.data, isbn, fill]);
+
+  /** S4.1 — a chosen work, resolved into the edition its fields come from. */
+  const selectResult = async (result: OpenLibraryResult) => {
+    // Title and author are already known from the search row, so they land
+    // immediately; the round trip is only for the ISBN and the page count.
+    fill(
+      {
+        title: result.title,
+        author: result.author,
+        isbn: null,
+        totalPages: null,
+        olEditionKey: result.editionKey,
+        thumbnailUrl: result.thumbnailUrl,
+      },
+      { overwrite: true },
+    );
+    setOlEditionKey(result.editionKey);
+
+    if (result.editionKey === null) {
+      return;
+    }
+
+    // A failure here costs the ISBN and the page count, not the selection: the
+    // title and author are already in, and the rest is typeable. The
+    // degradation criterion is that nothing gets stuck.
+    const suggestion = await edition.mutateAsync(result.editionKey).catch(() => null);
+
+    if (suggestion !== null) {
+      fill(suggestion, { overwrite: true });
+      // Prevents the ISBN just filled in from triggering S4.2's lookup for the
+      // edition it came from.
+      applied.current = normalizeIsbn(suggestion.isbn ?? "");
+    }
+  };
 
   // The stars appear and disappear with the status, so the form has to follow
   // the select rather than read the stored value once.
@@ -159,7 +299,12 @@ export function BookFormDialog({
         await update.mutateAsync({ id: book.id, input: changed });
       }
     } else {
-      await create.mutateAsync(onlyFilled(payload));
+      // §D8: given the edition, the server downloads and stores the cover as
+      // part of creating the book. Nothing else on the client knows about it.
+      await create.mutateAsync({
+        ...onlyFilled(payload),
+        ...(olEditionKey === null ? {} : { olEditionKey }),
+      });
     }
 
     onClose();
@@ -179,6 +324,15 @@ export function BookFormDialog({
       onClose={onClose}
     >
       <form onSubmit={(event) => void submit(event)} noValidate>
+        {/* S4.1 — above the fields, not in front of them. Only when adding:
+            editing a book is not the moment to be offered a different one. */}
+        {!editing && (
+          <OpenLibrarySearch
+            onSelect={(result) => void selectResult(result)}
+            busy={edition.isPending}
+          />
+        )}
+
         <div className="grid gap-5 px-6 py-5 sm:grid-cols-2">
           <Field className="sm:col-span-2" label="Titlu" error={errors.title}>
             <input {...register("title")} className={INPUT} autoComplete="off" />
@@ -213,9 +367,17 @@ export function BookFormDialog({
             </select>
           </Field>
 
+          {/* The duplicate warning comes first, and it comes first on screen
+              too: S4.2's fill is the convenience, this is the answer. */}
           {duplicates.data && duplicates.data.length > 0 && (
             <DuplicateWarning titles={duplicates.data.map((d) => d.title)} />
           )}
+
+          <IsbnLookupNote
+            pending={isbnSuggestion.isFetching}
+            found={isbnSuggestion.isSuccess}
+            error={isbnSuggestion.error}
+          />
 
           {/* §D12: any status, in any order — the row button only ever
               proposes the next natural step. */}
@@ -329,6 +491,10 @@ export function BookFormDialog({
               </Field>
             </div>
           </div>
+
+          {/* S4.3 — only while editing: the upload route addresses a book by
+              id, and a book being added has not got one yet. */}
+          {editing && <CoverUpload book={book} />}
         </div>
 
         {failure && (
@@ -359,6 +525,58 @@ function DuplicateWarning({ titles }: { titles: string[] }) {
     <p className="rounded-lg border border-accent-quiet bg-accent-quiet/30 px-3 py-2 text-xs text-accent sm:col-span-2">
       Ai deja {titles.map((title) => `„${title}"`).join(", ")} cu acest ISBN.
       Poți salva oricum.
+    </p>
+  );
+}
+
+/**
+ * S4.2 — what the ISBN lookup is doing, in one line under the field.
+ *
+ * A miss is the ordinary outcome and reads like one: most ISBNs are not in
+ * Open Library, the story asks for a clear message, and the sentence says the
+ * form still works rather than implying something broke. Nothing here blocks
+ * anything — the same posture as the duplicate warning above it.
+ *
+ * There is no branching on status any more. "Not in Open Library" (404) and
+ * "Open Library is down" (503) are different sentences, but the server wrote
+ * both and §D27's code is what carries them here intact; this only has to
+ * cover the failure that has no sentence at all.
+ */
+function IsbnLookupNote({
+  pending,
+  found,
+  error,
+}: {
+  pending: boolean;
+  found: boolean;
+  error: Error | null;
+}) {
+  if (pending) {
+    return <Note>Se caută ISBN-ul în Open Library…</Note>;
+  }
+
+  if (error !== null) {
+    return (
+      <Note>
+        {errorMessage(
+          error,
+          "Open Library nu răspunde acum. Completează câmpurile manual.",
+        )}
+      </Note>
+    );
+  }
+
+  if (found) {
+    return <Note>Completat din Open Library. Corectează orice câmp.</Note>;
+  }
+
+  return null;
+}
+
+function Note({ children }: { children: ReactNode }) {
+  return (
+    <p role="status" className="text-xs text-ink-3 sm:col-span-2">
+      {children}
     </p>
   );
 }

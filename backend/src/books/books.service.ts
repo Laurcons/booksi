@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 // `Prisma` is a value here, not just a namespace: `Prisma.Decimal` constructs
 // the money columns on the way in.
 import { Prisma, type Book as BookRow } from "@prisma/client";
@@ -14,7 +14,10 @@ import {
   type UpdateBookInput,
   type WishlistSummary,
 } from "@bookcsi/shared";
+import { AppError } from "../common/app-error";
 import { ownedOrNotFound } from "../common/ownership";
+import { coverUrl } from "../covers/cover-url";
+import { CoversService } from "../covers/covers.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "./calendar-date";
 import { RATING_STATUS_MESSAGE, ratingAccepted } from "./rating";
@@ -32,6 +35,7 @@ type BookWriteData = {
   isbn?: string | null;
   totalPages?: number | null;
   genre?: Genre | null;
+  olEditionKey?: string | null;
   status?: Status;
   pagesRead?: number;
   rating?: number | null;
@@ -55,11 +59,28 @@ const DEFAULT_STATUS: Status = "WISHLIST";
 /** The status S3.1's view and S3.3's total are both defined by. */
 const WISHLIST: Status = "WISHLIST";
 
+/**
+ * Every read carries the cover's version — and nothing else from that row.
+ *
+ * §D18 puts the blob in a table of its own exactly so that listing a library
+ * does not drag one image per line across the wire, and Prisma has no lazy
+ * loading to undo the damage afterwards. A `select` of one timestamp is a join
+ * that stays cheap however many books there are, and it is all `coverUrl`
+ * needs.
+ */
+const WITH_COVER = { cover: { select: { updatedAt: true } } };
+
+/** A book row with that timestamp attached. */
+type BookRowWithCover = BookRow & { cover: { updatedAt: Date } | null };
+
 @Injectable()
 export class BooksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly covers: CoversService,
+  ) {}
 
-  /** S1.1. */
+  /** S1.1, and from Sprint 4 on, the moment a cover gets downloaded (§D8). */
   async create(userId: string, input: CreateBookInput): Promise<Book> {
     const status = input.status ?? DEFAULT_STATUS;
 
@@ -83,9 +104,29 @@ export class BooksService {
       data[field] = fromCalendarDate(todayCalendarDate());
     }
 
-    const row = await this.prisma.book.create({ data: { ...data, userId } });
+    const row = await this.prisma.book.create({
+      data: { ...data, userId },
+      include: WITH_COVER,
+    });
 
-    return toBook(row);
+    /**
+     * §D8, and the one ordering decision in the sprint worth stating: the
+     * image is fetched *here*, after the row exists, rather than when the user
+     * picked the search result. A selection that never becomes a book leaves
+     * nothing behind, and the cover has a `bookId` to belong to by the time it
+     * is written.
+     *
+     * Awaited rather than left running: the response carries `coverUrl`, and a
+     * client that got `null` because the download had not finished yet would
+     * show the placeholder until something else refetched the book. The wait
+     * is one image from a CDN, and it cannot fail the request.
+     */
+    const version =
+      input.olEditionKey === undefined || input.olEditionKey === null
+        ? null
+        : await this.covers.downloadFromOpenLibrary(row.id, input.olEditionKey);
+
+    return toBook(version === null ? row : { ...row, cover: { updatedAt: version } });
   }
 
   /** S1.2, and with the filter applied, the wishlist view of S3.1. */
@@ -96,6 +137,7 @@ export class BooksService {
       // a creation timestamp) keep a stable order between requests instead of
       // swapping places on every reload.
       orderBy: [{ [query.sort]: query.order }, { id: "asc" }],
+      include: WITH_COVER,
     });
 
     return rows.map(toBook);
@@ -155,7 +197,11 @@ export class BooksService {
     }
 
     // Ownership was settled by `load`; the id alone is enough to address the row.
-    const row = await this.prisma.book.update({ where: { id }, data });
+    const row = await this.prisma.book.update({
+      where: { id },
+      data,
+      include: WITH_COVER,
+    });
 
     return toBook(row);
   }
@@ -192,7 +238,11 @@ export class BooksService {
       data.paidPrice = existing.estimatedPrice;
     }
 
-    const row = await this.prisma.book.update({ where: { id }, data });
+    const row = await this.prisma.book.update({
+      where: { id },
+      data,
+      include: WITH_COVER,
+    });
 
     return toBook(row);
   }
@@ -246,13 +296,13 @@ export class BooksService {
    */
   private checkRating(rating: number | null | undefined, status: Status): void {
     if (!ratingAccepted(rating, status)) {
-      throw new BadRequestException([`rating: ${RATING_STATUS_MESSAGE}`]);
+      throw AppError.validation([`rating: ${RATING_STATUS_MESSAGE}`]);
     }
   }
 
-  private async load(userId: string, id: string): Promise<BookRow> {
+  private async load(userId: string, id: string): Promise<BookRowWithCover> {
     return ownedOrNotFound(
-      await this.prisma.book.findFirst({ where: { id, userId } }),
+      await this.prisma.book.findFirst({ where: { id, userId }, include: WITH_COVER }),
     );
   }
 }
@@ -264,6 +314,7 @@ function writeData(input: BookWriteInput): BookWriteData {
     isbn: input.isbn,
     totalPages: input.totalPages,
     genre: input.genre,
+    olEditionKey: input.olEditionKey,
     status: input.status,
     pagesRead: input.pagesRead,
     rating: input.rating,
@@ -307,13 +358,13 @@ function providedDate(
 
 /**
  * The row as the API exposes it. Written out field by field on purpose: the
- * mapping is also the boundary that keeps `manuallyEditedFields` — internal
- * bookkeeping for S4.4 — from leaking into every response.
+ * mapping is also the boundary that keeps a column like `userId` from leaking
+ * into every response by default.
  *
  * `Decimal` becomes a number here. The exact arithmetic that §D18 asks for
  * happens in SQL; what crosses the wire is only ever displayed.
  */
-function toBook(row: BookRow): Book {
+function toBook(row: BookRowWithCover): Book {
   return {
     id: row.id,
 
@@ -334,6 +385,10 @@ function toBook(row: BookRow): Book {
     purchasedOn: toCalendarDate(row.purchasedOn),
     startedOn: toCalendarDate(row.startedOn),
     finishedOn: toCalendarDate(row.finishedOn),
+
+    // Null for the books with no cover, which is what S4.3's placeholder is
+    // drawn for. Never the image itself: §D18 keeps the blob one route away.
+    coverUrl: row.cover ? coverUrl(row.id, row.cover.updatedAt) : null,
 
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

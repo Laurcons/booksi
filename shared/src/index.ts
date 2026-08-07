@@ -9,5 +9,8 @@
  */
 
 export * from "./book.js";
+export * from "./cover.js";
 export * from "./enums.js";
+export * from "./errors.js";
+export * from "./openlibrary.js";
 export * from "./user.js";
