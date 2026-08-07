@@ -7,5 +7,7 @@ import { BudgetService } from "./budget.service";
   imports: [PrismaModule],
   controllers: [BudgetController],
   providers: [BudgetService],
+  // docs/MCP.md §9 step 5 — get_budget wraps this directly.
+  exports: [BudgetService],
 })
 export class BudgetModule {}

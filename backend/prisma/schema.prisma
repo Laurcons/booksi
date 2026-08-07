@@ -27,8 +27,9 @@ model User {
   /// on every device — see S0.2.
   tokenVersion Int @default(0)
 
-  books    Book[]
-  settings Settings?
+  books     Book[]
+  settings  Settings?
+  mcpGrants McpGrant[]
 }
 
 enum Status {
@@ -128,4 +129,77 @@ model Settings {
   monthlyBudget Decimal? @db.Decimal(10, 2)
   yearlyBudget  Decimal? @db.Decimal(10, 2)
   currency      String   @default("RON")
+}
+
+// docs/MCP.md §5 — a preregistered client, so there is no `McpClient` model:
+// `clientId` is configuration (MCP_CLIENT_ID), not a foreign key.
+
+/// The unit of revocation: one user's consent for one client. Survives
+/// logout (§D23 does not extend to MCP, docs/MCP.md §2) — revoked only from
+/// its own screen.
+model McpGrant {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  clientId String
+  scope    String
+  label    String?
+
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  authCodes McpAuthCode[]
+  tokens    McpToken[]
+
+  @@index([userId])
+}
+
+/// The authorization code. Short-lived and single-use — `expiresAt` is 60
+/// seconds out from creation, `usedAt` is set (and never unset) the moment
+/// it is redeemed at `/oauth/token`.
+model McpAuthCode {
+  id      String   @id @default(cuid())
+  grantId String
+  grant   McpGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  codeHash      String @unique
+  codeChallenge String
+  redirectUri   String
+  resource      String
+
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([grantId])
+}
+
+enum McpTokenType {
+  ACCESS
+  REFRESH
+}
+
+/// Access and refresh tokens in one table, discriminated by `type`. Opaque
+/// and hashed (docs/MCP.md §5) — a JWT would validate without a query but
+/// could not be revoked before it expired, which is the one property this
+/// table exists for. `replacedById` is the rotation chain: a refresh token
+/// presented a second time means `replacedById` is already set, which is the
+/// reuse signal that revokes the whole grant.
+model McpToken {
+  id      String   @id @default(cuid())
+  grantId String
+  grant   McpGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  type      McpTokenType
+  tokenHash String       @unique
+  expiresAt DateTime
+
+  replacedById String?   @unique
+  replacedBy   McpToken? @relation("McpTokenRotation", fields: [replacedById], references: [id])
+  replaces     McpToken? @relation("McpTokenRotation")
+
+  createdAt DateTime @default(now())
+
+  @@index([grantId])
 }

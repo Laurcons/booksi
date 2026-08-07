@@ -13,6 +13,7 @@ export * from "./budget.js";
 export * from "./cover.js";
 export * from "./enums.js";
 export * from "./errors.js";
+export * from "./mcp.js";
 export * from "./openlibrary.js";
 export * from "./settings.js";
 export * from "./stats.js";

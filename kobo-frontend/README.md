@@ -43,7 +43,8 @@ de probă încă nu s-a întors, deci rândul lui spune „nu" în mod normal.
 
 ## Ce se notează din raport
 
-În ordinea în care contează:
+Lista completă, cu ce decide fiecare măsurătoare și ce se face dacă răspunsul e „nu", e tabelul
+`§P` de la finalul lui `docs/kobo_design.md`. Pe scurt, în ordinea în care contează:
 
 1. **Ajunge cererea?** Dacă browserul nu deschide pagina peste HTTPS în
    producție, discuția despre CSS nu mai are obiect — stiva TLS e prea veche.

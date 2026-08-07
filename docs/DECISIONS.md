@@ -581,6 +581,9 @@ vine din API sau din `shared/`. Altfel cele două frontend-uri o iau razna fieca
 lui, iar `progress.ts` — al cărui comentariu spune explicit că există ca formularea să nu difere
 între suprafețe — ar fi primul care se dublează.
 
+Sistemul de design al suprafeței e în `docs/kobo_design.md` — inclusiv de ce tema închisă se
+inversează acolo și nicăieri altundeva.
+
 **Ce nu s-a decis încă.** Ce poate face motorul aflăm de la `/probe`, nu dintr-o presupunere:
 niciun tabel public de User-Agent nu trece de dispozitive din 2012. Autentificarea rămâne
 deschisă — Google refuză consimțământul în browsere pe care le consideră nesigure, deci pe

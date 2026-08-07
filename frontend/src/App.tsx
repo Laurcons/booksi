@@ -3,9 +3,11 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { RequireAuth } from "./components/RequireAuth";
 import { queryClient } from "./lib/query-client";
 import { BudgetPage } from "./pages/BudgetPage";
+import { ConnectorsPage } from "./pages/ConnectorsPage";
 import { GalleryPage } from "./pages/GalleryPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { LoginPage } from "./pages/LoginPage";
+import { McpConsentPage } from "./pages/McpConsentPage";
 import { ShelfPage } from "./pages/ShelfPage";
 import { StatsPage } from "./pages/StatsPage";
 import { WishlistPage } from "./pages/WishlistPage";
@@ -35,6 +37,14 @@ export default function App() {
                 placeholder label "Tracker" until §D32. S8.1's dashboard has no
                 route of its own: it is the band at the top of `/`. */}
             <Route path="/shelf" element={<ShelfPage />} />
+            {/* docs/MCP.md §3, §9 step 3 — where /oauth/authorize sends a
+                signed-in browser to approve or deny an MCP connector. */}
+            <Route path="/mcp/consent" element={<McpConsentPage />} />
+            {/* docs/MCP.md §2, §9 step 6 — revocation lives on its own screen,
+                reachable from the account menu rather than the main nav (see
+                Header.tsx's AccountMenu): this is account security, not a
+                content view alongside the library/gallery/stats. */}
+            <Route path="/connectors" element={<ConnectorsPage />} />
             <Route path="*" element={<LibraryPage />} />
           </Route>
         </Routes>

@@ -9,6 +9,7 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { AppExceptionFilter } from "./common/filters/app-exception.filter";
 import { validateEnv } from "./config/env";
 import { CoversModule } from "./covers/covers.module";
+import { McpModule } from "./mcp/mcp.module";
 import { OpenLibraryModule } from "./openlibrary/open-library.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { SettingsModule } from "./settings/settings.module";
@@ -58,6 +59,8 @@ import { StatsModule } from "./stats/stats.module";
     // (§D10) is implemented — the dashboard reads it from here rather than
     // deriving its own copy over a downloaded library.
     StatsModule,
+    // docs/MCP.md — resource server discovery + transport skeleton (§9 step 1).
+    McpModule,
   ],
   providers: [
     // Order matters: these run in the sequence they are declared. Throttling

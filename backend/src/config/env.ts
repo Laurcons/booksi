@@ -28,6 +28,14 @@ export const envSchema = z.object({
   WEB_ORIGIN: z.string().url(),
 
   /**
+   * The API's own public URL. Enters the MCP metadata documents and every
+   * `aud` check on `/mcp` (docs/MCP.md §6) — not deduced from `Host` because
+   * that header is client-controlled and has no business inside a resource
+   * identifier.
+   */
+  API_ORIGIN: z.string().url(),
+
+  /**
    * How many reverse proxies sit in front of the API. Rate limiting counts per
    * client IP, and behind a proxy every request arrives from the proxy's
    * address — so without this the whole internet shares one bucket and one
@@ -48,6 +56,28 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .transform((value) => value === "true")
     .optional(),
+
+  /**
+   * The single preregistered MCP client (docs/MCP.md §1 — no dynamic client
+   * registration). All three required, no defaults, same reasoning as
+   * `GOOGLE_CLIENT_ID`/`SECRET`: an absent client secret must stop the
+   * process, not silently accept every bearer that shows up at `/oauth/token`.
+   */
+  MCP_CLIENT_ID: z.string().min(1),
+  MCP_CLIENT_SECRET: z.string().min(1),
+  /**
+   * Comma-separated, matched exactly — no prefixes, no wildcards
+   * (docs/MCP.md §6). The assistant's own redirect URI is not under our
+   * control and can change, hence configuration rather than a constant.
+   */
+  MCP_REDIRECT_URIS: z.string().min(1),
+
+  /**
+   * What the consent screen calls the client. Configuration rather than a
+   * required value (docs/MCP.md §11 leaves this open) — a missing name
+   * should not block the whole authorization server from booting.
+   */
+  MCP_CLIENT_DISPLAY_NAME: z.string().min(1).default("Asistent AI conectat"),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -8,6 +8,10 @@ const valid = {
   GOOGLE_CALLBACK_URL: "http://localhost:3000/auth/google/callback",
   JWT_SECRET: "a-secret-long-enough-to-pass",
   WEB_ORIGIN: "http://localhost:5173",
+  API_ORIGIN: "http://localhost:3000",
+  MCP_CLIENT_ID: "test-mcp-client",
+  MCP_CLIENT_SECRET: "test-mcp-secret",
+  MCP_REDIRECT_URIS: "http://localhost:8765/callback",
 };
 
 describe("validateEnv", () => {
@@ -36,6 +40,21 @@ describe("validateEnv", () => {
   it("names the missing variable instead of failing later at runtime", () => {
     const { GOOGLE_CLIENT_SECRET: _omitted, ...incomplete } = valid;
     expect(() => validateEnv(incomplete)).toThrow(/GOOGLE_CLIENT_SECRET/);
+  });
+
+  it("refuses to start without API_ORIGIN", () => {
+    const { API_ORIGIN: _omitted, ...incomplete } = valid;
+    expect(() => validateEnv(incomplete)).toThrow(/API_ORIGIN/);
+  });
+
+  it("refuses to start without MCP_CLIENT_SECRET", () => {
+    const { MCP_CLIENT_SECRET: _omitted, ...incomplete } = valid;
+    expect(() => validateEnv(incomplete)).toThrow(/MCP_CLIENT_SECRET/);
+  });
+
+  it("defaults MCP_CLIENT_DISPLAY_NAME rather than requiring it", () => {
+    const env = validateEnv({ ...valid });
+    expect(env.MCP_CLIENT_DISPLAY_NAME).toBe("Asistent AI conectat");
   });
 
   it("rejects a JWT secret short enough to brute-force", () => {

@@ -37,6 +37,10 @@ o a doua identitate, nu o preferință. Nu construim toggle până nu există ce
 Consecință: nu punem `prefers-color-scheme` și nu scriem CSS condiționat pe temă. Un singur set
 de tokenuri.
 
+Suprafața Kobo (§D37) e albă cu cerneală neagră, și **nu** e o infirmare a regulii de mai sus:
+nu e o preferință de utilizator, n-are comutator, și e singura formă în care hârtia electronică
+e lizibilă. Sistemul ei de design e în `kobo_design.md`.
+
 ---
 
 ## Culoare

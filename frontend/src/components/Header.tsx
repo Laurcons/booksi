@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
 import type { AuthUser } from "@bookcsi/shared";
 import { useCurrentUser, useLogout } from "../api/auth";
 import { focusable, trapTab } from "../lib/focus-trap";
@@ -304,6 +304,16 @@ function AccountMenu({ user }: { user: AuthUser }) {
             <p className="truncate text-sm text-ink">{user.name ?? "Contul meu"}</p>
             <p className="truncate text-xs text-ink-3">{user.email}</p>
           </div>
+          {/* docs/MCP.md §9 step 6 — account-level security, next to logout
+              rather than in the main content nav (see NAV's own comment). */}
+          <Link
+            to="/connectors"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block border-b border-line px-4 py-3 text-left text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
+          >
+            Aplicații conectate
+          </Link>
           <button
             type="button"
             role="menuitem"

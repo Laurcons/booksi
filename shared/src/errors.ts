@@ -46,6 +46,12 @@ export const ERROR_CODES = [
   "COVER_FORMAT_UNSUPPORTED",
   /** The uploaded cover is over the ceiling (S4.3). */
   "COVER_TOO_LARGE",
+  /**
+   * The `req` a consent screen was given no longer resolves to anything — it
+   * expired (10 minutes, docs/MCP.md §9 step 3), was already used, or was
+   * tampered with. Actionable: go back to the assistant and reconnect.
+   */
+  "MCP_CONSENT_REQUEST_INVALID",
 ] as const;
 
 export const errorCodeSchema = z.enum(ERROR_CODES);
