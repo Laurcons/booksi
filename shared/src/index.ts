@@ -15,6 +15,7 @@ export * from "./enums.js";
 export * from "./errors.js";
 export * from "./mcp.js";
 export * from "./openlibrary.js";
+export * from "./pairing.js";
 export * from "./settings.js";
 export * from "./stats.js";
 export * from "./user.js";

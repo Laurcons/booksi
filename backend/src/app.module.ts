@@ -11,6 +11,7 @@ import { validateEnv } from "./config/env";
 import { CoversModule } from "./covers/covers.module";
 import { McpModule } from "./mcp/mcp.module";
 import { OpenLibraryModule } from "./openlibrary/open-library.module";
+import { PairingModule } from "./pairing/pairing.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { SettingsModule } from "./settings/settings.module";
 import { StatsModule } from "./stats/stats.module";
@@ -61,6 +62,9 @@ import { StatsModule } from "./stats/stats.module";
     StatsModule,
     // docs/MCP.md — resource server discovery + transport skeleton (§9 step 1).
     McpModule,
+    // §D37, docs/kobo_design.md §Autentificare — pairing by code, since a Kobo
+    // cannot complete the Google OAuth dance itself.
+    PairingModule,
   ],
   providers: [
     // Order matters: these run in the sequence they are declared. Throttling

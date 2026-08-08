@@ -52,6 +52,13 @@ export const ERROR_CODES = [
    * tampered with. Actionable: go back to the assistant and reconnect.
    */
   "MCP_CONSENT_REQUEST_INVALID",
+  /**
+   * A pairing code or id that does not resolve to anything usable — wrong
+   * digits, expired (10 minutes), or already consumed. One code for all
+   * three: the action is the same regardless — type it again or get a new
+   * one off the Kobo (§Autentificare, docs/kobo_design.md).
+   */
+  "PAIRING_INVALID",
 ] as const;
 
 export const errorCodeSchema = z.enum(ERROR_CODES);

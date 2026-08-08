@@ -27,9 +27,10 @@ model User {
   /// on every device — see S0.2.
   tokenVersion Int @default(0)
 
-  books     Book[]
-  settings  Settings?
-  mcpGrants McpGrant[]
+  books          Book[]
+  settings       Settings?
+  mcpGrants      McpGrant[]
+  devicePairings DevicePairing[]
 }
 
 enum Status {
@@ -129,6 +130,44 @@ model Settings {
   monthlyBudget Decimal? @db.Decimal(10, 2)
   yearlyBudget  Decimal? @db.Decimal(10, 2)
   currency      String   @default("RON")
+}
+
+enum PairingStatus {
+  PENDING
+  APPROVED
+  CONSUMED
+}
+
+/// Pairing by code (§D37, docs/kobo_design.md §Autentificare). A Kobo cannot
+/// complete the Google OAuth dance — the device's browser fails Google's own
+/// safety check — so a session reaches it a different way: the Kobo mints a
+/// code and holds it here as `PENDING`, a signed-in browser looks it up by
+/// `code` and marks it `APPROVED`, and the Kobo exchanges the same row for a
+/// session token and marks it `CONSUMED`. Each row is one attempt; a device
+/// asking for a fresh code creates a new one rather than reusing an expired
+/// row.
+///
+/// `expiresAt` is not policed by a job — `PairingService` treats a row past
+/// its `expiresAt` as expired on read, the same way an unconfirmed one reads
+/// as `PENDING` without a scheduled sweep. Ten minutes (`PAIRING_TTL_MINUTES`
+/// in `shared/`) is short enough that a stale, unconsumed row is not a
+/// meaningful way to reach someone else's account, and short-lived rows are
+/// cheap to leave behind uncollected.
+model DevicePairing {
+  id   String @id @default(cuid())
+  code String @unique
+
+  status PairingStatus @default(PENDING)
+
+  approvedByUserId String?
+  approvedByUser   User?   @relation(fields: [approvedByUserId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  approvedAt DateTime?
+  consumedAt DateTime?
+
+  @@index([expiresAt])
 }
 
 // docs/MCP.md §5 — a preregistered client, so there is no `McpClient` model:

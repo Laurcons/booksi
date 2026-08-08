@@ -8,10 +8,14 @@ import {
   budgetByMonthSchema,
   budgetSummarySchema,
   coverRefSchema,
+  approvePairingSchema,
+  consumePairingResponseSchema,
   createBookSchema,
+  createPairingResponseSchema,
   httpErrorSchema,
   isbnDuplicateSchema,
   openLibraryResultSchema,
+  pairingStatusResponseSchema,
   settingsSchema,
   statsByMonthSchema,
   statsOverviewSchema,
@@ -68,6 +72,10 @@ export type SchemaName =
   | "UpdateSettingsInput"
   | "StatsOverview"
   | "StatsByMonth"
+  | "CreatePairingResponse"
+  | "PairingStatusResponse"
+  | "ApprovePairingInput"
+  | "ConsumePairingResponse"
   | "HttpError";
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
@@ -88,6 +96,12 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   // Sprints 7-8 — derived on request as well, so likewise output-only.
   StatsOverview: toOpenApiSchema(statsOverviewSchema, "output"),
   StatsByMonth: toOpenApiSchema(statsByMonthSchema, "output"),
+  // §Autentificare (docs/kobo_design.md) — pairing by code. All derived or
+  // validated on request, same as the rest of this block.
+  CreatePairingResponse: toOpenApiSchema(createPairingResponseSchema, "output"),
+  PairingStatusResponse: toOpenApiSchema(pairingStatusResponseSchema, "output"),
+  ApprovePairingInput: toOpenApiSchema(approvePairingSchema, "input"),
+  ConsumePairingResponse: toOpenApiSchema(consumePairingResponseSchema, "output"),
   HttpError: toOpenApiSchema(httpErrorSchema, "output"),
 };
 

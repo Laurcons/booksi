@@ -314,6 +314,17 @@ function AccountMenu({ user }: { user: AuthUser }) {
           >
             Aplicații conectate
           </Link>
+          {/* §D37 — Google refuză consimțământul în browserul unui Kobo, deci
+              împerecherea prin cod are nevoie de propriul ei loc, lângă
+              celelalte ecrane de securitate a contului. */}
+          <Link
+            to="/pair-kobo"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block border-b border-line px-4 py-3 text-left text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
+          >
+            Împerechere Kobo
+          </Link>
           <button
             type="button"
             role="menuitem"

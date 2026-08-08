@@ -8,6 +8,7 @@ import { GalleryPage } from "./pages/GalleryPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { LoginPage } from "./pages/LoginPage";
 import { McpConsentPage } from "./pages/McpConsentPage";
+import { PairKoboPage } from "./pages/PairKoboPage";
 import { ShelfPage } from "./pages/ShelfPage";
 import { StatsPage } from "./pages/StatsPage";
 import { WishlistPage } from "./pages/WishlistPage";
@@ -45,6 +46,10 @@ export default function App() {
                 Header.tsx's AccountMenu): this is account security, not a
                 content view alongside the library/gallery/stats. */}
             <Route path="/connectors" element={<ConnectorsPage />} />
+            {/* §D37, docs/kobo_design.md §Autentificare — where a signed-in
+                session approves the code a Kobo is showing, since the device
+                cannot complete Google's consent screen itself. */}
+            <Route path="/pair-kobo" element={<PairKoboPage />} />
             <Route path="*" element={<LibraryPage />} />
           </Route>
         </Routes>

@@ -54,4 +54,14 @@ export class AppError extends HttpException {
   static openLibraryUnavailable(status: HttpStatus, message: string): AppError {
     return new AppError(status, "OPEN_LIBRARY_UNAVAILABLE", message);
   }
+
+  /**
+   * A pairing code or id that will not resolve — wrong, expired, or already
+   * spent (docs/kobo_design.md §Autentificare). `400`, not `404`: unlike a
+   * book id this is never "someone else's", so there is no ownership fact to
+   * hide behind a uniform not-found.
+   */
+  static pairingInvalid(message: string): AppError {
+    return new AppError(HttpStatus.BAD_REQUEST, "PAIRING_INVALID", message);
+  }
 }
