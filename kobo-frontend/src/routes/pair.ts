@@ -53,7 +53,7 @@ function pairingPage(code: string): string {
       </p>
       ${codeSpan(code)}
       <p>După ce ai aprobat acolo, apasă mai jos.</p>
-      <a class="btn" href="/pair/continue">Am aprobat, continuă</a>`,
+      <a class="btn btn-primary" href="/pair/continue">Am aprobat, continuă</a>`,
   });
 }
 

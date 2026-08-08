@@ -8,9 +8,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { BudgetByMonth, BudgetMonth } from "@bookcsi/shared";
+import {
+  CURRENCY,
+  formatMoney,
+  type BudgetByMonth,
+  type BudgetMonth,
+} from "@bookcsi/shared";
 import { monthLabel, monthTick } from "../../lib/month";
-import { CURRENCY, formatMoney } from "../../lib/money";
 import { plural } from "../../lib/plural";
 
 /**

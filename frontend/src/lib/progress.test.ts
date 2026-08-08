@@ -4,7 +4,7 @@ import {
   progressPercent,
   progressRatio,
   progressShortLabel,
-} from "./progress";
+} from "@bookcsi/shared";
 
 describe("derived progress (S2.2)", () => {
   describe("progressRatio", () => {

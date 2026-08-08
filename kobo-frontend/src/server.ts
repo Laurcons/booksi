@@ -2,6 +2,9 @@ import express, { type Express } from "express";
 import cookieParser from "cookie-parser";
 import type { Env } from "./config/env";
 import { SESSION_COOKIE } from "./lib/session-cookie";
+import { createBookDeleteRouter } from "./routes/book-delete";
+import { createBookFormRouter } from "./routes/book-form";
+import { createBooksListRouter } from "./routes/books-list";
 import { createPairRouter } from "./routes/pair";
 import { probeRouter } from "./routes/probe";
 import { probeReportRouter } from "./routes/probe-report";
@@ -44,27 +47,24 @@ export function createApp(env: Env): Express {
     res.type("text/plain; charset=utf-8").send("ok");
   });
 
-  // A device with no session yet has exactly one thing to do here — see
-  // §Autentificare, docs/kobo_design.md. Placed ahead of the 404 catch-all,
-  // not inside it, because a signed-in device hitting "/" still falls
-  // through to that catch-all: there is no home page for it yet either.
-  app.get("/", (req, res, next) => {
+  // A device with no session has exactly one thing to do here — see
+  // §Autentificare, docs/kobo_design.md. One with a session goes straight to
+  // the one real page this surface has.
+  app.get("/", (req, res) => {
     const hasSession = Boolean(
       (req.cookies as Record<string, string> | undefined)?.[SESSION_COOKIE],
     );
 
-    if (!hasSession) {
-      res.redirect(303, "/pair");
-      return;
-    }
-
-    next();
+    res.redirect(303, hasSession ? "/books" : "/pair");
   });
 
   app.use(probeRouter);
   app.use(probeReportRouter);
   app.use(uiSwitchRouter);
   app.use(createPairRouter(env));
+  app.use(createBooksListRouter(env));
+  app.use(createBookFormRouter(env));
+  app.use(createBookDeleteRouter(env));
 
   // Everything else is still to be written. Saying so plainly beats Express's
   // default HTML 404, which on an e-reader looks indistinguishable from the

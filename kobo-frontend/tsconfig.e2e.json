@@ -1,0 +1,17 @@
+{
+  // Separate from `tsconfig.spec.json` because that one inherits `rootDir:
+  // "./src"` from `tsconfig.json` — this suite lives beside `src`, not under
+  // it, the same reason `frontend/tsconfig.node.json` keeps its own `e2e`
+  // include rather than folding into the app's tsconfig.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    // `page.evaluate` callbacks type-check against the DOM lib, since they run
+    // in the browser, not in this Node process — `tsconfig.json`'s `ES2023`
+    // alone (correct for everything else here) does not have `document`.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["e2e/**/*", "playwright.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

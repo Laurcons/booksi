@@ -1,6 +1,5 @@
-import type { Book } from "@bookcsi/shared";
+import { progressLabel, progressRatio, type Book } from "@bookcsi/shared";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
-import { progressLabel, progressRatio } from "../lib/progress";
 
 /**
  * A small strip so the page has somewhere to go after the shelf. The progress

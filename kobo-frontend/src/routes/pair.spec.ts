@@ -53,6 +53,8 @@ describe("pairing by code (docs/kobo_design.md §Autentificare)", () => {
 
       expect(res.text).toContain("ABC 234");
       expect(res.text).toContain('href="/pair/continue"');
+      // The one action on this page is the primary one — §Culoare.
+      expect(res.text).toMatch(/class="btn btn-primary"\s+href="\/pair\/continue"/);
       expect(fetchMock).toHaveBeenCalledWith(
         "http://backend.internal/pairing",
         expect.objectContaining({ method: "POST" }),
@@ -202,7 +204,7 @@ describe("pairing by code (docs/kobo_design.md §Autentificare)", () => {
     });
   });
 
-  describe("the root path, before any home page exists", () => {
+  describe("the root path", () => {
     it("sends a device with no session to pair", async () => {
       const res = await request(app).get("/");
 
@@ -211,11 +213,11 @@ describe("pairing by code (docs/kobo_design.md §Autentificare)", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("leaves a signed-in device to the honest 404, since there is still no home page", async () => {
+    it("sends a signed-in device to the book list", async () => {
       const res = await request(app).get("/").set("Cookie", "session=a-real-jwt");
 
-      expect(res.status).toBe(404);
-      expect(res.text).toContain("Deocamdată există /probe.");
+      expect(res.status).toBe(303);
+      expect(res.headers.location).toBe("/books");
     });
   });
 });

@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react";
-import type { Book, BookSort, ListBooksQuery } from "@bookcsi/shared";
-import { usePurchaseBook, useUpdateBook } from "../../api/books";
 import {
   progressLabel,
   progressRatio,
   progressShortLabel,
   showsProgressBar,
-} from "../../lib/progress";
+  type Book,
+  type BookSort,
+  type ListBooksQuery,
+} from "@bookcsi/shared";
+import { usePurchaseBook, useUpdateBook } from "../../api/books";
 import { NEXT_STATUS, NEXT_STATUS_LABEL } from "../../lib/status";
 import { useMediaQuery } from "../../lib/use-media-query";
 import { StatusPill } from "../StatusPill";

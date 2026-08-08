@@ -20,7 +20,7 @@
     "test:api": "npm run test --workspace backend",
     "test:web": "npm run build:shared && npm run test --workspace frontend",
     "test:kobo": "npm run build:shared && npm run test --workspace kobo-frontend",
-    "test:e2e": "npm run build:shared && npm run test:e2e --workspace frontend",
+    "test:e2e": "npm run build:shared && npm run test:e2e --workspace frontend && npm run test:e2e --workspace kobo-frontend",
     "typecheck": "npm run build:shared && npm run typecheck --workspace backend && npm run typecheck --workspace frontend && npm run typecheck --workspace kobo-frontend",
     "lint": "npm run lint --workspace frontend && npm run lint --workspace kobo-frontend"
   },

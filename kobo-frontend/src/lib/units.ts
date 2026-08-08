@@ -1,13 +1,19 @@
 /**
  * §Unități (docs/kobo_design.md). `/probe` measured `devicePixelRatio` 1 on a
- * 1212×1264 viewport, on a panel documented at 300ppi — so one CSS pixel here
- * really is one 300th of an inch, not the scaled-down abstraction it would be
- * on a phone. Every size in the design document is given in points or
- * millimetres for exactly this reason: the day that measurement changes,
- * `PX_PER_INCH` is the one constant to fix, and nothing downstream has to be
- * found and re-derived by hand.
+ * 1212×1264 viewport, on a panel documented at 300ppi, which is where the
+ * first value here — 300 — came from. It was too large by roughly half on
+ * the actual device: the first real page built against it read as
+ * oversized. `/probe`'s numbers were not wrong, but treating a documented
+ * panel spec as equal to what the browser's box model actually uses was —
+ * evidently something between the two (a compositor scale, the Kaleido
+ * colour layer, or a browser default this old engine doesn't expose to
+ * script) halves the effective size. This constant is the correction, found
+ * empirically rather than derived, and is exactly why every size in the
+ * design document is written in points or millimetres rather than pixels:
+ * the day this number moves again, it is the one constant to fix, and
+ * nothing downstream has to be found and re-derived by hand.
  */
-export const PX_PER_INCH = 300;
+export const PX_PER_INCH = 150;
 
 export const PX_PER_PT = PX_PER_INCH / 72;
 export const PX_PER_MM = PX_PER_INCH / 25.4;

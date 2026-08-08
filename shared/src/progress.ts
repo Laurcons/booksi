@@ -1,4 +1,4 @@
-import type { Book } from "@bookcsi/shared";
+import type { Book } from "./book.js";
 
 /**
  * S2.2 — reading progress, derived here and nowhere stored.
@@ -6,8 +6,9 @@ import type { Book } from "@bookcsi/shared";
  * §D4 is the whole story: `totalPages` is missing often enough that its absence
  * is the normal case, not the exceptional one, so "no page count" is a first
  * class outcome rather than a division by null. Every surface that shows
- * progress — the table now, the gallery card in S5.4, the dashboard in S8 —
- * reads it from here, so the fallback wording cannot drift between them.
+ * progress — the table, the gallery card in S5.4, the dashboard in S8, and the
+ * Kobo book list (§D37) — reads it from here, so the fallback wording cannot
+ * drift between them.
  */
 
 /** A book being read, whose progress can be measured at all. */

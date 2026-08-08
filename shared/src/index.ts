@@ -10,12 +10,15 @@
 
 export * from "./book.js";
 export * from "./budget.js";
+export * from "./count.js";
 export * from "./cover.js";
 export * from "./enums.js";
 export * from "./errors.js";
 export * from "./mcp.js";
+export * from "./money.js";
 export * from "./openlibrary.js";
 export * from "./pairing.js";
+export * from "./progress.js";
 export * from "./settings.js";
 export * from "./stats.js";
 export * from "./user.js";

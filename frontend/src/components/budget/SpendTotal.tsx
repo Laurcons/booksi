@@ -1,5 +1,4 @@
-import type { UndatedSpend } from "@bookcsi/shared";
-import { CURRENCY, formatMoney } from "../../lib/money";
+import { CURRENCY, formatMoney, type UndatedSpend } from "@bookcsi/shared";
 import { plural } from "../../lib/plural";
 
 /**

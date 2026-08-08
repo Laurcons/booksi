@@ -1,5 +1,4 @@
-import type { StatsOverview } from "@bookcsi/shared";
-import { formatCount } from "../../lib/count";
+import { formatCount, type StatsOverview } from "@bookcsi/shared";
 import { StatsBar } from "../StatsBar";
 
 /**

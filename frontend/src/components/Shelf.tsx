@@ -1,8 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { GENRE_LABEL, type Book } from "@bookcsi/shared";
+import { GENRE_LABEL, progressLabel, progressRatio, type Book } from "@bookcsi/shared";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
-import { progressLabel, progressRatio } from "../lib/progress";
 import {
   ROW_WIDTH,
   shelfRows,

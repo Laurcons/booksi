@@ -1,6 +1,10 @@
-import type { BudgetSummary, StatsOverview } from "@bookcsi/shared";
-import { formatCount } from "../lib/count";
-import { CURRENCY, formatMoney } from "../lib/money";
+import {
+  CURRENCY,
+  formatCount,
+  formatMoney,
+  type BudgetSummary,
+  type StatsOverview,
+} from "@bookcsi/shared";
 import { StatsBar } from "./StatsBar";
 
 /**

@@ -1,7 +1,6 @@
-import type { Book } from "@bookcsi/shared";
+import { progressLabel, progressRatio, showsProgressBar, type Book } from "@bookcsi/shared";
 import { useUpdateBook } from "../../api/books";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../../lib/media";
-import { progressLabel, progressRatio, showsProgressBar } from "../../lib/progress";
 import { StatusPill } from "../StatusPill";
 import { CoverPlaceholder } from "./CoverPlaceholder";
 import { StarRating } from "./StarRating";

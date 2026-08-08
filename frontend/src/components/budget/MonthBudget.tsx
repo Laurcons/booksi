@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { updateSettingsSchema, type BudgetSummary } from "@bookcsi/shared";
+import {
+  CURRENCY,
+  formatMoney,
+  updateSettingsSchema,
+  type BudgetSummary,
+} from "@bookcsi/shared";
 import { useUpdateSettings } from "../../api/budget";
 import { errorMessage } from "../../lib/api";
 import { monthLabel } from "../../lib/month";
-import { CURRENCY, formatMoney } from "../../lib/money";
 
 /**
  * S6.3 — this month against this month's budget, and the form that sets it.

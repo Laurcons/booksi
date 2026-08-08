@@ -1,6 +1,11 @@
 import { html, raw, render, type Html } from "./html";
+import { NAV_ITEMS } from "./nav";
 import {
+  accent,
+  accentWidth,
   bodyFont,
+  buttonRadius,
+  buttonShadow,
   displayFont,
   fillQuiet,
   fontSize,
@@ -67,8 +72,51 @@ function baseStyle(): string {
       font-size: ${fontSize.body}px;
       text-align: center;
       text-decoration: none;
+      /* Buttons and links share this class; without it a real <button>
+         keeps its platform chrome instead of looking like its <a> siblings. */
+      appearance: none;
     }
+    .btn[aria-disabled] { color: ${ink.muted}; border-style: dotted; }
+    /* The one deliberate departure from "contur, nu umplutură" — reserved for
+       the single most important action on a page. §Culoare explains why this
+       is the one place the accent fills rather than borders, and why the
+       corners round and the shadow has no blur (§P3 does not have blur to
+       give it). Extra right margin clears the shadow itself, so it never
+       overlaps whatever sits next to the button. */
+    .btn-primary {
+      background: ${accent};
+      border-radius: ${buttonRadius}px;
+      box-shadow: ${buttonShadow}px ${buttonShadow}px 0 ${ink.primary};
+      margin-right: ${touchGap + buttonShadow}px;
+    }
+    /* §Componente/Navigație — bordered text links, banded; the current
+       destination gets the thicker accent-coloured border, never a fill. */
+    .nav { margin: 0 0 ${webPx(16)}px 0; }
+    .nav a, .nav span {
+      display: inline-block;
+      border: ${ruleWidth}px solid ${ink.primary};
+      padding: ${webPx(8)}px ${webPx(14)}px;
+      margin: 0 ${webPx(8)}px ${webPx(8)}px 0;
+      text-decoration: none;
+      color: ${ink.primary};
+    }
+    .nav a[aria-current="page"] { border-width: ${accentWidth}px; border-color: ${accent}; }
+    .nav span { color: ${ink.muted}; border-style: dotted; }
   `;
+}
+
+function navBand(active: string): Html {
+  return html`<nav class="nav">
+    ${NAV_ITEMS.map((item) => {
+      if (item.href === null) {
+        return html`<span>${item.label}</span>`;
+      }
+
+      return item.label === active
+        ? html`<a href="${item.href}" aria-current="page">${item.label}</a>`
+        : html`<a href="${item.href}">${item.label}</a>`;
+    })}
+  </nav>`;
 }
 
 export interface PageOptions {
@@ -76,6 +124,11 @@ export interface PageOptions {
   body: Html;
   /** Extra rules appended after the base style — a page's own layout, never a replacement for it. */
   extraStyle?: string;
+  /**
+   * Which `NAV_ITEMS` entry this page is. Omitted entirely by the pairing
+   * pages — there is no session yet for the nav band to hang off of.
+   */
+  activeNav?: string;
 }
 
 export function renderPage(options: PageOptions): string {
@@ -90,6 +143,7 @@ export function renderPage(options: PageOptions): string {
         </style>
       </head>
       <body>
+        ${options.activeNav ? navBand(options.activeNav) : null}
         ${options.body}
       </body>
     </html>`;
