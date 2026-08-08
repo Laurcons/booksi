@@ -23,19 +23,45 @@ export const PROBE_SCRIPT = `
   var status = document.getElementById("js-status");
   if (!results) { return; }
 
+  /* Every row this script produces also becomes a hidden field on the report
+     form, so a tap on "Trimite raportul" carries the full JS-detected picture
+     back to the server — without the form needing to know in advance what
+     the script found. Missing on a browser that lacks getElementById would
+     be strange, but the null-check keeps that a silent no-op rather than a
+     dead script. */
+  var reportForm = document.getElementById("probe-form");
+
   var rows = [];
   var counter = 0;
+  var hiddenFields = {};
+
+  function slug(text) {
+    return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  function addHiddenField(name, value) {
+    if (!reportForm) { return null; }
+    var input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    reportForm.appendChild(input);
+    return input;
+  }
 
   function row(label, value) {
     counter = counter + 1;
     var id = "probe-row-" + counter;
     rows.push('<tr><th>' + label + '</th><td id="' + id + '">' + value + '</td></tr>');
+    hiddenFields[id] = addHiddenField("js_" + slug(label), value);
     return id;
   }
 
   function set(id, value) {
     var el = document.getElementById(id);
     if (el) { el.innerHTML = value; }
+    var field = hiddenFields[id];
+    if (field) { field.value = value; }
   }
 
   function yesNo(ok) { return ok ? "da" : "nu"; }

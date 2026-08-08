@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cookieParser from "cookie-parser";
 import type { Env } from "./config/env";
 import { probeRouter } from "./routes/probe";
+import { probeReportRouter } from "./routes/probe-report";
 import { uiSwitchRouter } from "./routes/ui-switch";
 
 /**
@@ -22,6 +23,11 @@ export function createApp(env: Env): Express {
 
   app.use(cookieParser());
 
+  // The `/probe/report` form posts as ordinary urlencoded data — no fetch,
+  // no JSON.stringify, because both are exactly the kind of thing that might
+  // be missing on the device the report is describing.
+  app.use(express.urlencoded({ extended: false }));
+
   // The load-bearing header of the whole arrangement. Two different
   // applications answer the same URL, chosen by User-Agent and by the `ui`
   // cookie, so any cache that ignores those would happily serve the React
@@ -37,6 +43,7 @@ export function createApp(env: Env): Express {
   });
 
   app.use(probeRouter);
+  app.use(probeReportRouter);
   app.use(uiSwitchRouter);
 
   // Everything else is still to be written. Saying so plainly beats Express's

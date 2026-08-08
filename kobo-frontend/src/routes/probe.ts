@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { Request } from "express";
 import { html, raw, render, type Html } from "../lib/html";
+import { headerValue, INTERESTING_HEADERS } from "../lib/facts";
 import { chooseUi, UI_COOKIE } from "../lib/ui-choice";
 import { PROBE_SCRIPT } from "./probe-script";
 
@@ -28,33 +28,6 @@ export const probeRouter: Router = Router();
 
 /** Set on the response so the next load can report whether it came back. */
 const PROBE_COOKIE = "probe";
-
-/**
- * Header values worth seeing, and a deliberately short list. `cookie` is not on
- * it: the session JWT rides in that header, and a diagnostic page that prints
- * it is a diagnostic page that leaks it onto an e-reader screen and into any
- * screenshot of one. Cookie *names* appear further down instead.
- */
-const INTERESTING_HEADERS = [
-  "user-agent",
-  "accept",
-  "accept-encoding",
-  "accept-language",
-  "host",
-  "x-forwarded-proto",
-  "x-forwarded-for",
-  "referer",
-] as const;
-
-function headerValue(req: Request, name: string): string {
-  const value = req.headers[name];
-
-  if (value === undefined) {
-    return "— absent —";
-  }
-
-  return Array.isArray(value) ? value.join(", ") : value;
-}
 
 function factRow(label: string, value: string): Html {
   return html`<tr>
@@ -202,6 +175,13 @@ probeRouter.get("/probe", (req, res) => {
           .rounded { border-radius: 12px; box-shadow: 3px 3px 0 #000; border: 1px solid #000; padding: 8px; }
           a { color: #000; }
           .nav a { display: inline-block; border: 1px solid #000; padding: 10px 14px; margin: 0 8px 8px 0; text-decoration: none; }
+          fieldset { border: 1px solid #000; margin: 0 0 16px 0; padding: 12px; }
+          legend { font-weight: bold; padding: 0 6px; }
+          fieldset p { margin: 12px 0 4px 0; font-weight: bold; }
+          fieldset label { display: block; padding: 4px 0; }
+          fieldset input[type="radio"] { margin-right: 8px; }
+          textarea { font-family: inherit; font-size: 15px; }
+          button[type="submit"] { font-size: 16px; padding: 10px 20px; border: 2px solid #000; background: #fff; }
         </style>
       </head>
       <body>
@@ -265,7 +245,55 @@ probeRouter.get("/probe", (req, res) => {
         </p>
         <div id="js-results"></div>
 
-        <h2>4. Comutator de interfață</h2>
+        <h2>4. Trimite raportul</h2>
+        <p class="lede">
+          Nu există copy-paste de pe Kobo, deci pagina se trimite singură:
+          apasă „Trimite raportul” și ajunge direct pe mașina care rulează
+          serverul ăsta — nimic de transcris manual. Rândurile de mai sus se
+          trimit automat; mai jos sunt doar întrebările pe care niciun script
+          nu le poate răspunde singur.
+        </p>
+        <form id="probe-form" method="post" action="/probe/report">
+          <fieldset>
+            <legend>Ce vezi cu ochiul</legend>
+
+            <p>Din cele 11 trepte de gri de la secțiunea 2, câte se disting clar?</p>
+            <label><input type="radio" name="visual_grey_steps" value="toate_11" /> toate 11</label>
+            <label><input type="radio" name="visual_grey_steps" value="7_8" /> cam 7–8</label>
+            <label><input type="radio" name="visual_grey_steps" value="5_6" /> cam 5–6</label>
+            <label><input type="radio" name="visual_grey_steps" value="3_4" /> doar 3–4</label>
+            <label><input type="radio" name="visual_grey_steps" value="alb_negru" /> practic doar alb și negru</label>
+
+            <p>Culorile de la secțiunea 2 arată...</p>
+            <label><input type="radio" name="visual_colour" value="clar" /> clar colorate</label>
+            <label><input type="radio" name="visual_colour" value="stins" /> colorate, dar stinse</label>
+            <label><input type="radio" name="visual_colour" value="gri" /> practic gri</label>
+
+            <p>Cutiile „flex 1 / flex 2 / flex 3” stau alăturate sau una sub alta?</p>
+            <label><input type="radio" name="visual_flex" value="alaturate" /> alăturate, pe un rând</label>
+            <label><input type="radio" name="visual_flex" value="stivuite" /> una sub alta</label>
+
+            <p>Cutiile „grid 1 / grid 2 / grid 3” stau alăturate sau una sub alta?</p>
+            <label><input type="radio" name="visual_grid" value="alaturate" /> alăturate, pe un rând</label>
+            <label><input type="radio" name="visual_grid" value="stivuite" /> una sub alta</label>
+
+            <p>Cutia „border-radius + box-shadow” are colțuri rotunjite și umbră?</p>
+            <label><input type="radio" name="visual_rounded" value="ambele" /> colțuri rotunjite și umbră</label>
+            <label><input type="radio" name="visual_rounded" value="doar_colturi" /> doar colțuri rotunjite</label>
+            <label><input type="radio" name="visual_rounded" value="niciuna" /> pătrat, fără umbră</label>
+
+            <p>Graficul cu bare (SVG, de la secțiunea 2) s-a văzut?</p>
+            <label><input type="radio" name="visual_svg" value="da" /> da, barele apar</label>
+            <label><input type="radio" name="visual_svg" value="nu" /> nu, e gol sau spart</label>
+
+            <p>Orice altceva merită notat (opțional):</p>
+            <textarea name="visual_notes" rows="3" cols="40"></textarea>
+
+            <p><button type="submit">Trimite raportul</button></p>
+          </fieldset>
+        </form>
+
+        <h2>5. Comutator de interfață</h2>
         <p class="nav">
           <a href="/ui/lite">Fixează pe „lite”</a>
           <a href="/ui/full">Fixează pe „full”</a>

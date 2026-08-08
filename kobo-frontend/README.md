@@ -41,6 +41,21 @@ Pe Kobo: **Mai multe → Beta Features → Web Browser**, apoi tastează
 `http://ADRESA:4000/probe`. Merită încărcată de două ori — prima oară cookie-ul
 de probă încă nu s-a întors, deci rândul lui spune „nu" în mod normal.
 
+## Cum ajunge raportul înapoi
+
+Nu există copy-paste de pe Kobo, deci pagina se trimite singură. Jos de tot pe `/probe` e un
+buton „Trimite raportul": un tap îl duce printr-un POST obișnuit de formular la
+`POST /probe/report`, care scrie un fișier JSON în `kobo-frontend/reports/` — pe aceeași mașină
+pe care rulează serverul de dezvoltare. Fișierul poartă anteturile cererii, cookie-urile după
+nume (niciodată valoarea lor — acolo stă JWT-ul de sesiune), toate rândurile pe care le-a stabilit
+scriptul ES3 (trimise ca inputuri ascunse, populate în momentul în care fiecare rând se
+calculează) și răspunsurile la întrebările de judecată vizuală, care nu pot fi automatizate.
+
+`kobo-frontend/reports/` e în `.gitignore` — sunt capturi brute de pe un dispozitiv anume, nu
+sursă de proiect. După ce apeși „Trimite raportul" pe Kobo, spune-i sesiunii care lucrează la
+asta să citească fișierul cel mai recent din folder; nu trebuie transcris nimic manual.
+`GET /probe/reports` listează ce s-a strâns până acum, ca sanity-check de pe dispozitiv.
+
 ## Ce se notează din raport
 
 Lista completă, cu ce decide fiecare măsurătoare și ce se face dacă răspunsul e „nu", e tabelul

@@ -14,6 +14,10 @@ build/
 test-results/
 playwright-report/
 
+# raw device captures submitted through /probe/report — headers and manual
+# visual-judgment answers from whichever Kobo tested it, not project source
+kobo-frontend/reports/
+
 # logs
 npm-debug.log*
 *.log
