@@ -30,6 +30,12 @@ jobs:
       # it on disk before anything else can be type-checked.
       - run: npm run build:shared
 
+      # Typechecking imports `@prisma/client`'s generated types directly, so
+      # they have to exist on disk before `lint`/`test` run — nothing else in
+      # this job touches a database, so `generate` (not `migrate deploy`) is
+      # all that's needed.
+      - run: npm run prisma:generate --workspace backend
+
       # `npm test` type-checks both workspaces before running anything — see
       # the note in backend/tsconfig.spec.json for why that lives in the test
       # script rather than in the test runner.
