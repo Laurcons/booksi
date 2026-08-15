@@ -176,3 +176,41 @@ export function getStatsOverview(env: Env, sessionCookie: string): Promise<Stats
 export function getBudgetSummary(env: Env, sessionCookie: string): Promise<BudgetSummary> {
   return call(`${env.API_URL}/budget/summary`, {}, sessionCookie);
 }
+
+// --- Cover image — binary, so it bypasses `call()`, which assumes JSON. ----
+
+export interface CoverImage {
+  status: number;
+  contentType: string | null;
+  cacheControl: string | null;
+  etag: string | null;
+  body: Buffer;
+}
+
+export async function getCoverImage(
+  env: Env,
+  sessionCookie: string,
+  bookId: string,
+): Promise<CoverImage> {
+  let res: Response;
+
+  try {
+    res = await fetch(`${env.API_URL}/covers/${encodeURIComponent(bookId)}`, {
+      headers: { Cookie: `${SESSION_COOKIE}=${sessionCookie}` },
+    });
+  } catch (error) {
+    throw new BackendError(`could not reach the API: ${String(error)}`);
+  }
+
+  if (res.status === 401) {
+    throw new BackendUnauthorizedError(`session rejected for covers/${bookId}`);
+  }
+
+  return {
+    status: res.status,
+    contentType: res.headers.get("content-type"),
+    cacheControl: res.headers.get("cache-control"),
+    etag: res.headers.get("etag"),
+    body: Buffer.from(await res.arrayBuffer()),
+  };
+}

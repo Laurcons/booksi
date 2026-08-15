@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import type { Env } from "../config/env";
+import { BOOKS_PER_PAGE } from "../lib/pagination";
 import { createApp } from "../server";
 import { makeBook } from "../test/fixtures";
 
@@ -69,6 +70,8 @@ describe("GET /books", () => {
         "session=a-real-jwt",
       );
     }
+    // Books, stats, and budget — the dashboard's two requests are back on
+    // this page now that it sits beside the heading instead of below it.
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -129,6 +132,65 @@ describe("GET /books", () => {
     expect(res.text.match(/class="book-progress"/g)?.length).toBe(1);
   });
 
+  it("shows the genre when the book has one", async () => {
+    const book = makeBook({ id: "b1", genre: "FANTASY" });
+    mockBackend([book]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).toContain("Fantasy");
+  });
+
+  it("omits the genre line entirely for a book that has none", async () => {
+    const book = makeBook({ id: "b1", genre: null });
+    mockBackend([book]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).not.toContain('class="book-extra"');
+  });
+
+  it("shows the paid price for an owned book, never the estimate", async () => {
+    const book = makeBook({
+      id: "b1",
+      status: "READING",
+      paidPrice: 45,
+      estimatedPrice: 99,
+    });
+    mockBackend([book]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).toContain("45.00 lei");
+    expect(res.text).not.toContain("99.00 lei");
+    expect(res.text).not.toContain("~45.00 lei"); // paid, not an estimate
+  });
+
+  it("shows the estimated price for a wishlist book, marked as an estimate", async () => {
+    const book = makeBook({
+      id: "b1",
+      status: "WISHLIST",
+      estimatedPrice: 59.99,
+      paidPrice: null,
+    });
+    mockBackend([book]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).toContain("~59.99 lei");
+  });
+
+  it("shows the page count only when there is no progress line to say it instead", async () => {
+    const wishlist = makeBook({ id: "b1", status: "WISHLIST", totalPages: 400, pagesRead: 0 });
+    const reading = makeBook({ id: "b2", status: "READING", totalPages: 620, pagesRead: 143 });
+    mockBackend([wishlist, reading]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).toContain("400 pagini");
+    expect(res.text).not.toContain("620 pagini"); // said instead by "pag. 143 din 620"
+  });
+
   it("omits the rating entirely for a book that has none, rather than show a placeholder", async () => {
     const book = makeBook({ id: "b1", rating: null });
     mockBackend([book]);
@@ -154,11 +216,12 @@ describe("GET /books", () => {
 
     const page1 = await request(app).get("/books").set("Cookie", "session=x");
     expect(page1.text).toContain("Book 0");
-    expect(page1.text).not.toContain("Book 5");
-    expect(page1.text.match(/pagina 1 din 3/g)?.length).toBe(2);
+    expect(page1.text).not.toContain(`Book ${String(BOOKS_PER_PAGE)}`);
+    const totalPages = Math.ceil(books.length / BOOKS_PER_PAGE);
+    expect(page1.text.match(new RegExp(`pagina 1 din ${String(totalPages)}`, "g"))?.length).toBe(2);
 
     const page2 = await request(app).get("/books?page=2").set("Cookie", "session=x");
-    expect(page2.text).toContain("Book 5");
+    expect(page2.text).toContain(`Book ${String(BOOKS_PER_PAGE)}`);
     expect(page2.text).not.toContain(">Book 0<");
   });
 
@@ -194,5 +257,33 @@ describe("GET /books", () => {
     const res = await request(app).get("/books").set("Cookie", "session=x").expect(200);
 
     expect(res.text).toContain("Ceva n-a mers bine");
+  });
+
+  it("draws a cover for a book with none, instead of an empty image", async () => {
+    mockBackend([makeBook({ id: "b1", title: "Dune", author: "Frank Herbert", coverUrl: null })]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).not.toContain('src=""');
+    expect(res.text).toContain('class="cover-placeholder"');
+    expect(res.text).toContain('<span class="cover-placeholder-title">Dune</span>');
+    expect(res.text).toContain('<span class="cover-placeholder-author">Frank Herbert</span>');
+  });
+
+  it("falls back to a stand-in author label on the placeholder, same as the info line", async () => {
+    mockBackend([makeBook({ id: "b1", title: "Dune", author: null, coverUrl: null })]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).toContain('<span class="cover-placeholder-author">Autor necunoscut</span>');
+  });
+
+  it("renders an <img> instead of the placeholder once a cover exists", async () => {
+    mockBackend([makeBook({ id: "b1", title: "Dune", coverUrl: "/covers/b1?v=1" })]);
+
+    const res = await request(app).get("/books").set("Cookie", "session=x");
+
+    expect(res.text).toContain('src="/covers/b1?v=1"');
+    expect(res.text).not.toContain('class="cover-placeholder"');
   });
 });

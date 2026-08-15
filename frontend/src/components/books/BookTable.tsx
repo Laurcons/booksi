@@ -276,8 +276,12 @@ function Row({
               {NEXT_STATUS_LABEL[book.status]}
             </button>
           )}
-          <RowAction onClick={onEdit}>Editează</RowAction>
-          <RowAction onClick={onDelete}>Șterge</RowAction>
+          <RowAction onClick={onEdit} label="Editează">
+            <EditIcon />
+          </RowAction>
+          <RowAction onClick={onDelete} label="Șterge">
+            <DeleteIcon />
+          </RowAction>
 
           {asking && <StartReadingDialog book={book} onClose={stopAsking} />}
         </div>
@@ -454,16 +458,20 @@ function BookRowCard({
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-lg px-2 py-1.5 text-xs text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
+            aria-label="Editează"
+            title="Editează"
+            className="grid size-8 place-items-center rounded-lg text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
-            Editează
+            <EditIcon />
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="rounded-lg px-2 py-1.5 text-xs text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
+            aria-label="Șterge"
+            title="Șterge"
+            className="grid size-8 place-items-center rounded-lg text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
-            Șterge
+            <DeleteIcon />
           </button>
         </div>
       </div>
@@ -588,19 +596,63 @@ function Td({
 
 function RowAction({
   children,
+  label,
   onClick,
 }: {
   children: ReactNode;
+  label: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-lg px-2 py-1.5 text-xs text-ink-3 opacity-0 transition-colors duration-150 group-hover:opacity-100 hover:bg-surface-3 hover:text-ink focus-visible:opacity-100"
+      aria-label={label}
+      title={label}
+      className="grid size-8 place-items-center rounded-lg text-ink-3 opacity-0 transition-colors duration-150 group-hover:opacity-100 hover:bg-surface-3 hover:text-ink focus-visible:opacity-100"
     >
       {children}
     </button>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 20h4L18.5 9.5a2.121 2.121 0 0 0-3-3L5 17v3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m14 7 3 3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 7h14M10 7V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2m4 0-.8 12.1a2 2 0 0 1-2 1.9H7.8a2 2 0 0 1-2-1.9L5 7Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 11v6M14 11v6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 

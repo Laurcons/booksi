@@ -1,6 +1,6 @@
 import { STATUS_LABEL, type Status } from "@bookcsi/shared";
 import { html, type Html } from "./html";
-import { accentWidth, bodyFont, ink, ruleWidth } from "./tokens";
+import { accentWidth, bodyFont, fontSize, ink, ruleWidth } from "./tokens";
 import { webPx } from "./units";
 
 /**
@@ -33,12 +33,18 @@ export function statusStyle(status: Status): StatusStyle {
  * A pill with an inline style rather than a shared class: it is the one piece
  * of a page that needs a different border per instance, and a class per
  * status would just move the same lookup into CSS for no benefit.
+ *
+ * Set at `fontSize.meta` rather than inheriting the ambient body size — it
+ * sits beside the meta line (author · year) as the same kind of secondary
+ * information, and the no-scroll harness's row-budget measurement (see
+ * `books-list.ts`'s own comment) is what surfaced that the body-sized pill
+ * had been costing more of a fișă's height than its status actually needed.
  */
 export function statusPill(status: Status): Html {
   const style = statusStyle(status);
 
   return html`<span
-    style="display: inline-block; border: ${style.border}; padding: ${webPx(4)}px ${webPx(10)}px; font-family: ${bodyFont}; color: ${style.color};"
+    style="display: inline-block; border: ${style.border}; padding: ${webPx(2)}px ${webPx(8)}px; font-family: ${bodyFont}; font-size: ${fontSize.meta}px; color: ${style.color};"
     >${STATUS_LABEL[status]}</span
   >`;
 }

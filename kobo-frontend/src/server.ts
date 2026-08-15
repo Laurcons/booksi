@@ -5,6 +5,7 @@ import { SESSION_COOKIE } from "./lib/session-cookie";
 import { createBookDeleteRouter } from "./routes/book-delete";
 import { createBookFormRouter } from "./routes/book-form";
 import { createBooksListRouter } from "./routes/books-list";
+import { createCoversRouter } from "./routes/covers";
 import { createPairRouter } from "./routes/pair";
 import { probeRouter } from "./routes/probe";
 import { probeReportRouter } from "./routes/probe-report";
@@ -65,6 +66,7 @@ export function createApp(env: Env): Express {
   app.use(createBooksListRouter(env));
   app.use(createBookFormRouter(env));
   app.use(createBookDeleteRouter(env));
+  app.use(createCoversRouter(env));
 
   // Everything else is still to be written. Saying so plainly beats Express's
   // default HTML 404, which on an e-reader looks indistinguishable from the

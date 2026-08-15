@@ -2,10 +2,9 @@ import type { Book, BudgetSummary, StatsOverview } from "@bookcsi/shared";
 
 /**
  * Data for the no-scroll suite, deliberately worse than the demo data
- * anywhere else in the repo. §Paginare's own comment on `BOOKS_PER_PAGE`
- * calls the count "arithmetic, not a measurement... correct it after looking
- * at a real page" — this file is what a real page looks like when nobody
- * picked friendly content for it. A harness that only ever renders "Dune" by
+ * anywhere else in the repo. §Paginare ties the count to this measurement.
+ * This file is what a real page looks like when nobody picked friendly content
+ * for it. A harness that only ever renders "Dune" by
  * "Frank Herbert" would pass regardless of whether the budget actually holds.
  */
 
@@ -33,14 +32,13 @@ function book(overrides: Partial<Book> & Pick<Book, "id" | "title">): Book {
 
 /**
  * Long enough to wrap well past the "pe două rânduri maxim" the design
- * document asks for (§Componente/Lista de cărți) — nothing in `bookRow()`
- * actually caps it (no `-webkit-line-clamp`, no character truncation), so
- * this is the fixture that tests whether that line is a real rule or a hope.
+ * document asks for (§Componente/Lista de cărți). This checks that the
+ * rendered clamp, rather than friendly fixture text, keeps that rule real.
  */
 const VERY_LONG_TITLE =
   "O istorie foarte lungă și amănunțită a bibliotecilor uitate din estul Europei, cu note de subsol despre catalogare, restaurare și cataloage pierdute în cel de-al Doilea Război Mondial";
 
-/** Five books — exactly `BOOKS_PER_PAGE` — so page 1 carries the dashboard *and* the fullest row count at once, the worst combination the router ever renders together. */
+/** Six books ensure a later paginated page is reachable; the first two are the longest active-row combination. */
 export const PAGE_ONE_BOOKS: Book[] = [
   book({
     id: "book-reading",
@@ -66,6 +64,10 @@ export const PAGE_ONE_BOOKS: Book[] = [
     rating: 5,
     pagesRead: 255,
     totalPages: 255,
+    // Every metadata field a row can carry, all at once — genre (default
+    // FICTION), rating, and now a price too — the actual worst case for the
+    // one-line metadata row, not just a long title.
+    paidPrice: 45.5,
     createdAt: "2026-07-28T10:00:00.000Z",
   }),
   book({
@@ -87,7 +89,12 @@ export const PAGE_ONE_BOOKS: Book[] = [
   }),
 ];
 
-/** One extra book so `/books?page=2` is reachable and renders without the dashboard. */
+/**
+ * Padded past a single book: the 2-column grid rounds 5 or 6 books up to the
+ * same 3 rows, so finding the real row ceiling needs enough books to reach a
+ * 4th row (7+) — one leftover book was never enough to tell "fits" from
+ * "rounds to the same answer as fewer books would have."
+ */
 export const PAGE_TWO_BOOKS: Book[] = [
   book({
     id: "book-page-two",
@@ -95,6 +102,58 @@ export const PAGE_TWO_BOOKS: Book[] = [
     author: "Cineva",
     status: "WISHLIST",
     createdAt: "2026-07-01T10:00:00.000Z",
+  }),
+  book({
+    id: "book-extra-1",
+    title: "Crimă și pedeapsă",
+    author: "Feodor Dostoievski",
+    status: "FINISHED",
+    rating: 4,
+    genre: "FICTION",
+    paidPrice: 32,
+    pagesRead: 671,
+    totalPages: 671,
+    createdAt: "2026-06-28T10:00:00.000Z",
+  }),
+  book({
+    id: "book-extra-2",
+    title: "O scurtă istorie a aproape totul",
+    author: "Bill Bryson",
+    status: "READING",
+    genre: "NONFICTION",
+    pagesRead: 210,
+    totalPages: 544,
+    createdAt: "2026-06-27T10:00:00.000Z",
+  }),
+  book({
+    id: "book-extra-3",
+    title: "1984",
+    author: "George Orwell",
+    status: "PURCHASED",
+    genre: "SCIFI",
+    paidPrice: 25.5,
+    createdAt: "2026-06-26T10:00:00.000Z",
+  }),
+  book({
+    id: "book-extra-4",
+    title: "Sapiens: o scurtă istorie a omenirii",
+    author: "Yuval Noah Harari",
+    status: "FINISHED",
+    rating: 5,
+    genre: "NONFICTION",
+    paidPrice: 48,
+    pagesRead: 464,
+    totalPages: 464,
+    createdAt: "2026-06-25T10:00:00.000Z",
+  }),
+  book({
+    id: "book-extra-5",
+    title: "Micul prinț",
+    author: "Antoine de Saint-Exupéry",
+    status: "WISHLIST",
+    genre: "FICTION",
+    estimatedPrice: 18.99,
+    createdAt: "2026-06-24T10:00:00.000Z",
   }),
 ];
 

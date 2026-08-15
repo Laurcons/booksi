@@ -46,6 +46,14 @@ import { BOOK_FORM_SCRIPT } from "./book-form-script";
  */
 
 const EXTRA_STYLE = `
+  /* §Componente: the title is user data here too (the edit page's own
+     heading), so it gets the same two-line ceiling as a book row's title. */
+  h1 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
   .field-error { display: block; font-weight: bold; font-size: ${fontSize.meta}px; margin: 0 0 ${webPx(2)}px 0; }
   label { display: block; margin: 0 0 ${webPx(16)}px 0; }
   input[type="text"], select {
@@ -181,13 +189,22 @@ function renderEditPage(
     extraStyle: EXTRA_STYLE,
     body: html`<h1>${book.title}</h1>
       <form method="post" action="/books/${book.id}">${formFields(values, errors)}</form>
-      ${book.status === "WISHLIST"
-        ? html`<form method="post" action="/books/${book.id}/purchase">
-            <button type="submit" class="btn btn-primary">Marchează drept cumpărată</button>
-          </form>`
-        : null}
-      <p><a class="btn" href="/books/${book.id}/delete">Șterge cartea</a></p>
-      <p><a href="/books">‹ Înapoi la listă</a></p>
+      <!-- book-form-script.ts queries .wizard-section document-wide, not
+           scoped to the form above — so this section is picked up as a
+           fourth step and gated behind the same Next/Back nav as the other
+           three. Measured, not assumed: left ungated, the purchase button,
+           delete link, and back link always rendered alongside step 1 and
+           pushed the page past the panel's 1264px on a WISHLIST book with a
+           long title (docs/kobo_design.md §Mediu constraint 5). -->
+      <div class="wizard-section">
+        ${book.status === "WISHLIST"
+          ? html`<form method="post" action="/books/${book.id}/purchase">
+              <button type="submit" class="btn btn-primary">Marchează drept cumpărată</button>
+            </form>`
+          : null}
+        <p><a class="btn" href="/books/${book.id}/delete">Șterge cartea</a></p>
+        <p><a href="/books">‹ Înapoi la listă</a></p>
+      </div>
       <script>
         ${raw(BOOK_FORM_SCRIPT)}
       </script>`,

@@ -57,19 +57,23 @@ function baseStyle(): string {
       margin: ${webPx(24)}px 0;
       background: ${fillQuiet};
     }
-    /* §Componente — o țintă de atingere, nu un buton plin: contur, nu umplutură. */
+    /* §Componente — o țintă de atingere, nu un buton plin: contur, nu umplutură.
+       font-size at meta, not body: the touch-target floor is min-height /
+       min-width (9mm, §Geometrie) below, not the font — the button was
+       reading as bigger than the target it has to be, since padding plus a
+       body-sized line was already well past 9mm on its own. */
     .btn {
       display: inline-block;
       box-sizing: border-box;
       min-height: ${touchMin}px;
       min-width: ${touchMin}px;
-      padding: ${webPx(12)}px ${webPx(20)}px;
+      padding: ${webPx(8)}px ${webPx(16)}px;
       margin: ${webPx(8)}px ${touchGap}px ${webPx(8)}px 0;
       border: ${ruleWidth}px solid ${ink.primary};
       background: ${surface};
       color: ${ink.primary};
       font-family: ${bodyFont};
-      font-size: ${fontSize.body}px;
+      font-size: ${fontSize.meta}px;
       text-align: center;
       text-decoration: none;
       /* Buttons and links share this class; without it a real <button>
@@ -90,13 +94,20 @@ function baseStyle(): string {
       margin-right: ${touchGap + buttonShadow}px;
     }
     /* §Componente/Navigație — bordered text links, banded; the current
-       destination gets the thicker accent-coloured border, never a fill. */
+       destination gets the thicker accent-coloured border, never a fill.
+       min-height plus box-sizing: border-box added deliberately, matching
+       .btn: without it, a nav pill's touch-target height came only from its
+       (now smaller) padding and font, with nothing guaranteeing it stayed at
+       or above §Geometrie's 9mm floor the way .btn always did. */
     .nav { margin: 0 0 ${webPx(16)}px 0; }
     .nav a, .nav span {
       display: inline-block;
+      box-sizing: border-box;
+      min-height: ${touchMin}px;
       border: ${ruleWidth}px solid ${ink.primary};
-      padding: ${webPx(8)}px ${webPx(14)}px;
+      padding: ${webPx(6)}px ${webPx(12)}px;
       margin: 0 ${webPx(8)}px ${webPx(8)}px 0;
+      font-size: ${fontSize.meta}px;
       text-decoration: none;
       color: ${ink.primary};
     }

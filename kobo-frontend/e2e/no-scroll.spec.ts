@@ -8,8 +8,8 @@ import { KOBO_URL } from "./urls";
  * nici măcar cu degetul" — no page scrolls, not even by finger. Nothing in
  * `page.ts`'s base stylesheet enforces that (no `overflow: hidden`, no
  * `max-height` — see the file itself), so the rule lives entirely in content
- * budgeting: `BOOKS_PER_PAGE = 5`, three form sections, and the arithmetic
- * behind both, none of it checked against a real rendered page before now.
+ * budgeting: `BOOKS_PER_PAGE`, three form sections, and the measurements
+ * behind both.
  * This suite is that check — `document.documentElement.scrollHeight` against
  * the panel's actual 1264px, on realistic-worst-case content, not the tidy
  * fixtures the rest of the repo uses.
@@ -41,13 +41,13 @@ const PAGES: PageCase[] = [
     scrollAllowedWithoutJs: false,
   },
   {
-    name: "books-page-1-with-dashboard",
+    name: "books-page-1",
     path: "/books",
     requiresSession: true,
     scrollAllowedWithoutJs: false,
   },
   {
-    name: "books-page-2-no-dashboard",
+    name: "books-page-2",
     path: "/books?page=2",
     requiresSession: true,
     scrollAllowedWithoutJs: false,
@@ -85,13 +85,17 @@ for (const pageCase of PAGES) {
 
     await page.goto(pageCase.path);
 
-    const scrollHeight = await page.evaluate(
-      () => document.documentElement.scrollHeight,
-    );
+    const { scrollHeight, contentHeight } = await page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      // `scrollHeight` floors at the viewport when content fits. Log the
+      // body's actual box too, so a passing 1264px result can be distinguished
+      // from one with real headroom while choosing a page-size budget.
+      contentHeight: document.body.getBoundingClientRect().height,
+    }));
 
     // eslint-disable-next-line no-console
     console.log(
-      `[${testInfo.project.name}] ${pageCase.path} → ${String(scrollHeight)}px (panel: ${String(KOBO_VIEWPORT.height)}px)`,
+      `[${testInfo.project.name}] ${pageCase.path} → ${String(scrollHeight)}px scroll, ${String(contentHeight)}px content (panel: ${String(KOBO_VIEWPORT.height)}px)`,
     );
 
     const shotBase = `test-results/kobo-screenshots/${pageCase.name}--${testInfo.project.name}`;

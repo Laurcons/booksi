@@ -93,9 +93,12 @@ Nu sunt preferințe. Sunt lucruri pe care hârtia electronică le impune.
    ai ecranului (§Geometrie); ce nu încape se paginează (§Paginare), nu se derulează.
 6. **Lat în pixeli, mic în mână.** Ecranul e 1264×1680 la 300ppi, iar browserul raportează exact
    acei pixeli: 1212×1264 pixeli CSS utili, la `devicePixelRatio` 1 (§P1). Nu e un viewport de
-   telefon — e un viewport larg pe o suprafață de 4,2 țoli. O singură coloană rămâne regula, dar
-   nu fiindcă n-ar încăpea două: fiindcă lățimea fizică și degetul n-au crescut odată cu
-   numărul de pixeli.
+   telefon — e un viewport larg pe o suprafață de 4,2 țoli. O singură coloană rămâne regula
+   generală, nu fiindcă n-ar încăpea două: fiindcă lățimea fizică și degetul n-au crescut odată cu
+   numărul de pixeli. Lista de cărți (§Componente/Lista de cărți) e excepția asumată: o fișă la
+   lățime redusă tot ajunge la ~2 țoli fizici, mult peste pragul de 9mm al unei ținte de atingere —
+   destul cât regula fizică să nu se aplice acolo, cu titlul și autorul trunchiate cu elipsă exact
+   ca să nu depindă de cât de lung e textul unei anumite cărți.
 7. **Culoarea e la 150ppi, sub un filtru.** Jumătate din rezoluția cernelii negre, și stinsă —
    confirmat cu ochiul pe dispozitiv, nu dedus (§P5).
 
@@ -304,8 +307,11 @@ fantomelor.
 
 ## Geometrie, spațiere, ținte
 
-- **O singură coloană.** Nu ca reacție la lățime, ci ca regulă: primitiva de layout pe care te-ai
-  baza nu există. `display:flex` și `display:grid` lipsesc amândouă (§P2).
+- **O singură coloană, cu o excepție numărată.** Nu ca reacție la lățime, ci ca regulă: primitiva
+  de layout pe care te-ai baza nu există. `display:flex` și `display:grid` lipsesc amândouă (§P2)
+  — orice coloane multiple se scriu din `inline-block` cu procente, niciodată exact 100% însumat
+  (§Mediu, constrângerea 6, explică de ce). Lista de cărți e singurul loc unde regula fizică
+  (lățime/deget) chiar nu se aplică, deci e singurul loc cu două coloane.
 - **Regula de aur a layoutului rămâne, cu o singură portiță.** *Fiecare pagină trebuie să fie
   corectă dacă toate declarațiile de layout modern sunt ignorate.* Ce ține layoutul: fluxul
   normal, `<table>` pentru date chiar tabulare, și `inline-block` pentru restul. Portița e
@@ -356,13 +362,13 @@ Nu e tabel. `DESIGN.md` spune deja că sub `xl` tabelul devine fișe (§D34), ia
 1212px măsurați (§P1). La 300ppi, nouă coloane ar fi oricum de negândit — corpul de literă care
 le-ar face să încapă e sub minimul absolut.
 
-O fișă pe carte, separate prin linie orizontală de 2px:
+Fișele stau două pe rând, nu una pe toată lățimea — singura excepție de la §Geometrie's „o
+singură coloană", motivată acolo (§Mediu, constrângerea 6):
 
 ```
-[copertă]  Titlul cărții, pe două rânduri maxim
- 15×22mm   Autorul · 2024
- 89×130    «Citesc»  ★★★★☆
-           43% — pag. 143 din 330
+[copertă]  Titlul, un rând, elipsă la nevoie      [copertă]  Titlul, un rând, elipsă la nevoie
+ 15×22mm   Autorul · 2024      «Citesc»  ★★★★☆      15×22mm   Alt autor       Wishlist
+ 89×130    Ficțiune  43% — pag. 143 din 330         89×130    Ficțiune  ~59.99 lei
 ```
 
 - **Coperta la 15×22mm — adică 89×130px**, cu rază de `3px`. Cei „40×60 pixeli CSS" din prima
@@ -371,17 +377,51 @@ O fișă pe carte, separate prin linie orizontală de 2px:
   la tipografie.
 - Titlul e legătura către pagina cărții. Toată fișa ar fi o țintă mai mare, dar o zonă activă
   fără margine vizibilă produce apăsări greșite pe care nu le poți anula ușor.
+- **Titlul și autorul sunt pe un rând, cu elipsă, nu pe două rânduri.** Prima redactare clama
+  titlul la două rânduri; odată ce fișele au ajuns două pe rând, o fișă mai înaltă decât vecina ei
+  (titlu pe un rând față de două) lasă un gol sub cea mai scurtă — `inline-block` n-are cum să
+  egalizeze înălțimile de rând așa cum ar face `grid`. Trunchierea ține fiecare fișă la aceeași
+  înălțime; un titlu chiar lung se citește mai rar, dar rămâne citibil.
 - Progresul apare doar la `Citesc`, ca în `DESIGN.md`, și **textul e primar, bara e opțională**:
   `progressLabel()` din `shared/` spune deja tot, iar bara e o suprafață plină în plus.
-- **5 cărți pe pagină** (§Paginare) — redus de la 20, și pentru un motiv diferit de „pagina nu
-  trebuie să fie prea lungă": trebuie să **încapă**, complet, fără derulare (§Mediu, constrângerea
-  5). O fișă e dominată de coperta ei de 130px; cinci fișe plus titlul paginii, butonul „Adaugă o
-  carte" și paginatorul de sus și de jos umplu aproape exact cei 1264px disponibili. Cifra n-a
-  fost verificată cu text real pe dispozitiv — e aritmetică, nu măsurătoare — deci se tratează ca
-  `PX_PER_INCH`: un prim calcul, de corectat după ce se vede o pagină adevărată.
-- **Cifrele din dashboard apar doar pe prima pagină.** Repetarea lor pe fiecare pagină ar fi
-  aceleași patru numere arătate din nou fără motiv, și e totodată cea mai mare parte din ce ar fi
-  împins pagina a doua peste limita ecranului.
+- **Metadatele sunt pe două rânduri sub titlu**: autor/an și starea cu ratingul pe primul, genul
+  (dacă există), prețul (plătit dacă e cazul, altfel estimarea de pe wishlist, marcată cu `~`) și,
+  la urmă, fie progresul (numai la `Citesc`), fie numărul de pagini pe al doilea — niciodată
+  progresul și paginile împreună, fiindcă `progressLabel()` deja spune și paginile. Prima
+  redactare le ținea pe un singur rând; odată ce fișele s-au îngustat la jumătate de pagină, un
+  singur rând ar fi însemnat fie text și mai mic, fie trunchiere pe fiecare câmp în parte, nu doar
+  pe titlu — două rânduri, la aceeași lățime îngustă, rămân citibile fără niciuna din astea.
+- **Cifrele bibliotecii stau lângă titlu, nu deasupra listei.** Un prim draft le punea pe o bandă
+  întreagă deasupra fișelor (a costat ~370px din buget), un al doilea le muta pe o pagină separată
+  (`/dashboard`, a costat un tap ca să-ți vezi propriile cifre). Varianta finală: o a doua coloană
+  `inline-block`, lângă „Cărți" și butonul „Adaugă o carte", nu deasupra lor.
+- **Două bug-uri de layout au ascuns bugetul real, până s-a verificat cu poziții reale, nu doar cu
+  o captură.** Coloana antetului și cea a cifrelor însumau exact 100% din lățime, fără loc pentru
+  spațiul pe care browserul îl inserează între două elemente `inline-block` alăturate în sursa HTML
+  — asta le trecea pe două rânduri, nu una lângă alta. La fel, coperta n-avea `box-sizing:
+  border-box`, deci chenarul îi făcea cutia cu 4px mai lată decât presupunea calculul lățimii
+  pentru `.book-info` — coperta și textul cădeau tot pe două rânduri. Amândouă corectate: coloanele
+  și perechea copertă/text se interpolează ca un array (`${[a, b]}`), care nu introduce spațiu
+  între elemente, exact ca banda de navigare de dinainte; coperta a primit `box-sizing:
+  border-box`.
+- **Butoanele și banda de navigare au trecut de la `body` la `meta`** (`page.ts`): pragul unei
+  ținte de atingere e `min-height`/`min-width` (9mm, §Geometrie), nu litera — un font de 12pt
+  într-un buton deja mai înalt decât pragul din umplutură era mai mare decât cerea de fapt
+  constrângerea. Rândul de cărți are propria scară, la 0,75× §Scara, cu podeaua la 9pt/19px —
+  niciun rol de sub acel prag n-a coborât mai jos.
+- **Opt cărți pe pagină — patru rânduri de câte două —, măsurate, nu ghicite, și verificate mai
+  departe decât primul număr care încăpea.** Metadatele pe două rânduri (mai sus) și fișele două
+  pe rând au costat înălțime reală, nu gratuit ca prima adăugare de câmpuri — cinci sau șase fișe
+  se rotunjesc la aceleași trei rânduri de grilă, ceea ce a făcut ca `BOOKS_PER_PAGE = 5` să pară
+  fără cost real: nu era o limită, era o coincidență de rotunjire, prinsă abia după ce datele de
+  test au trecut de o singură carte rămasă pe a doua pagină (`PAGE_TWO_BOOKS`,
+  `e2e/fixtures.ts`). Testul Playwright rulează la 1212×1264px, DPR 1, User-Agent-ul Kobo Touch,
+  conținut lung realist: opt fișe (patru rânduri) ocupă 1097,1px (166,9px marjă); zece (cinci
+  rânduri) ar ocupa 1241,1px — doar 22,9px, mai puțin decât s-a acceptat oriunde altundeva în
+  buget, deci rămâne la opt. Constanta rămâne legată de acest test, nu de aritmetică — orice
+  schimbare la fișă, antet sau grilă cere o remăsurare, cu poziții reale de element, nu doar o
+  privire pe o captură, și cu suficiente cărți de test cât să treacă de un rând care s-ar putea
+  întâmpla să încapă oricum.
 
 ### Coperți
 
@@ -446,9 +486,12 @@ Feb 2026  ██████░░░░░░░░░░░░░░   71,50 l
 
 ### Cifrele din dashboard
 
-Se păstrează aproape neschimbate: cifră mare serif, etichetă mică dedesubt. Ce se schimbă — nu
-mai stau pe un rând despărțit de linii verticale, ci două pe rând, din `inline-block` cu lățime
-în procente. Nu din flexbox: rândul trebuie să fie corect și când nu e nimic care să-l alinieze.
+Cifră serif, etichetă mică dedesubt — păstrate ca idee, dar micșorate față de prima redactare:
+28pt (cifra-erou) a ieșit din buget odată ce cifrele au trebuit să încapă lângă titlul paginii, nu
+pe un rând al lor; 14pt e mărimea care le lasă loc. Două pe rând, din `inline-block` cu lățime în
+procente — nu din flexbox, din același motiv ca peste tot: rândul trebuie să fie corect și când nu
+e nimic care să-l alinieze. Coloana întreagă e la rândul ei `inline-block`, lângă titlul paginii și
+butonul „Adaugă o carte" (§Componente/Lista de cărți), nu pe o bandă separată dedesubt.
 
 ### Formulare
 
