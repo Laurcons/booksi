@@ -37,7 +37,7 @@ export function createBookDeleteRouter(env: Env): Router {
     const id = req.params["id"]!;
 
     try {
-      const book = await getBook(env, session, id);
+      const book = await getBook(env, req.headers["user-agent"], session, id);
 
       res.type("html").send(
         renderPage({
@@ -67,7 +67,7 @@ export function createBookDeleteRouter(env: Env): Router {
     const id = req.params["id"]!;
 
     try {
-      await deleteBook(env, session, id);
+      await deleteBook(env, req.headers["user-agent"], session, id);
       res.redirect(303, "/books");
     } catch (error) {
       if (handleBackendError(error, res)) {

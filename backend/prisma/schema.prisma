@@ -242,6 +242,56 @@ model McpGrant {
   @@index([userId])
 }
 
+enum AuditSource {
+  WEB
+  KOBO
+  MCP
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+}
+
+/// One row per action, across every surface this app has (web, Kobo device
+/// via `kobo-frontend`, MCP). No relation to `User` on purpose: an audit
+/// trail exists to answer "who did this" *after the fact*, including after
+/// the actor's own account is gone, so `userId`/`impersonatedBy` must not be
+/// caught by `User`'s `onDelete: Cascade` the way every other table's
+/// `userId` is.
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId         String?
+  /// Set when the action ran under an admin's impersonation (§D38) — the
+  /// admin, so "who actually pressed the button" survives independently of
+  /// `userId`, which is the impersonated account for the duration.
+  impersonatedBy String?
+
+  source AuditSource
+
+  /// A stable name for what happened (`book.create`, `mcp.add_book`), not
+  /// the route — a route can be restructured without the trail losing its
+  /// meaning. Falls back to `"<METHOD> <route>"` where no name was given.
+  action String
+
+  method     String
+  route      String
+  statusCode Int
+  outcome    AuditOutcome
+
+  ip        String?
+  userAgent String? @db.Text
+
+  /// Loose by design: whatever detail an individual call site finds worth
+  /// keeping (a resource id, a diff) without a migration per new field.
+  metadata Json?
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
 /// The authorization code. Short-lived and single-use — `expiresAt` is 60
 /// seconds out from creation, `usedAt` is set (and never unset) the moment
 /// it is redeemed at `/oauth/token`.

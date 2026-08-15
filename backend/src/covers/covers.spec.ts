@@ -11,6 +11,7 @@ import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { BooksModule } from "../books/books.module";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -73,6 +74,7 @@ describe("covers (Sprint 4)", () => {
 
   const prisma = {
     $connect: jest.fn(),
+    auditLog: { create: jest.fn().mockResolvedValue(undefined) },
     user: { findUnique: jest.fn() },
     book: {
       create: jest.fn(),
@@ -107,6 +109,7 @@ describe("covers (Sprint 4)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         // Brings `CoversModule` with it — the dependency that exists so a book
         // created from a search result arrives with its cover.

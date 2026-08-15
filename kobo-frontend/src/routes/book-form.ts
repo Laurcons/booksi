@@ -233,7 +233,7 @@ export function createBookFormRouter(env: Env): Router {
     const values = readFormValues(req.body);
 
     try {
-      const book = await createBook(env, session, buildBookPayload(values));
+      const book = await createBook(env, req.headers["user-agent"], session, buildBookPayload(values));
       res.redirect(303, `/books/${book.id}`);
     } catch (error) {
       if (handleBackendError(error, res)) {
@@ -253,7 +253,7 @@ export function createBookFormRouter(env: Env): Router {
     const session = sessionCookieFrom(req)!;
 
     try {
-      const book = await getBook(env, session, req.params["id"]!);
+      const book = await getBook(env, req.headers["user-agent"], session, req.params["id"]!);
       res.type("html").send(renderEditPage(book, valuesFromBook(book), {}));
     } catch (error) {
       if (handleBackendError(error, res)) {
@@ -265,11 +265,12 @@ export function createBookFormRouter(env: Env): Router {
 
   router.post("/books/:id", async (req, res) => {
     const session = sessionCookieFrom(req)!;
+    const userAgent = req.headers["user-agent"];
     const id = req.params["id"]!;
     let original: Book;
 
     try {
-      original = await getBook(env, session, id);
+      original = await getBook(env, userAgent, session, id);
     } catch (error) {
       if (handleBackendError(error, res)) {
         return;
@@ -281,7 +282,7 @@ export function createBookFormRouter(env: Env): Router {
     const values = readFormValues(req.body);
 
     try {
-      const updated = await updateBook(env, session, id, buildUpdatePayload(values, original));
+      const updated = await updateBook(env, userAgent, session, id, buildUpdatePayload(values, original));
       res.redirect(303, `/books/${updated.id}`);
     } catch (error) {
       if (handleBackendError(error, res)) {
@@ -301,7 +302,7 @@ export function createBookFormRouter(env: Env): Router {
     const session = sessionCookieFrom(req)!;
 
     try {
-      const book = await purchaseBook(env, session, req.params["id"]!);
+      const book = await purchaseBook(env, req.headers["user-agent"], session, req.params["id"]!);
       res.redirect(303, `/books/${book.id}`);
     } catch (error) {
       if (handleBackendError(error, res)) {

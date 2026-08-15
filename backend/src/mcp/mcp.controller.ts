@@ -4,6 +4,7 @@ import { ApiExcludeController } from "@nestjs/swagger";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Request, Response } from "express";
+import { AuditService } from "../audit/audit.service";
 import { BooksService } from "../books/books.service";
 import { BudgetService } from "../budget/budget.service";
 import { ChallengesService } from "../challenges/challenges.service";
@@ -33,6 +34,7 @@ export class McpController {
     private readonly openLibrary: OpenLibraryService,
     private readonly challenges: ChallengesService,
     private readonly config: ConfigService<Env, true>,
+    private readonly audit: AuditService,
   ) {}
 
   @Public()
@@ -58,11 +60,13 @@ export class McpController {
     const server = new McpServer({ name: "bookcsi", version: "1.0.0" });
     registerTools(server, {
       userId: req.mcpAuth!.userId,
+      grantId: req.mcpAuth!.grantId,
       books: this.books,
       stats: this.stats,
       budget: this.budget,
       openLibrary: this.openLibrary,
       challenges: this.challenges,
+      audit: this.audit,
     });
 
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

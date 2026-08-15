@@ -23,7 +23,7 @@ export function createCoversRouter(env: Env): Router {
     const bookId = req.params["bookId"]!;
 
     try {
-      const cover = await getCoverImage(env, session, bookId);
+      const cover = await getCoverImage(env, req.headers["user-agent"], session, bookId);
 
       if (cover.status !== 200) {
         res.sendStatus(cover.status);

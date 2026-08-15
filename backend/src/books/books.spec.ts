@@ -9,6 +9,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { BooksModule } from "./books.module";
@@ -56,6 +57,7 @@ describe("books routes (Sprints 1–3)", () => {
 
   const prisma = {
     $connect: jest.fn(),
+    auditLog: { create: jest.fn().mockResolvedValue(undefined) },
     user: { findUnique: jest.fn() },
     book: {
       create: jest.fn(),
@@ -87,6 +89,7 @@ describe("books routes (Sprints 1–3)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         BooksModule,
       ],

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule, minutes, seconds } from "@nestjs/throttler";
+import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { BooksModule } from "./books/books.module";
 import { BudgetModule } from "./budget/budget.module";
@@ -46,6 +47,10 @@ import { StatsModule } from "./stats/stats.module";
     }),
 
     PrismaModule,
+    // Registers its own global `APP_INTERCEPTOR` (see the module itself) —
+    // audit logging, unlike the guards/filter below, isn't request
+    // gatekeeping, so it doesn't need to sit in this file's provider list.
+    AuditModule,
     AuthModule,
     BooksModule,
     // Sprint 4. `BooksModule` already pulls `CoversModule` in for the download

@@ -85,12 +85,13 @@ export function createPairRouter(env: Env): Router {
    * on another screen.
    */
   router.get("/pair", async (req, res) => {
+    const userAgent = req.headers["user-agent"];
     const existingId = (req.cookies as Record<string, string> | undefined)?.[
       PAIRING_COOKIE
     ];
 
     if (existingId) {
-      const reused = await tryStatus(env, existingId);
+      const reused = await tryStatus(env, userAgent, existingId);
       if (reused && (reused.status === "pending" || reused.status === "approved")) {
         res.type("html").send(pairingPage(reused.code));
         return;
@@ -98,7 +99,7 @@ export function createPairRouter(env: Env): Router {
     }
 
     try {
-      const pairing = await createPairing(env);
+      const pairing = await createPairing(env, userAgent);
       res.cookie(PAIRING_COOKIE, pairing.id, pairingCookieOptions());
       res.type("html").send(pairingPage(pairing.code));
     } catch {
@@ -108,6 +109,7 @@ export function createPairRouter(env: Env): Router {
 
   /** Reached by the one link on the pairing page — the only "refresh" this flow has. */
   router.get("/pair/continue", async (req, res) => {
+    const userAgent = req.headers["user-agent"];
     const id = (req.cookies as Record<string, string> | undefined)?.[PAIRING_COOKIE];
 
     if (!id) {
@@ -116,7 +118,7 @@ export function createPairRouter(env: Env): Router {
     }
 
     try {
-      const current = await pairingStatus(env, id);
+      const current = await pairingStatus(env, userAgent, id);
 
       if (current.status === "pending") {
         res.type("html").send(pairingPage(current.code));
@@ -138,7 +140,7 @@ export function createPairRouter(env: Env): Router {
         return;
       }
 
-      const { token } = await consumePairing(env, id);
+      const { token } = await consumePairing(env, userAgent, id);
       res.clearCookie(PAIRING_COOKIE, { path: "/pair" });
       res.cookie(
         SESSION_COOKIE,
@@ -156,10 +158,11 @@ export function createPairRouter(env: Env): Router {
 
 async function tryStatus(
   env: Env,
+  userAgent: string | undefined,
   id: string,
 ): Promise<PairingStatusResponse | undefined> {
   try {
-    return await pairingStatus(env, id);
+    return await pairingStatus(env, userAgent, id);
   } catch {
     return undefined;
   }

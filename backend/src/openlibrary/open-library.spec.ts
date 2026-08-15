@@ -8,6 +8,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { OpenLibraryModule } from "./open-library.module";
@@ -40,7 +41,7 @@ describe("Open Library routes (Sprint 4)", () => {
   let app: INestApplication;
   let authService: AuthService;
 
-  const prisma = { $connect: jest.fn(), user: { findUnique: jest.fn() } };
+  const prisma = { $connect: jest.fn(), auditLog: { create: jest.fn().mockResolvedValue(undefined) }, user: { findUnique: jest.fn() } };
   const fetchMock = jest.fn();
 
   beforeAll(async () => {
@@ -63,6 +64,7 @@ describe("Open Library routes (Sprint 4)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         OpenLibraryModule,
       ],

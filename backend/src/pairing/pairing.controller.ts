@@ -18,6 +18,7 @@ import {
   type CreatePairingResponse,
   type PairingStatusResponse,
 } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
@@ -49,6 +50,7 @@ export class PairingController {
       "primește un al doilea rând, nu o reîmprospătare a primului.",
   })
   @ApiCreatedResponse({ schema: ref("CreatePairingResponse") })
+  @AuditAction("pairing.create")
   @Public()
   @Throttle(PAIRING_RATE)
   @Post()
@@ -93,6 +95,7 @@ export class PairingController {
     description: "Fără sesiune validă.",
     schema: ref("HttpError"),
   })
+  @AuditAction("pairing.approve")
   @Post("approve")
   @HttpCode(HttpStatus.NO_CONTENT)
   async approve(
@@ -116,6 +119,7 @@ export class PairingController {
     description: "Cererea nu există, nu e încă aprobată, a expirat, sau a fost deja consumată.",
     schema: ref("HttpError"),
   })
+  @AuditAction("pairing.consume")
   @Public()
   @Post(":id/consume")
   @HttpCode(HttpStatus.OK)

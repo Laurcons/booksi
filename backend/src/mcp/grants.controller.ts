@@ -2,6 +2,7 @@ import { Controller, Get, HttpCode, HttpStatus, Param, Post } from "@nestjs/comm
 import { ConfigService } from "@nestjs/config";
 import { ApiExcludeController } from "@nestjs/swagger";
 import type { AuthUser, McpGrant } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AppError } from "../common/app-error";
 import type { Env } from "../config/env";
@@ -46,6 +47,7 @@ export class McpGrantsController {
    * `grant.revokedAt` on every `/mcp` request, so the next call from a live
    * client is refused without a second table to keep in sync.
    */
+  @AuditAction("mcp.grant.revoke")
   @Post(":id/revoke")
   @HttpCode(HttpStatus.NO_CONTENT)
   async revoke(@CurrentUser() user: AuthUser, @Param("id") id: string): Promise<void> {

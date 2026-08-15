@@ -10,6 +10,7 @@ import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { currentMonth } from "../common/month";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { StatsModule } from "./stats.module";
@@ -55,6 +56,7 @@ describe("stats routes (Sprints 7–8)", () => {
 
   const prisma = {
     $connect: jest.fn(),
+    auditLog: { create: jest.fn().mockResolvedValue(undefined) },
     $queryRaw: jest.fn(),
     user: { findUnique: jest.fn() },
     book: { count: jest.fn() },
@@ -80,6 +82,7 @@ describe("stats routes (Sprints 7–8)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         StatsModule,
       ],

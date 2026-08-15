@@ -298,10 +298,11 @@ export function createBooksListRouter(env: Env): Router {
 
   router.get("/books", async (req, res) => {
     const session = sessionCookieFrom(req)!;
+    const userAgent = req.headers["user-agent"];
     const requestedPage = Number(req.query["page"]);
 
     try {
-      const books = await listBooks(env, session);
+      const books = await listBooks(env, userAgent, session);
       const { items, page, totalPages } = paginate(books, requestedPage, BOOKS_PER_PAGE);
 
       // The dashboard describes the whole library, not one page of it —
@@ -311,8 +312,8 @@ export function createBooksListRouter(env: Env): Router {
       let dashboardHtml: Html | null = null;
       if (page === 1) {
         const [stats, budget] = await Promise.all([
-          getStatsOverview(env, session),
-          getBudgetSummary(env, session),
+          getStatsOverview(env, userAgent, session),
+          getBudgetSummary(env, userAgent, session),
         ]);
         dashboardHtml = dashboard(stats, budget);
       }

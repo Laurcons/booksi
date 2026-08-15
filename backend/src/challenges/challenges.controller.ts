@@ -22,6 +22,7 @@ import {
   type CreateChallengeInput,
   type UpdateChallengeInput,
 } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { arrayOf, ref } from "../docs/openapi";
@@ -85,6 +86,7 @@ export class ChallengesController {
   })
   @ApiBody({ schema: ref("CreateChallengeInput") })
   @ApiCreatedResponse({ schema: ref("Challenge") })
+  @AuditAction("challenge.create")
   @Post()
   create(
     @CurrentUser() user: AuthUser,
@@ -107,6 +109,7 @@ export class ChallengesController {
     description: "Nu există sau e a altcuiva.",
     schema: ref("HttpError"),
   })
+  @AuditAction("challenge.update")
   @Patch(":id")
   update(
     @CurrentUser() user: AuthUser,
@@ -128,6 +131,7 @@ export class ChallengesController {
     description: "Nu există sau e a altcuiva.",
     schema: ref("HttpError"),
   })
+  @AuditAction("challenge.delete")
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@CurrentUser() user: AuthUser, @Param("id") id: string): Promise<void> {
@@ -147,6 +151,7 @@ export class ChallengesController {
     description: "Provocarea sau cartea nu există ori nu sunt ale utilizatorului.",
     schema: ref("HttpError"),
   })
+  @AuditAction("challenge.addBook")
   @Post(":id/books")
   @HttpCode(HttpStatus.OK)
   addBook(
@@ -171,6 +176,7 @@ export class ChallengesController {
     description: "Provocarea nu există sau nu e a utilizatorului.",
     schema: ref("HttpError"),
   })
+  @AuditAction("challenge.removeBook")
   @Delete(":id/books/:bookId")
   removeBook(
     @CurrentUser() user: AuthUser,

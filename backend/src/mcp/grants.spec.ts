@@ -9,6 +9,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { McpModule } from "./mcp.module";
@@ -28,6 +29,7 @@ class FakePrisma {
   private seq = 0;
 
   $connect = jest.fn();
+  auditLog = { create: jest.fn().mockResolvedValue(undefined) };
   user = { findUnique: jest.fn() };
 
   mcpGrant = {
@@ -111,6 +113,7 @@ describe("MCP connected-apps screen (docs/MCP.md §9 step 6)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         McpModule,
       ],

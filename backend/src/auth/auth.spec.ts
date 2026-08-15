@@ -6,6 +6,7 @@ import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthModule } from "./auth.module";
@@ -56,6 +57,7 @@ describe("auth routes", () => {
   let jwtService: JwtService;
   const prisma = {
     $connect: jest.fn(),
+    auditLog: { create: jest.fn().mockResolvedValue(undefined) },
     user: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -85,6 +87,7 @@ describe("auth routes", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
       ],
       controllers: [ProbeController],

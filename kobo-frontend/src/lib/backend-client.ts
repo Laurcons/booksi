@@ -37,29 +37,36 @@ export class BackendRequestError extends BackendError {
   }
 }
 
+/**
+ * Every call through here is on a Kobo reader's behalf — `X-Client: kobo` is
+ * how the API tells this apart from the React app for its audit trail
+ * without depending on any particular device's User-Agent string surviving
+ * unchanged. The device's real User-Agent is forwarded alongside it anyway
+ * (`userAgent`, read off the incoming request by the route, the same way the
+ * session cookie already is) — the header is the reliable signal, the UA is
+ * the forensic detail.
+ */
 async function call<T>(
   url: string,
-  init?: RequestInit,
-  sessionCookie?: string,
+  init: RequestInit | undefined,
+  sessionCookie: string | undefined,
+  userAgent: string | undefined,
 ): Promise<T> {
-  // Left as `init` verbatim — including `undefined` — for the unauthenticated
-  // pairing calls, so a plain `fetch(url)` is what actually goes out rather
-  // than `fetch(url, {})`, which is equivalent but not identical.
-  const requestInit: RequestInit | undefined =
-    sessionCookie === undefined
-      ? init
-      : {
-          ...init,
-          headers: {
-            ...(init?.headers as Record<string, string> | undefined),
-            Cookie: `${SESSION_COOKIE}=${sessionCookie}`,
-          },
-        };
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+    "X-Client": "kobo",
+  };
+  if (userAgent !== undefined) {
+    headers["User-Agent"] = userAgent;
+  }
+  if (sessionCookie !== undefined) {
+    headers["Cookie"] = `${SESSION_COOKIE}=${sessionCookie}`;
+  }
 
   let res: Response;
 
   try {
-    res = await fetch(url, requestInit);
+    res = await fetch(url, { ...init, headers });
   } catch (error) {
     throw new BackendError(`could not reach the API: ${String(error)}`);
   }
@@ -106,40 +113,62 @@ function jsonInit(method: string, payload: unknown): RequestInit {
 
 // --- Pairing (§Autentificare) — unauthenticated, server-to-server. ---------
 
-export function createPairing(env: Env): Promise<CreatePairingResponse> {
-  return call(`${env.API_URL}/pairing`, { method: "POST" });
+export function createPairing(env: Env, userAgent: string | undefined): Promise<CreatePairingResponse> {
+  return call(`${env.API_URL}/pairing`, { method: "POST" }, undefined, userAgent);
 }
 
-export function pairingStatus(env: Env, id: string): Promise<PairingStatusResponse> {
-  return call(`${env.API_URL}/pairing/${encodeURIComponent(id)}`);
+export function pairingStatus(
+  env: Env,
+  userAgent: string | undefined,
+  id: string,
+): Promise<PairingStatusResponse> {
+  return call(`${env.API_URL}/pairing/${encodeURIComponent(id)}`, undefined, undefined, userAgent);
 }
 
-export function consumePairing(env: Env, id: string): Promise<ConsumePairingResponse> {
-  return call(`${env.API_URL}/pairing/${encodeURIComponent(id)}/consume`, {
-    method: "POST",
-  });
+export function consumePairing(
+  env: Env,
+  userAgent: string | undefined,
+  id: string,
+): Promise<ConsumePairingResponse> {
+  return call(
+    `${env.API_URL}/pairing/${encodeURIComponent(id)}/consume`,
+    { method: "POST" },
+    undefined,
+    userAgent,
+  );
 }
 
 // --- Books CRUD — authenticated, on the reader's behalf. -------------------
 
-export function listBooks(env: Env, sessionCookie: string): Promise<Book[]> {
-  return call(`${env.API_URL}/books`, {}, sessionCookie);
+export function listBooks(
+  env: Env,
+  userAgent: string | undefined,
+  sessionCookie: string,
+): Promise<Book[]> {
+  return call(`${env.API_URL}/books`, {}, sessionCookie, userAgent);
 }
 
-export function getBook(env: Env, sessionCookie: string, id: string): Promise<Book> {
-  return call(`${env.API_URL}/books/${encodeURIComponent(id)}`, {}, sessionCookie);
+export function getBook(
+  env: Env,
+  userAgent: string | undefined,
+  sessionCookie: string,
+  id: string,
+): Promise<Book> {
+  return call(`${env.API_URL}/books/${encodeURIComponent(id)}`, {}, sessionCookie, userAgent);
 }
 
 export function createBook(
   env: Env,
+  userAgent: string | undefined,
   sessionCookie: string,
   payload: Record<string, unknown>,
 ): Promise<Book> {
-  return call(`${env.API_URL}/books`, jsonInit("POST", payload), sessionCookie);
+  return call(`${env.API_URL}/books`, jsonInit("POST", payload), sessionCookie, userAgent);
 }
 
 export function updateBook(
   env: Env,
+  userAgent: string | undefined,
   sessionCookie: string,
   id: string,
   payload: Record<string, unknown>,
@@ -148,33 +177,54 @@ export function updateBook(
     `${env.API_URL}/books/${encodeURIComponent(id)}`,
     jsonInit("PATCH", payload),
     sessionCookie,
+    userAgent,
   );
 }
 
-export function deleteBook(env: Env, sessionCookie: string, id: string): Promise<void> {
+export function deleteBook(
+  env: Env,
+  userAgent: string | undefined,
+  sessionCookie: string,
+  id: string,
+): Promise<void> {
   return call(
     `${env.API_URL}/books/${encodeURIComponent(id)}`,
     { method: "DELETE" },
     sessionCookie,
+    userAgent,
   );
 }
 
-export function purchaseBook(env: Env, sessionCookie: string, id: string): Promise<Book> {
+export function purchaseBook(
+  env: Env,
+  userAgent: string | undefined,
+  sessionCookie: string,
+  id: string,
+): Promise<Book> {
   return call(
     `${env.API_URL}/books/${encodeURIComponent(id)}/purchase`,
     { method: "POST" },
     sessionCookie,
+    userAgent,
   );
 }
 
 // --- Dashboard figures (S8.1) — the same two endpoints the React dashboard reads. ---
 
-export function getStatsOverview(env: Env, sessionCookie: string): Promise<StatsOverview> {
-  return call(`${env.API_URL}/stats/overview`, {}, sessionCookie);
+export function getStatsOverview(
+  env: Env,
+  userAgent: string | undefined,
+  sessionCookie: string,
+): Promise<StatsOverview> {
+  return call(`${env.API_URL}/stats/overview`, {}, sessionCookie, userAgent);
 }
 
-export function getBudgetSummary(env: Env, sessionCookie: string): Promise<BudgetSummary> {
-  return call(`${env.API_URL}/budget/summary`, {}, sessionCookie);
+export function getBudgetSummary(
+  env: Env,
+  userAgent: string | undefined,
+  sessionCookie: string,
+): Promise<BudgetSummary> {
+  return call(`${env.API_URL}/budget/summary`, {}, sessionCookie, userAgent);
 }
 
 // --- Cover image — binary, so it bypasses `call()`, which assumes JSON. ----
@@ -189,15 +239,22 @@ export interface CoverImage {
 
 export async function getCoverImage(
   env: Env,
+  userAgent: string | undefined,
   sessionCookie: string,
   bookId: string,
 ): Promise<CoverImage> {
+  const headers: Record<string, string> = {
+    Cookie: `${SESSION_COOKIE}=${sessionCookie}`,
+    "X-Client": "kobo",
+  };
+  if (userAgent !== undefined) {
+    headers["User-Agent"] = userAgent;
+  }
+
   let res: Response;
 
   try {
-    res = await fetch(`${env.API_URL}/covers/${encodeURIComponent(bookId)}`, {
-      headers: { Cookie: `${SESSION_COOKIE}=${sessionCookie}` },
-    });
+    res = await fetch(`${env.API_URL}/covers/${encodeURIComponent(bookId)}`, { headers });
   } catch (error) {
     throw new BackendError(`could not reach the API: ${String(error)}`);
   }

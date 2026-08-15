@@ -14,6 +14,7 @@ import {
   type Settings,
   type UpdateSettingsInput,
 } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { ref } from "../docs/openapi";
@@ -62,6 +63,7 @@ export class SettingsController {
       "nicio poveste nu le implementează (§D31).",
     schema: ref("HttpError"),
   })
+  @AuditAction("settings.update")
   @Put()
   update(
     @CurrentUser() user: AuthUser,

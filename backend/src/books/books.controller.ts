@@ -41,6 +41,7 @@ import {
   type UpdateBookInput,
   type WishlistSummary,
 } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { arrayOf, ref } from "../docs/openapi";
@@ -222,6 +223,7 @@ export class BooksController {
       "viitor — respins explicit, nu ignorat în tăcere.",
     schema: ref("HttpError"),
   })
+  @AuditAction("book.create")
   @Post()
   create(
     @CurrentUser() user: AuthUser,
@@ -277,6 +279,7 @@ export class BooksController {
     description: "Inexistentă sau a altcuiva — vezi `GET /books/{id}`.",
     schema: ref("HttpError"),
   })
+  @AuditAction("book.update")
   @Patch(":id")
   update(
     @CurrentUser() user: AuthUser,
@@ -310,6 +313,7 @@ export class BooksController {
     description: "Inexistentă sau a altcuiva — vezi `GET /books/{id}`.",
     schema: ref("HttpError"),
   })
+  @AuditAction("book.purchase")
   @Post(":id/purchase")
   @HttpCode(HttpStatus.OK)
   purchase(
@@ -333,6 +337,7 @@ export class BooksController {
     description: "Inexistentă sau a altcuiva — vezi `GET /books/{id}`.",
     schema: ref("HttpError"),
   })
+  @AuditAction("book.delete")
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@CurrentUser() user: AuthUser, @Param("id") id: string): Promise<void> {

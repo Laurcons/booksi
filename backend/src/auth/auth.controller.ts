@@ -27,6 +27,8 @@ import { Throttle, minutes } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import type { User } from "@prisma/client";
 import type { AdminUserSummary, AuthUser } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
+import { AuditMetadata, type SetAuditMetadata } from "../audit/audit-metadata.decorator";
 import { AppError } from "../common/app-error";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
@@ -109,6 +111,7 @@ export class AuthController {
       "Redirect către aplicație, cu `Set-Cookie: session=…`. La eșec, " +
       "redirect către login — vezi `OAuthFailureFilter`.",
   })
+  @AuditAction("auth.login")
   @Public()
   @Throttle(LOGIN_RATE)
   @UseFilters(OAuthFailureFilter)
@@ -165,6 +168,7 @@ export class AuthController {
       "la ieșire.",
   })
   @ApiNoContentResponse({ description: "Cookie-ul de sesiune a fost șters." })
+  @AuditAction("auth.logout")
   @Public()
   @Post("logout")
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -197,6 +201,7 @@ export class AuthController {
   })
   @ApiNoContentResponse({ description: "Cookie-ul de sesiune a devenit cel al contului țintă." })
   @ApiForbiddenResponse({ description: "Contul autentificat nu e admin.", schema: ref("HttpError") })
+  @AuditAction("auth.impersonate.start")
   @UseGuards(AdminGuard)
   @Post("impersonate/:userId")
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -204,6 +209,7 @@ export class AuthController {
     @Param("userId") userId: string,
     @CurrentUser() admin: AuthUser,
     @Res({ passthrough: true }) res: Response,
+    @AuditMetadata() setAuditMetadata: SetAuditMetadata,
   ): Promise<void> {
     if (userId === admin.id) {
       throw AppError.validation("Nu te poți impersona pe tine însuți.");
@@ -220,6 +226,8 @@ export class AuthController {
     });
     res.cookie(SESSION_COOKIE, token, this.cookieOptions());
 
+    setAuditMetadata({ targetUserId: target.id, targetEmail: target.email });
+
     this.logger.warn(
       `${admin.email} (${admin.id}) impersonating ${target.email} (${target.id})`,
     );
@@ -235,11 +243,13 @@ export class AuthController {
     description: "§D38 — anulează o impersonare pornită prin `POST /auth/impersonate/:userId`.",
   })
   @ApiNoContentResponse({ description: "Cookie-ul de sesiune a redevenit cel al adminului." })
+  @AuditAction("auth.impersonate.stop")
   @Post("stop-impersonating")
   @HttpCode(HttpStatus.NO_CONTENT)
   async stopImpersonating(
     @CurrentUser() user: AuthUser,
     @Res({ passthrough: true }) res: Response,
+    @AuditMetadata() setAuditMetadata: SetAuditMetadata,
   ): Promise<void> {
     if (!user.impersonatedBy) {
       throw AppError.validation("Nu ești în modul impersonare.");
@@ -252,6 +262,8 @@ export class AuthController {
 
     const token = this.authService.signSessionToken(admin);
     res.cookie(SESSION_COOKIE, token, this.cookieOptions());
+
+    setAuditMetadata({ impersonatedUserId: user.id, impersonatedEmail: user.email });
 
     this.logger.warn(`${admin.email} (${admin.id}) stopped impersonating ${user.email} (${user.id})`);
   }

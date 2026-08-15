@@ -78,10 +78,9 @@ describe("pairing by code (docs/kobo_design.md §Autentificare)", () => {
 
       expect(res.text).toContain("ABC 234");
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(fetchMock).toHaveBeenCalledWith(
-        "http://backend.internal/pairing/pairing-1",
-        undefined,
-      );
+      expect(fetchMock).toHaveBeenCalledWith("http://backend.internal/pairing/pairing-1", {
+        headers: { "X-Client": "kobo" },
+      });
     });
 
     it("mints a new code when the cookied one has already expired", async () => {

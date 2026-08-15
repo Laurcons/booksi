@@ -10,6 +10,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { PairingModule } from "./pairing.module";
@@ -36,6 +37,7 @@ class FakePrisma {
   private seq = 0;
 
   $connect = jest.fn();
+  auditLog = { create: jest.fn().mockResolvedValue(undefined) };
   user = { findUnique: jest.fn() };
 
   devicePairing = {
@@ -113,6 +115,7 @@ describe("pairing by code (§D37, docs/kobo_design.md §Autentificare)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         PairingModule,
       ],

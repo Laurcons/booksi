@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule, minutes, seconds } from "@nestjs/throt
 import request from "supertest";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { Public } from "../common/decorators/public.decorator";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthModule } from "./auth.module";
@@ -31,7 +32,7 @@ class ProbeController {
 describe("rate limiting", () => {
   let app: INestApplication;
 
-  const prisma = { $connect: jest.fn(), user: { findUnique: jest.fn() } };
+  const prisma = { $connect: jest.fn(), auditLog: { create: jest.fn().mockResolvedValue(undefined) }, user: { findUnique: jest.fn() } };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -60,6 +61,7 @@ describe("rate limiting", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
       ],
       controllers: [ProbeController],

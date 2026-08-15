@@ -10,6 +10,7 @@ import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { currentMonth, monthRange } from "../common/month";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { BudgetModule } from "./budget.module";
@@ -39,6 +40,7 @@ describe("budget routes (Sprint 6)", () => {
 
   const prisma = {
     $connect: jest.fn(),
+    auditLog: { create: jest.fn().mockResolvedValue(undefined) },
     $queryRaw: jest.fn(),
     user: { findUnique: jest.fn() },
     book: { aggregate: jest.fn() },
@@ -94,6 +96,7 @@ describe("budget routes (Sprint 6)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         BudgetModule,
       ],

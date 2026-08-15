@@ -15,6 +15,7 @@ import {
 } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { COVER_MAX_BYTES, type AuthUser, type CoverRef } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { ref } from "../docs/openapi";
 import { CoversService } from "./covers.service";
@@ -123,6 +124,7 @@ export class CoversController {
     description: "Cartea nu există sau e a altcuiva.",
     schema: ref("HttpError"),
   })
+  @AuditAction("book.coverUpload")
   @Put("books/:id/cover")
   async upload(
     @CurrentUser() user: AuthUser,

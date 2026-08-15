@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
   bookSortSchema,
@@ -17,6 +18,7 @@ import type { BooksService } from "../books/books.service";
 import type { BudgetService } from "../budget/budget.service";
 import type { ChallengesService } from "../challenges/challenges.service";
 import { AppError } from "../common/app-error";
+import type { AuditService } from "../audit/audit.service";
 import type { OpenLibraryService } from "../openlibrary/open-library.service";
 import type { StatsService } from "../stats/stats.service";
 
@@ -27,11 +29,13 @@ import type { StatsService } from "../stats/stats.service";
  */
 export interface ToolContext {
   userId: string;
+  grantId: string;
   books: BooksService;
   stats: StatsService;
   budget: BudgetService;
   openLibrary: OpenLibraryService;
   challenges: ChallengesService;
+  audit: AuditService;
 }
 
 function textResult(data: unknown): CallToolResult {
@@ -58,6 +62,36 @@ function errorText(error: unknown): string {
     return Array.isArray(message) ? message.join("; ") : message;
   }
   return error instanceof Error ? error.message : "A apărut o eroare neașteptată.";
+}
+
+/**
+ * One JSON-RPC `/mcp` POST can carry several tool calls (docs/MCP.md §7),
+ * which is exactly why `AuditInterceptor` logging that one HTTP request isn't
+ * enough — it can say a grant hit `/mcp`, not which tools it ran. Every
+ * mutating tool below logs itself, right where the actor (`userId`) and the
+ * result already are.
+ *
+ * No literal HTTP status exists per tool call — every outcome, including a
+ * tool that reports its own error, still rides back inside one 200 JSON-RPC
+ * response — so `statusCode` here is a stand-in that mirrors `outcome`, not a
+ * status this request actually received.
+ */
+function logToolAudit(
+  ctx: Pick<ToolContext, "userId" | "grantId" | "audit">,
+  action: string,
+  outcome: "SUCCESS" | "FAILURE",
+  metadata: Prisma.InputJsonObject,
+): void {
+  ctx.audit.log({
+    userId: ctx.userId,
+    source: "MCP",
+    action,
+    method: "MCP",
+    route: "/mcp",
+    statusCode: outcome === "SUCCESS" ? 200 : 400,
+    outcome,
+    metadata: { grantId: ctx.grantId, ...metadata },
+  });
 }
 
 /** docs/MCP.md §9 steps 4–5 — one `library` scope, no branching. */
@@ -145,8 +179,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     },
     async (args) => {
       try {
-        return textResult(await books.create(userId, args));
+        const book = await books.create(userId, args);
+        logToolAudit(ctx, "mcp.add_book", "SUCCESS", { bookId: book.id, title: book.title });
+        return textResult(book);
       } catch (error) {
+        logToolAudit(ctx, "mcp.add_book", "FAILURE", { title: args.title });
         return errorResult(errorText(error));
       }
     },
@@ -166,8 +203,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       const { id, ...input } = args;
       try {
-        return textResult(await books.update(userId, id, input));
+        const book = await books.update(userId, id, input);
+        logToolAudit(ctx, "mcp.update_book", "SUCCESS", { bookId: id, changed: Object.keys(input) });
+        return textResult(book);
       } catch (error) {
+        logToolAudit(ctx, "mcp.update_book", "FAILURE", { bookId: id });
         return errorResult(errorText(error));
       }
     },
@@ -186,8 +226,10 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         await books.remove(userId, args.id);
+        logToolAudit(ctx, "mcp.delete_book", "SUCCESS", { bookId: args.id });
         return textResult({ deleted: true, id: args.id });
       } catch (error) {
+        logToolAudit(ctx, "mcp.delete_book", "FAILURE", { bookId: args.id });
         return errorResult(errorText(error));
       }
     },
@@ -302,8 +344,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     },
     async (args) => {
       try {
-        return textResult(await challenges.create(userId, args));
+        const challenge = await challenges.create(userId, args);
+        logToolAudit(ctx, "mcp.create_challenge", "SUCCESS", {
+          challengeId: challenge.id,
+          title: challenge.title,
+        });
+        return textResult(challenge);
       } catch (error) {
+        logToolAudit(ctx, "mcp.create_challenge", "FAILURE", { title: args.title });
         return errorResult(errorText(error));
       }
     },
@@ -327,8 +375,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       const { id, ...input } = args;
       try {
-        return textResult(await challenges.update(userId, id, input));
+        const challenge = await challenges.update(userId, id, input);
+        logToolAudit(ctx, "mcp.update_challenge", "SUCCESS", {
+          challengeId: id,
+          changed: Object.keys(input),
+        });
+        return textResult(challenge);
       } catch (error) {
+        logToolAudit(ctx, "mcp.update_challenge", "FAILURE", { challengeId: id });
         return errorResult(errorText(error));
       }
     },
@@ -348,8 +402,10 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         await challenges.remove(userId, args.id);
+        logToolAudit(ctx, "mcp.delete_challenge", "SUCCESS", { challengeId: args.id });
         return textResult({ deleted: true, id: args.id });
       } catch (error) {
+        logToolAudit(ctx, "mcp.delete_challenge", "FAILURE", { challengeId: args.id });
         return errorResult(errorText(error));
       }
     },
@@ -372,8 +428,17 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     },
     async (args) => {
       try {
-        return textResult(await challenges.addBook(userId, args.challengeId, args.bookId));
+        const challenge = await challenges.addBook(userId, args.challengeId, args.bookId);
+        logToolAudit(ctx, "mcp.add_book_to_challenge", "SUCCESS", {
+          challengeId: args.challengeId,
+          bookId: args.bookId,
+        });
+        return textResult(challenge);
       } catch (error) {
+        logToolAudit(ctx, "mcp.add_book_to_challenge", "FAILURE", {
+          challengeId: args.challengeId,
+          bookId: args.bookId,
+        });
         return errorResult(errorText(error));
       }
     },
@@ -394,8 +459,17 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     },
     async (args) => {
       try {
-        return textResult(await challenges.removeBook(userId, args.challengeId, args.bookId));
+        const challenge = await challenges.removeBook(userId, args.challengeId, args.bookId);
+        logToolAudit(ctx, "mcp.remove_book_from_challenge", "SUCCESS", {
+          challengeId: args.challengeId,
+          bookId: args.bookId,
+        });
+        return textResult(challenge);
       } catch (error) {
+        logToolAudit(ctx, "mcp.remove_book_from_challenge", "FAILURE", {
+          challengeId: args.challengeId,
+          bookId: args.bookId,
+        });
         return errorResult(errorText(error));
       }
     },

@@ -6,6 +6,7 @@ import type { OpenAPIObject } from "@nestjs/swagger";
 import { AuthModule } from "../auth/auth.module";
 import { BooksModule } from "../books/books.module";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { buildOpenApiDocument, SCHEMA_NAMES } from "./openapi";
@@ -39,6 +40,7 @@ describe("OpenAPI document", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         BooksModule,
       ],

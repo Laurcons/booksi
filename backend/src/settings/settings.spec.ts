@@ -9,6 +9,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsModule } from "./settings.module";
@@ -37,6 +38,7 @@ describe("settings routes (S6.3)", () => {
 
   const prisma = {
     $connect: jest.fn(),
+    auditLog: { create: jest.fn().mockResolvedValue(undefined) },
     user: { findUnique: jest.fn() },
     settings: { findUnique: jest.fn(), upsert: jest.fn() },
   };
@@ -61,6 +63,7 @@ describe("settings routes (S6.3)", () => {
           ],
         }),
         PrismaModule,
+        AuditModule,
         AuthModule,
         SettingsModule,
       ],

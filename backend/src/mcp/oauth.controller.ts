@@ -13,6 +13,7 @@ import {
 import { ApiExcludeController } from "@nestjs/swagger";
 import type { Response } from "express";
 import type { AuthUser, McpConsentRequest } from "@bookcsi/shared";
+import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
@@ -67,6 +68,7 @@ export class OAuthController {
    * this is a `fetch` call, not the top-level navigation the OAuth redirect
    * needs to be.
    */
+  @AuditAction("mcp.grant.approve")
   @Post("authorize/:req/approve")
   approve(
     @Param("req") req: string,

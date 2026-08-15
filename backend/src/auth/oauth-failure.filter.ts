@@ -2,6 +2,8 @@ import { ArgumentsHost, Catch, ExceptionFilter, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ThrottlerException } from "@nestjs/throttler";
 import type { Response } from "express";
+import { AuditService } from "../audit/audit.service";
+import type { AuditableRequest } from "../audit/audit-request";
 import type { Env } from "../config/env";
 
 /**
@@ -23,7 +25,10 @@ import type { Env } from "../config/env";
 export class OAuthFailureFilter implements ExceptionFilter {
   private readonly logger = new Logger(OAuthFailureFilter.name);
 
-  constructor(private readonly config: ConfigService<Env, true>) {}
+  constructor(
+    private readonly config: ConfigService<Env, true>,
+    private readonly audit: AuditService,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const throttled = exception instanceof ThrottlerException;
@@ -35,6 +40,18 @@ export class OAuthFailureFilter implements ExceptionFilter {
         `Google sign-in failed: ${exception instanceof Error ? exception.message : String(exception)}`,
       );
     }
+
+    const request = host.switchToHttp().getRequest<AuditableRequest>();
+    this.audit.log({
+      source: "WEB",
+      action: "auth.login",
+      method: request.method,
+      route: request.route?.path ?? request.path,
+      statusCode: throttled ? 429 : 401,
+      outcome: "FAILURE",
+      ip: request.ip ?? null,
+      userAgent: request.headers["user-agent"] ?? null,
+    });
 
     const res = host.switchToHttp().getResponse<Response>();
     const webOrigin = this.config.get("WEB_ORIGIN", { infer: true });
