@@ -150,6 +150,7 @@ describe("OpenAPI document", () => {
         // rather than one of its own (§D30).
         "favorite",
         "finishedOn",
+        "format",
         "genre",
         "isbn",
         // S4.1 — the edition to fetch a cover for (§D8). Writable, unlike the
@@ -157,12 +158,15 @@ describe("OpenAPI document", () => {
         "olEditionKey",
         "pagesRead",
         "paidPrice",
+        "publicationYear",
+        "publisher",
         "purchasedOn",
         "rating",
         "startedOn",
         "status",
         "title",
         "totalPages",
+        "volume",
       ]);
     });
 

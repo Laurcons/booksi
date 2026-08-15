@@ -17,25 +17,44 @@ export const STATUS_VALUES = [
 export const statusSchema = z.enum(STATUS_VALUES);
 export type Status = z.infer<typeof statusSchema>;
 
-/** Fixed list, one value per book — see §D17 and §D19. */
+/**
+ * Fixed list, one value per book — see §D17 and §D19. §D39 replaced the
+ * original 17-value literary-genre list with this one: 29 topic categories
+ * (a bookshop's own shelving scheme, not a literary taxonomy), and the
+ * identifier stays `Genre`/`genre` even though the UI now calls it
+ * "categorie" — renaming the column and every type along with it bought
+ * nothing a reader couldn't already tell from `GENRE_LABEL`.
+ */
 export const GENRE_VALUES = [
+  "AUDIOBOOKS",
+  "CULINARY",
+  "ART_ARCHITECTURE",
+  "ENCYCLOPEDIAS",
+  "BIOGRAPHIES",
+  "LINGUISTICS_DICTIONARIES",
+  "ROMANIAN_MAGAZINES",
+  "FOREIGN_LANGUAGES",
+  "POETRY_THEATRE",
   "FICTION",
-  "SCIFI",
-  "FANTASY",
-  "THRILLER",
-  "ROMANCE",
-  "HISTORICAL",
-  "MEMOIR",
-  "NONFICTION",
-  "SELF_HELP",
-  "BUSINESS",
-  "SCIENCE",
+  "COMICS",
+  "TRAVEL_GUIDES",
+  "HISTORY",
+  "RELIGION",
   "PHILOSOPHY",
   "PSYCHOLOGY",
-  "POETRY",
-  "COMICS_MANGA",
-  "CHILDREN_YA",
-  "OTHER",
+  "SOCIAL_SCIENCES_POLITICS",
+  "MARKETING_COMMUNICATION",
+  "BUSINESS_ECONOMY",
+  "LAW",
+  "MEDICINE",
+  "EXACT_SCIENCES_MATH",
+  "NATURE_ENVIRONMENT",
+  "TECHNOLOGY",
+  "COMPUTERS_INTERNET",
+  "HEALTH_SELF_DEVELOPMENT",
+  "LIFESTYLE_SPORT_LEISURE",
+  "ROMANIA",
+  "EDUCATIONAL_SOFTWARE",
 ] as const;
 
 export const genreSchema = z.enum(GENRE_VALUES);
@@ -51,21 +70,33 @@ export const STATUS_LABEL: Record<Status, string> = {
 };
 
 export const GENRE_LABEL: Record<Genre, string> = {
+  AUDIOBOOKS: "Audiobooks",
+  CULINARY: "Culinare",
+  ART_ARCHITECTURE: "Artă, arhitectură",
+  ENCYCLOPEDIAS: "Enciclopedii",
+  BIOGRAPHIES: "Biografii, memorii, jurnale",
+  LINGUISTICS_DICTIONARIES: "Lingvistică, dicționare",
+  ROMANIAN_MAGAZINES: "Reviste - Limba română",
+  FOREIGN_LANGUAGES: "Limbi străine",
+  POETRY_THEATRE: "Poezie, teatru, studii literare",
   FICTION: "Ficțiune",
-  SCIFI: "SF",
-  FANTASY: "Fantasy",
-  THRILLER: "Thriller / Mister",
-  ROMANCE: "Romance",
-  HISTORICAL: "Roman istoric",
-  MEMOIR: "Biografie / Memorii",
-  NONFICTION: "Non-ficțiune",
-  SELF_HELP: "Dezvoltare personală",
-  BUSINESS: "Business / Economie",
-  SCIENCE: "Științe",
+  COMICS: "Benzi desenate",
+  TRAVEL_GUIDES: "Ghiduri și hărți turistice, atlase",
+  HISTORY: "Istorie",
+  RELIGION: "Religie",
   PHILOSOPHY: "Filosofie",
   PSYCHOLOGY: "Psihologie",
-  POETRY: "Poezie",
-  COMICS_MANGA: "Bandă desenată / Manga",
-  CHILDREN_YA: "Copii / Young Adult",
-  OTHER: "Altele",
+  SOCIAL_SCIENCES_POLITICS: "Științe sociale. Politică",
+  MARKETING_COMMUNICATION: "Marketing și comunicare",
+  BUSINESS_ECONOMY: "Business și economie",
+  LAW: "Drept",
+  MEDICINE: "Medicină",
+  EXACT_SCIENCES_MATH: "Științe exacte. Matematici",
+  NATURE_ENVIRONMENT: "Natură și mediu",
+  TECHNOLOGY: "Tehnică și tehnologie",
+  COMPUTERS_INTERNET: "Computere și internet",
+  HEALTH_SELF_DEVELOPMENT: "Sănătate, dezvoltare personală",
+  LIFESTYLE_SPORT_LEISURE: "Lifestyle, sport, timp liber",
+  ROMANIA: "România",
+  EDUCATIONAL_SOFTWARE: "Soft educațional",
 };

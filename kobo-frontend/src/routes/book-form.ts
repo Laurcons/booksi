@@ -76,7 +76,7 @@ const EXTRA_STYLE = `
 `;
 
 const GENRE_OPTIONS: [string, string][] = [
-  ["", "— fără gen —"],
+  ["", "— fără categorie —"],
   ...GENRE_VALUES.map((g): [string, string] => [g, GENRE_LABEL[g]]),
 ];
 
@@ -147,7 +147,11 @@ function formFields(values: BookFormValues, errors: Record<string, string[]>): H
       ${textField("author", "Autor", values, errors)}
       ${textField("isbn", "ISBN", values, errors)}
       ${textField("totalPages", "Număr de pagini", values, errors, true)}
-      ${selectField("genre", "Gen", GENRE_OPTIONS, values, errors)}
+      ${selectField("genre", "Categorie", GENRE_OPTIONS, values, errors)}
+      ${textField("publisher", "Editura", values, errors)}
+      ${textField("publicationYear", "Anul apariției", values, errors, true)}
+      ${textField("volume", "Volum", values, errors, true)}
+      ${textField("format", "Format", values, errors)}
     </div>
     <div class="wizard-section">
       ${selectField("status", "Status", STATUS_OPTIONS, values, errors)}

@@ -228,6 +228,9 @@ describe("Open Library routes (Sprint 4)", () => {
           isbn_10: ["0441013597"],
           isbn_13: ["9780441013593"],
         },
+        publishers: [{ name: "Ace Books" }],
+        publish_date: "1990",
+        physical_dimensions: "18 x 11 x 3 cm",
       },
     };
 
@@ -243,9 +246,32 @@ describe("Open Library routes (Sprint 4)", () => {
         // one of them is still being issued.
         isbn: "9780441013593",
         totalPages: 620,
+        publisher: "Ace Books",
+        publicationYear: 1990,
+        format: "18 x 11 x 3 cm",
         olEditionKey: "OL7353617M",
         thumbnailUrl: "/openlibrary/covers/OL7353617M",
       });
+    });
+
+    it("pulls the year out of a free-text publish date", async () => {
+      answerWith({
+        "OLID:OL7353617M": { title: "Dune", publish_date: "August 1965" },
+      });
+
+      const res = await as("/openlibrary/editions/OL7353617M").expect(200);
+
+      expect(res.body.publicationYear).toBe(1965);
+    });
+
+    it("leaves the year null when nothing four digits long is in the date", async () => {
+      answerWith({
+        "OLID:OL7353617M": { title: "Dune", publish_date: "cop." },
+      });
+
+      const res = await as("/openlibrary/editions/OL7353617M").expect(200);
+
+      expect(res.body.publicationYear).toBeNull();
     });
 
     it("joins several authors rather than picking one", async () => {

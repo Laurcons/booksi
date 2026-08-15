@@ -91,8 +91,8 @@ export class BooksController {
     required: false,
     enum: GENRE_VALUES,
     description:
-      "S5.3 — o singură valoare: o carte are un singur gen (§D17). Absent: " +
-      "toate genurile.",
+      "S5.3 — o singură valoare: o carte are o singură categorie (§D17, §D39). " +
+      "Absent: toate categoriile.",
   })
   @ApiQuery({
     name: "favorite",

@@ -104,7 +104,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       title: "Caută în bibliotecă",
       description:
         "Apelează când utilizatorul întreabă ce cărți are, în ce stadiu e o carte, sau vrea o listă " +
-        "filtrată după status, gen sau favorite — de exemplu „ce citesc acum” sau „ce am pe wishlist”. " +
+        "filtrată după status, categorie sau favorite — de exemplu „ce citesc acum” sau „ce am pe wishlist”. " +
         "NU caută cărți din afara bibliotecii personale — pentru asta există search_open_library.",
       inputSchema: {
         status: statusSchema
@@ -112,7 +112,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           .min(1)
           .optional()
           .describe("Unul sau mai multe statusuri. Absent înseamnă toată biblioteca."),
-        genre: genreSchema.optional().describe("O singură valoare — o carte are un singur gen."),
+        genre: genreSchema
+          .optional()
+          .describe("O singură valoare — o carte are o singură categorie."),
         favorite: z.boolean().optional().describe("true pentru doar cărțile marcate favorite."),
         sort: bookSortSchema.optional().describe("Implicit createdAt."),
         order: z.enum(["asc", "desc"]).optional().describe("Implicit desc."),

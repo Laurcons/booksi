@@ -1,0 +1,2 @@
+## Mistakes
+In .claude/mistakes.md, maintain a list of mistakes you make while working. They can be either noticed by you or the user, doesn't matter. This list will be used to avoid repeating mistakes.

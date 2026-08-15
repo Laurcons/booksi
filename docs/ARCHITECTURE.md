@@ -113,24 +113,39 @@ enum Status {
   ABANDONED
 }
 
+// §D39 — 29 topic categories, replacing the original 17-value literary-genre
+// list. Still `genre`/`Genre` in code; see §D39 for why the identifier didn't
+// move with the UI rename to "categorie".
 enum Genre {
+  AUDIOBOOKS
+  CULINARY
+  ART_ARCHITECTURE
+  ENCYCLOPEDIAS
+  BIOGRAPHIES
+  LINGUISTICS_DICTIONARIES
+  ROMANIAN_MAGAZINES
+  FOREIGN_LANGUAGES
+  POETRY_THEATRE
   FICTION
-  SCIFI
-  FANTASY
-  THRILLER
-  ROMANCE
-  HISTORICAL
-  MEMOIR
-  NONFICTION
-  SELF_HELP
-  BUSINESS
-  SCIENCE
+  COMICS
+  TRAVEL_GUIDES
+  HISTORY
+  RELIGION
   PHILOSOPHY
   PSYCHOLOGY
-  POETRY
-  COMICS_MANGA
-  CHILDREN_YA
-  OTHER
+  SOCIAL_SCIENCES_POLITICS
+  MARKETING_COMMUNICATION
+  BUSINESS_ECONOMY
+  LAW
+  MEDICINE
+  EXACT_SCIENCES_MATH
+  NATURE_ENVIRONMENT
+  TECHNOLOGY
+  COMPUTERS_INTERNET
+  HEALTH_SELF_DEVELOPMENT
+  LIFESTYLE_SPORT_LEISURE
+  ROMANIA
+  EDUCATIONAL_SOFTWARE
 }
 
 model Book {
@@ -139,12 +154,16 @@ model Book {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // identity (user-input or Open Library)
-  title        String
-  author       String?
-  isbn         String? // NOT unique — see D13
-  totalPages   Int?    // frequently absent — see D4
-  genre        Genre?
-  olEditionKey String?
+  title           String
+  author          String?
+  isbn            String? // NOT unique — see D13
+  totalPages      Int?    // frequently absent — see D4
+  genre           Genre?
+  publisher       String?
+  publicationYear Int?
+  volume          Int?
+  format          String? // free-text dimensions, e.g. "13x20 cm"
+  olEditionKey    String?
 
   // state (user-input)
   status    Status  @default(WISHLIST)
@@ -299,7 +318,7 @@ aceeași listare ca tabelul, cu filtrele din S5.3 aplicate în SQL (§D29).
 | `sort` | `title \| author \| status \| createdAt`, implicit `createdAt` | S1.2 |
 | `order` | `asc \| desc`, implicit `desc` | S1.2 |
 | `status` | unul sau mai mulți, ca parametru repetat: `?status=READING&status=FINISHED` | S3.1 (unul), S5.3 (mai mulți) |
-| `genre` | o singură valoare — o carte are un singur gen (§D17) | S5.3 |
+| `genre` | o singură valoare — o carte are o singură categorie (§D17, §D39) | S5.3 |
 | `favorite` | `true` / `false` | S5.3 |
 
 Absent = fără filtru, pentru toate trei. Combinarea lor e un `AND`: „SF" + „favorite" +

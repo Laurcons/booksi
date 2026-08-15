@@ -29,11 +29,11 @@ describe("listParams (S3.1, S5.3)", () => {
     const params = listParams({
       sort: "createdAt",
       order: "desc",
-      genre: "SCIFI",
+      genre: "FICTION",
       favorite: true,
     });
 
-    expect(params.get("genre")).toBe("SCIFI");
+    expect(params.get("genre")).toBe("FICTION");
     expect(params.get("favorite")).toBe("true");
   });
 

@@ -1,13 +1,6 @@
-import {
-  GENRE_LABEL,
-  GENRE_VALUES,
-  STATUS_LABEL,
-  STATUS_VALUES,
-  type Genre,
-  type ListBooksQuery,
-  type Status,
-} from "@bookcsi/shared";
+import { STATUS_LABEL, STATUS_VALUES, type ListBooksQuery, type Status } from "@bookcsi/shared";
 import { isFiltered } from "../../lib/filters";
+import { CategoryPicker } from "./CategoryPicker";
 
 /**
  * S5.3 — status (multi-select), genre and favourites, combined with AND.
@@ -56,29 +49,20 @@ export function GalleryFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <FilterLabel>Gen</FilterLabel>
+        <FilterLabel>Categorie</FilterLabel>
 
-        {/* One value, not a set: a book has exactly one genre (§D17), and a
-            multi-select here would advertise a data model that does not
+        {/* One value, not a set: a book has exactly one category (§D17), and
+            a multi-select here would advertise a data model that does not
             exist. */}
-        <select
-          aria-label="Gen literar"
+        <CategoryPicker
+          ariaLabel="Categorie"
           value={query.genre ?? ""}
-          onChange={(event) =>
-            onChange({
-              ...query,
-              genre: event.target.value === "" ? undefined : (event.target.value as Genre),
-            })
-          }
+          clearLabel="Toate categoriile"
           className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet"
-        >
-          <option value="">Toate genurile</option>
-          {GENRE_VALUES.map((genre) => (
-            <option key={genre} value={genre}>
-              {GENRE_LABEL[genre]}
-            </option>
-          ))}
-        </select>
+          onChange={(genre) =>
+            onChange({ ...query, genre: genre === "" ? undefined : genre })
+          }
+        />
 
         <Toggle
           pressed={query.favorite === true}

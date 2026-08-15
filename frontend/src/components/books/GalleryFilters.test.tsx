@@ -69,19 +69,21 @@ describe("GalleryFilters — status (S5.3)", () => {
   });
 });
 
-describe("GalleryFilters — genre and favourites (S5.3)", () => {
-  it("filters by a single genre (§D17)", async () => {
+describe("GalleryFilters — category and favourites (S5.3, §D39)", () => {
+  it("filters by a single category (§D17)", async () => {
     const { user, onChange } = renderFilters();
 
-    await user.selectOptions(screen.getByLabelText("Gen literar"), "SCIFI");
+    await user.click(screen.getByLabelText("Categorie"));
+    await user.click(screen.getByRole("button", { name: "Ficțiune" }));
 
-    expect(asked(onChange).genre).toBe("SCIFI");
+    expect(asked(onChange).genre).toBe("FICTION");
   });
 
-  it("clears the genre back to all of them", async () => {
-    const { user, onChange } = renderFilters({ ...BASE, genre: "SCIFI" });
+  it("clears the category back to all of them", async () => {
+    const { user, onChange } = renderFilters({ ...BASE, genre: "FICTION" });
 
-    await user.selectOptions(screen.getByLabelText("Gen literar"), "");
+    await user.click(screen.getByLabelText("Categorie"));
+    await user.click(screen.getByRole("button", { name: "Toate categoriile" }));
 
     expect(asked(onChange).genre).toBeUndefined();
   });
@@ -108,14 +110,14 @@ describe("GalleryFilters — genre and favourites (S5.3)", () => {
     const { user, onChange } = renderFilters({
       ...BASE,
       status: ["FINISHED"],
-      genre: "SCIFI",
+      genre: "FICTION",
     });
 
     await user.click(screen.getByRole("button", { name: /Doar favoritele/ }));
 
     expect(asked(onChange)).toMatchObject({
       status: ["FINISHED"],
-      genre: "SCIFI",
+      genre: "FICTION",
       favorite: true,
       // The sort survives a filter change; they are separate concerns.
       sort: "createdAt",
@@ -137,7 +139,7 @@ describe("GalleryFilters — clearing", () => {
     const { user, onChange } = renderFilters({
       ...BASE,
       status: ["READING"],
-      genre: "SCIFI",
+      genre: "FICTION",
       favorite: true,
     });
 

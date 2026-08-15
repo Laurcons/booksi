@@ -75,6 +75,9 @@ export const bookSuggestionSchema = z.object({
   author: z.string().nullable(),
   isbn: z.string().nullable(),
   totalPages: z.number().int().nullable(),
+  publisher: z.string().nullable(),
+  publicationYear: z.number().int().nullable(),
+  format: z.string().nullable(),
   /**
    * Sent back with `POST /books`, which is what makes the server download the
    * cover. Null when Open Library has no edition to point at, and the book is

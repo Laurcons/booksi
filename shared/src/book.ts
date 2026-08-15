@@ -121,6 +121,10 @@ export const bookSchema = z.object({
   isbn: z.string().nullable(),
   totalPages: z.number().int().nullable(),
   genre: genreSchema.nullable(),
+  publisher: z.string().nullable(),
+  publicationYear: z.number().int().nullable(),
+  volume: z.number().int().nullable(),
+  format: z.string().nullable(),
 
   status: statusSchema,
   favorite: z.boolean(),
@@ -172,6 +176,19 @@ export const createBookSchema = z.strictObject({
   isbn: nullableText(20).optional(),
   totalPages: z.number().int().positive().max(100_000).nullable().optional(),
   genre: genreSchema.nullable().optional(),
+  publisher: nullableText(255).optional(),
+  publicationYear: z
+    .number()
+    .int()
+    .min(1400, "An de apariție implauzibil")
+    .refine(
+      (value) => value <= new Date().getFullYear() + 1,
+      "Anul de apariție nu poate fi în viitor",
+    )
+    .nullable()
+    .optional(),
+  volume: z.number().int().positive().max(999).nullable().optional(),
+  format: nullableText(100).optional(),
   status: statusSchema.optional(),
 
   /**

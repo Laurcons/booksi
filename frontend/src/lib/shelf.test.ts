@@ -41,14 +41,14 @@ describe("spineWidth (S8.2, §D33)", () => {
   });
 });
 
-describe("spineColor (§D17, §D19)", () => {
+describe("spineColor (§D17, §D19, §D39)", () => {
   it("has a colour for a book filed under nothing", () => {
     expect(spineColor(null)).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it("covers every genre in the enum, not the eight the mock had", () => {
-    expect(spineColor("POETRY")).toMatch(/^#[0-9a-f]{6}$/);
-    expect(spineColor("CHILDREN_YA")).toMatch(/^#[0-9a-f]{6}$/);
+  it("covers every category in the enum, not the eight the mock had", () => {
+    expect(spineColor("POETRY_THEATRE")).toMatch(/^#[0-9a-f]{6}$/);
+    expect(spineColor("EDUCATIONAL_SOFTWARE")).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
 

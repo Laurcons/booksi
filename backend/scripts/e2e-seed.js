@@ -64,16 +64,16 @@ function readEnv() {
  * *excluded*, which a sum over the whole library would quietly get wrong.
  */
 const BOOKS = [
-  { title: "Solaris", author: "Stanisław Lem", genre: "SCIFI", status: "WISHLIST", estimatedPrice: "42.00", totalPages: 204 },
+  { title: "Solaris", author: "Stanisław Lem", genre: "FICTION", status: "WISHLIST", estimatedPrice: "42.00", totalPages: 204 },
   { title: "Orbitor", author: "Mircea Cărtărescu", genre: "FICTION", status: "WISHLIST", estimatedPrice: "89.50", totalPages: 420 },
-  { title: "Gödel, Escher, Bach", author: "Douglas Hofstadter", genre: "SCIENCE", status: "WISHLIST", estimatedPrice: "208.50", totalPages: 777 },
+  { title: "Gödel, Escher, Bach", author: "Douglas Hofstadter", genre: "EXACT_SCIENCES_MATH", status: "WISHLIST", estimatedPrice: "208.50", totalPages: 777 },
   // Unpriced: counted by the coverage line, absent from the sum.
-  { title: "Cartea șoaptelor", author: "Varujan Vosganian", genre: "HISTORICAL", status: "WISHLIST" },
-  { title: "Maitreyi", author: "Mircea Eliade", genre: "ROMANCE", status: "WISHLIST" },
+  { title: "Cartea șoaptelor", author: "Varujan Vosganian", genre: "HISTORY", status: "WISHLIST" },
+  { title: "Maitreyi", author: "Mircea Eliade", genre: "FICTION", status: "WISHLIST" },
   // Not wishes. The second one carries an estimate *and* a paid price, so a
   // total that ignored the status filter would come out 65.00 too high.
-  { title: "Dune", author: "Frank Herbert", genre: "SCIFI", status: "READING", pagesRead: 143, totalPages: 620, paidPrice: "59.90", estimatedPrice: "65.00", purchasedOn: new Date("2026-07-01"), startedOn: new Date("2026-07-20") },
-  { title: "Fundația", author: "Isaac Asimov", genre: "SCIFI", status: "FINISHED", pagesRead: 255, totalPages: 255, rating: 5, paidPrice: "38.00", purchasedOn: new Date("2026-05-02"), finishedOn: new Date("2026-06-11") },
+  { title: "Dune", author: "Frank Herbert", genre: "FICTION", status: "READING", pagesRead: 143, totalPages: 620, paidPrice: "59.90", estimatedPrice: "65.00", purchasedOn: new Date("2026-07-01"), startedOn: new Date("2026-07-20") },
+  { title: "Fundația", author: "Isaac Asimov", genre: "FICTION", status: "FINISHED", pagesRead: 255, totalPages: 255, rating: 5, paidPrice: "38.00", purchasedOn: new Date("2026-05-02"), finishedOn: new Date("2026-06-11") },
 ];
 
 async function main() {

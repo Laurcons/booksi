@@ -75,11 +75,12 @@ describe("GalleryPage — filters on the wire (S5.3)", () => {
     const { user, calls } = renderGallery([makeBook()]);
     await screen.findByRole("button", { name: "Dune" });
 
-    await user.selectOptions(screen.getByLabelText("Gen literar"), "SCIFI");
+    await user.click(screen.getByLabelText("Categorie"));
+    await user.click(screen.getByRole("button", { name: "Ficțiune" }));
     await user.click(screen.getByRole("button", { name: /Doar favoritele/ }));
 
     await waitFor(() => {
-      expect(lastListUrl(calls)).toContain("genre=SCIFI");
+      expect(lastListUrl(calls)).toContain("genre=FICTION");
       expect(lastListUrl(calls)).toContain("favorite=true");
     });
   });

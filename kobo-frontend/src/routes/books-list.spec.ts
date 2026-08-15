@@ -132,13 +132,13 @@ describe("GET /books", () => {
     expect(res.text.match(/class="book-progress"/g)?.length).toBe(1);
   });
 
-  it("shows the genre when the book has one", async () => {
-    const book = makeBook({ id: "b1", genre: "FANTASY" });
+  it("shows the category when the book has one", async () => {
+    const book = makeBook({ id: "b1", genre: "FICTION" });
     mockBackend([book]);
 
     const res = await request(app).get("/books").set("Cookie", "session=x");
 
-    expect(res.text).toContain("Fantasy");
+    expect(res.text).toContain("Ficțiune");
   });
 
   it("omits the genre line entirely for a book that has none", async () => {

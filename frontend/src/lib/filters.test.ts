@@ -15,7 +15,7 @@ describe("isFiltered", () => {
 
   it.each<[string, Partial<ListBooksQuery>]>([
     ["status", { status: ["READING"] }],
-    ["genre", { genre: "SCIFI" }],
+    ["genre", { genre: "FICTION" }],
     ["favorite", { favorite: true }],
   ])("is true with %s set", (_name, filter) => {
     expect(isFiltered({ ...BASE, ...filter })).toBe(true);

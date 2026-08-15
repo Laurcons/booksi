@@ -63,7 +63,7 @@ describe("book form (S1.1, S1.3, S1.4, S2.1–S2.4)", () => {
       expect(res.text).toContain('value="WISHLIST" selected');
     });
 
-    it("renders all thirteen fields even though the wizard script would only show some", () => {
+    it("renders every field even though the wizard script would only show some", () => {
       return request(app)
         .get("/books/new")
         .set("Cookie", session())
@@ -75,7 +75,11 @@ describe("book form (S1.1, S1.3, S1.4, S2.1–S2.4)", () => {
             "Autor",
             "ISBN",
             "Număr de pagini",
-            "Gen",
+            "Categorie",
+            "Editura",
+            "Anul apariției",
+            "Volum",
+            "Format",
             "Status",
             "Pagini citite",
             "Rating",

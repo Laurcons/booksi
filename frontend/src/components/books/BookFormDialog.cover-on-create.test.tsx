@@ -24,6 +24,9 @@ const duneEdition: BookSuggestion = {
   author: "Frank Herbert",
   isbn: "9780441013593",
   totalPages: 620,
+  publisher: null,
+  publicationYear: null,
+  format: null,
   olEditionKey: "OL7353617M",
   thumbnailUrl: "/openlibrary/covers/OL7353617M",
 };

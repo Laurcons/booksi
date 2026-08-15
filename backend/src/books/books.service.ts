@@ -36,6 +36,10 @@ type BookWriteData = {
   isbn?: string | null;
   totalPages?: number | null;
   genre?: Genre | null;
+  publisher?: string | null;
+  publicationYear?: number | null;
+  volume?: number | null;
+  format?: string | null;
   olEditionKey?: string | null;
   status?: Status;
   favorite?: boolean;
@@ -373,6 +377,10 @@ function writeData(input: BookWriteInput): BookWriteData {
     isbn: input.isbn,
     totalPages: input.totalPages,
     genre: input.genre,
+    publisher: input.publisher,
+    publicationYear: input.publicationYear,
+    volume: input.volume,
+    format: input.format,
     olEditionKey: input.olEditionKey,
     status: input.status,
     favorite: input.favorite,
@@ -413,6 +421,10 @@ function toBook(row: BookRowWithCover): Book {
     isbn: row.isbn,
     totalPages: row.totalPages,
     genre: row.genre,
+    publisher: row.publisher,
+    publicationYear: row.publicationYear,
+    volume: row.volume,
+    format: row.format,
 
     status: row.status,
     favorite: row.favorite,

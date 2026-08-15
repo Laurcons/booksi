@@ -6,8 +6,6 @@ import { z } from "zod";
 import {
   createBookSchema,
   genreSchema,
-  GENRE_LABEL,
-  GENRE_VALUES,
   isRatable,
   normalizeIsbn,
   statusSchema,
@@ -28,6 +26,7 @@ import { errorMessage } from "../../lib/api";
 import { useDebounced } from "../../lib/use-debounced";
 import { Modal } from "../Modal";
 import { AuthorInput } from "./AuthorInput";
+import { CategoryPicker } from "./CategoryPicker";
 import { CoverPicker } from "./CoverPicker";
 import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
@@ -50,6 +49,10 @@ const bookFormSchema = z
     isbn: z.string(),
     totalPages: z.string(),
     genre: z.union([genreSchema, z.literal("")]),
+    publisher: z.string(),
+    publicationYear: z.string(),
+    volume: z.string(),
+    format: z.string(),
     status: statusSchema,
     pagesRead: z.string(),
     rating: z.union([z.enum(["1", "2", "3", "4", "5"]), z.literal("")]),
@@ -67,6 +70,11 @@ const bookFormSchema = z
     isbn: values.isbn,
     totalPages: values.totalPages.trim() === "" ? null : Number(values.totalPages),
     genre: values.genre === "" ? null : values.genre,
+    publisher: values.publisher,
+    publicationYear:
+      values.publicationYear.trim() === "" ? null : Number(values.publicationYear),
+    volume: values.volume.trim() === "" ? null : Number(values.volume),
+    format: values.format,
     status: values.status,
     // S2.1. Blank is 0, not null: the column has no null to store, and "I
     // haven't opened it yet" is genuinely page zero.
@@ -116,11 +124,18 @@ function ratingFor(
 type BookFormValues = z.input<typeof bookFormSchema>;
 
 /**
- * The four fields Open Library can speak to (S4.1, S4.2). Everything else on
+ * The fields Open Library can speak to (S4.1, S4.2). Everything else on
  * the form is the user's own — a status, a rating, what they paid — and no
  * external source has an opinion worth pouring into them.
  */
-type FillableField = "title" | "author" | "isbn" | "totalPages";
+type FillableField =
+  | "title"
+  | "author"
+  | "isbn"
+  | "totalPages"
+  | "publisher"
+  | "publicationYear"
+  | "format";
 
 const EMPTY: BookFormValues = {
   title: "",
@@ -128,6 +143,10 @@ const EMPTY: BookFormValues = {
   isbn: "",
   totalPages: "",
   genre: "",
+  publisher: "",
+  publicationYear: "",
+  volume: "",
+  format: "",
   status: "WISHLIST",
   pagesRead: "",
   rating: "",
@@ -243,6 +262,12 @@ export function BookFormDialog({
         "totalPages",
         suggestion.totalPages === null ? "" : String(suggestion.totalPages),
       );
+      set("publisher", suggestion.publisher ?? "");
+      set(
+        "publicationYear",
+        suggestion.publicationYear === null ? "" : String(suggestion.publicationYear),
+      );
+      set("format", suggestion.format ?? "");
     },
     [getValues, setValue],
   );
@@ -273,6 +298,9 @@ export function BookFormDialog({
         author: result.author,
         isbn: null,
         totalPages: null,
+        publisher: null,
+        publicationYear: result.firstPublishYear,
+        format: null,
         olEditionKey: result.editionKey,
         thumbnailUrl: result.thumbnailUrl,
       },
@@ -304,6 +332,8 @@ export function BookFormDialog({
   const ratingField = register("rating");
   const authorValue = watch("author");
   const authorField = register("author");
+  const genreValue = watch("genre");
+  const genreField = register("genre");
 
   const submit = handleSubmit(async (payload) => {
     if (editing) {
@@ -391,15 +421,48 @@ export function BookFormDialog({
             <input {...register("isbn")} className={INPUT} autoComplete="off" />
           </Field>
 
-          <Field label="Gen" error={errors.genre}>
-            <select {...register("genre")} className={INPUT}>
-              <option value="">— fără gen —</option>
-              {GENRE_VALUES.map((genre) => (
-                <option key={genre} value={genre}>
-                  {GENRE_LABEL[genre]}
-                </option>
-              ))}
-            </select>
+          <Field label="Categorie" error={errors.genre}>
+            <CategoryPicker
+              name={genreField.name}
+              value={genreValue}
+              clearLabel="— fără categorie —"
+              className={INPUT}
+              onChange={(genre) => setValue("genre", genre, { shouldDirty: true })}
+              onBlur={genreField.onBlur}
+              inputRef={genreField.ref}
+            />
+          </Field>
+
+          <Field label="Editura" error={errors.publisher} hint="Opțional">
+            <input {...register("publisher")} className={INPUT} autoComplete="off" />
+          </Field>
+
+          <Field
+            label="Anul apariției"
+            error={errors.publicationYear}
+            hint="Opțional"
+          >
+            <input
+              {...register("publicationYear")}
+              type="number"
+              min={1400}
+              className={INPUT}
+              inputMode="numeric"
+            />
+          </Field>
+
+          <Field label="Volum" error={errors.volume} hint="Opțional">
+            <input
+              {...register("volume")}
+              type="number"
+              min={1}
+              className={INPUT}
+              inputMode="numeric"
+            />
+          </Field>
+
+          <Field label="Format" error={errors.format} hint="ex. 13x20 cm">
+            <input {...register("format")} className={INPUT} autoComplete="off" />
           </Field>
 
           {/* The duplicate warning comes first, and it comes first on screen
@@ -670,6 +733,10 @@ function toFormValues(book: Book): BookFormValues {
     isbn: book.isbn ?? "",
     totalPages: book.totalPages === null ? "" : String(book.totalPages),
     genre: book.genre ?? "",
+    publisher: book.publisher ?? "",
+    publicationYear: book.publicationYear === null ? "" : String(book.publicationYear),
+    volume: book.volume === null ? "" : String(book.volume),
+    format: book.format ?? "",
     status: book.status,
     // Page zero shows as an empty box rather than a literal "0", so the field
     // reads as "nothing recorded yet" instead of as a measurement.

@@ -66,6 +66,11 @@ const bookDataSchema = z.object({
       isbn_13: z.array(z.string()).optional(),
     })
     .optional(),
+  publishers: z.array(z.object({ name: z.string() })).optional(),
+  publish_date: z.string().optional(),
+  // e.g. "20 x 13 x 2 cm" — the closest this endpoint gets to a physical
+  // format, and what "format" means on the form (dimensions, not binding).
+  physical_dimensions: z.string().optional(),
 });
 
 /** The response is an object keyed by bibkey, empty when nothing matched. */
@@ -155,10 +160,23 @@ export class OpenLibraryService {
       isbn:
         data.identifiers?.isbn_13?.[0] ?? data.identifiers?.isbn_10?.[0] ?? null,
       totalPages: data.number_of_pages ?? null,
+      publisher: data.publishers?.[0]?.name ?? null,
+      publicationYear: publicationYear(data.publish_date),
+      format: data.physical_dimensions ?? null,
       olEditionKey,
       thumbnailUrl: thumbnailUrl(olEditionKey),
     };
   }
+}
+
+/**
+ * `publish_date` is free text ("1965", "August 1990", "cop. 1990") rather
+ * than a structured date — the year is the only part of it worth a typed
+ * field, so this pulls out the first four-digit run and drops the rest.
+ */
+function publicationYear(publishDate: string | undefined): number | null {
+  const match = publishDate?.match(/\d{4}/);
+  return match ? Number(match[0]) : null;
 }
 
 /**

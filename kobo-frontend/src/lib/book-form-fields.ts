@@ -14,6 +14,10 @@ export interface BookFormValues {
   isbn: string;
   totalPages: string;
   genre: string;
+  publisher: string;
+  publicationYear: string;
+  volume: string;
+  format: string;
   status: string;
   pagesRead: string;
   rating: string;
@@ -30,6 +34,10 @@ const FIELD_NAMES: readonly (keyof BookFormValues)[] = [
   "isbn",
   "totalPages",
   "genre",
+  "publisher",
+  "publicationYear",
+  "volume",
+  "format",
   "status",
   "pagesRead",
   "rating",
@@ -40,7 +48,7 @@ const FIELD_NAMES: readonly (keyof BookFormValues)[] = [
   "finishedOn",
 ];
 
-/** Pulls the thirteen fields this form owns out of an urlencoded body, defaulting anything absent to `""`. */
+/** Pulls the fields this form owns out of an urlencoded body, defaulting anything absent to `""`. */
 export function readFormValues(body: unknown): BookFormValues {
   const record = (body ?? {}) as Record<string, unknown>;
   const values = {} as BookFormValues;
@@ -61,6 +69,10 @@ export function valuesFromBook(book: Book): BookFormValues {
     isbn: book.isbn ?? "",
     totalPages: book.totalPages === null ? "" : String(book.totalPages),
     genre: book.genre ?? "",
+    publisher: book.publisher ?? "",
+    publicationYear: book.publicationYear === null ? "" : String(book.publicationYear),
+    volume: book.volume === null ? "" : String(book.volume),
+    format: book.format ?? "",
     status: book.status,
     pagesRead: String(book.pagesRead),
     rating: book.rating === null ? "" : String(book.rating),
@@ -78,6 +90,10 @@ export const EMPTY_FORM_VALUES: BookFormValues = {
   isbn: "",
   totalPages: "",
   genre: "",
+  publisher: "",
+  publicationYear: "",
+  volume: "",
+  format: "",
   status: "WISHLIST",
   pagesRead: "",
   rating: "",
@@ -134,6 +150,10 @@ export function buildBookPayload(values: BookFormValues): Record<string, unknown
     isbn: coerceNullableText(values.isbn),
     totalPages: coerceNullableNumber(values.totalPages),
     genre: coerceNullableText(values.genre),
+    publisher: coerceNullableText(values.publisher),
+    publicationYear: coerceNullableNumber(values.publicationYear),
+    volume: coerceNullableNumber(values.volume),
+    format: coerceNullableText(values.format),
     pagesRead: coercePagesRead(values.pagesRead),
     rating: coerceNullableNumber(values.rating),
     estimatedPrice: coerceNullableNumber(values.estimatedPrice),

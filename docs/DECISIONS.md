@@ -179,7 +179,9 @@ Genul e user-input dintr-o listă fixă, cu **o singură valoare per carte**. Mu
 fidel realității, dar complică filtrarea din S5.3 fără câștig real la scara unei biblioteci
 personale.
 
-Lista inițială (identificator → etichetă afișată):
+Lista inițială (identificator → etichetă afișată), înlocuită de §D39 cu lista de 29 de
+categorii de mai jos — structura deciziei (o valoare, listă fixă, fără story de administrare)
+rămâne neschimbată:
 
 `FICTION` → Ficțiune · `SCIFI` → SF · `FANTASY` → Fantasy · `THRILLER` → Thriller / Mister ·
 `ROMANCE` → Romance · `HISTORICAL` → Roman istoric · `MEMOIR` → Biografie / Memorii ·
@@ -189,7 +191,6 @@ Economie · `SCIENCE` → Științe · `PHILOSOPHY` → Filosofie · `PSYCHOLOGY
 Young Adult · `OTHER` → Altele
 
 Lista e o constantă în cod, nu o entitate în bază — nu există story de administrare a genurilor.
-`Altele` există special ca să nu blocheze adăugarea unei cărți care nu se încadrează.
 La adăugarea prin Open Library (S4.1), `subjects` se pot folosi pentru a **presugera** un gen din
 listă, dar niciodată pentru a scrie direct valoarea.
 
@@ -617,6 +618,57 @@ cerință care nu există încă altundeva în aplicație.
 **Admin poate impersona alt admin.** Nu există o interdicție admin-pe-admin: singura restricție
 e auto-impersonarea (400 direct în `AuthController.impersonate`), care n-ar face nimic decât să
 încurce contul propriu.
+
+### D39 — Lista de genuri devine o listă de 29 de categorii, sub același identificator
+
+Lista din §D17 era o taxonomie literară (SF, Fantasy, Thriller...), gândită pentru o bibliotecă
+de ficțiune. Cererea de a acoperi un raft real — culinar, tehnic, juridic, hărți turistice —
+i-a depășit forma: o listă de 17 valori literare nu are unde să pună o carte de drept sau un
+atlas.
+
+**Decizie: lista devine cele 29 de categorii ale unei librării reale**, înlocuind complet lista
+veche (nu o extinde — vezi maparea de mai jos). Structura din §D17/§D19 rămâne: o valoare per
+carte, listă fixă în cod/schemă, fără story de administrare.
+
+**Identificatorul rămâne `genre`/`Genre` în cod și în schemă**, chiar dacă eticheta din interfață
+devine „categorie". Un redenumire completă a coloanei, a tipului și a fiecărei referințe din
+`shared/`, backend, ambele frontend-uri și MCP nu cumpăra nimic ce cititorul unui `GENRE_LABEL`
+nu vede deja — era zgomot de refactorizare fără o problemă reală în spate.
+
+**Datele existente sunt mapate, nu golite.** Valoarea nu doar crește, ci se înlocuiește — deci
+o migrare simplă `ALTER ... MODIFY COLUMN` ar fi trunchiat orice rând cu o valoare veche la
+șirul gol (comportamentul MySQL pentru o valoare ENUM care nu mai există în listă), o eroare
+tăcută mai rea decât oricare din cele două alternative reale. Migrarea lărgește întâi coloana la
+text simplu, rescrie fiecare cod vechi cu un `UPDATE ... CASE`, apoi îngustează la noul ENUM:
+
+`FICTION`/`SCIFI`/`FANTASY`/`THRILLER`/`ROMANCE` → `FICTION` (toate subgenurile de ficțiune
+colapsează în singura categorie de ficțiune a listei noi) · `HISTORICAL` → `HISTORY` ·
+`MEMOIR` → `BIOGRAPHIES` · `SELF_HELP` → `HEALTH_SELF_DEVELOPMENT` · `BUSINESS` →
+`BUSINESS_ECONOMY` · `SCIENCE` → `EXACT_SCIENCES_MATH` · `PHILOSOPHY`, `PSYCHOLOGY` →
+neschimbate · `POETRY` → `POETRY_THEATRE` · `COMICS_MANGA` → `COMICS` · `NONFICTION`,
+`CHILDREN_YA`, `OTHER` → `NULL` (nicio categorie din lista nouă nu acoperă ce însemnau; a le
+forța pe una anume ar fi greșit clasificarea, nu doar ar fi lăsat-o nesetată).
+
+**Selectorul devine căutabil** în cele două suprafețe React (formularul de adăugare/editare și
+filtrul galeriei) — 29 de opțiuni nu se mai scanează cu ochiul la fel de repede ca 17. kobo-frontend
+rămâne un `<select>` simplu: nu există încă un pattern de combobox pe acea suprafață, iar un
+`<select>` nativ cu 29 de opțiuni tot scrolează rezonabil pe un ecran fără hover.
+
+Lista, în ordinea din schemă (identificator → etichetă afișată):
+
+`AUDIOBOOKS` → Audiobooks · `CULINARY` → Culinare · `ART_ARCHITECTURE` → Artă, arhitectură ·
+`ENCYCLOPEDIAS` → Enciclopedii · `BIOGRAPHIES` → Biografii, memorii, jurnale ·
+`LINGUISTICS_DICTIONARIES` → Lingvistică, dicționare · `ROMANIAN_MAGAZINES` → Reviste - Limba
+română · `FOREIGN_LANGUAGES` → Limbi străine · `POETRY_THEATRE` → Poezie, teatru, studii
+literare · `FICTION` → Ficțiune · `COMICS` → Benzi desenate · `TRAVEL_GUIDES` → Ghiduri și hărți
+turistice, atlase · `HISTORY` → Istorie · `RELIGION` → Religie · `PHILOSOPHY` → Filosofie ·
+`PSYCHOLOGY` → Psihologie · `SOCIAL_SCIENCES_POLITICS` → Științe sociale. Politică ·
+`MARKETING_COMMUNICATION` → Marketing și comunicare · `BUSINESS_ECONOMY` → Business și economie ·
+`LAW` → Drept · `MEDICINE` → Medicină · `EXACT_SCIENCES_MATH` → Științe exacte. Matematici ·
+`NATURE_ENVIRONMENT` → Natură și mediu · `TECHNOLOGY` → Tehnică și tehnologie ·
+`COMPUTERS_INTERNET` → Computere și internet · `HEALTH_SELF_DEVELOPMENT` → Sănătate, dezvoltare
+personală · `LIFESTYLE_SPORT_LEISURE` → Lifestyle, sport, timp liber · `ROMANIA` → România ·
+`EDUCATIONAL_SOFTWARE` → Soft educațional
 
 ---
 

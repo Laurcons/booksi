@@ -42,7 +42,7 @@ const storedBook = {
   author: "Frank Herbert",
   isbn: null,
   totalPages: 620,
-  genre: "SCIFI" as const,
+  genre: "FICTION" as const,
   olEditionKey: null,
   status: "WISHLIST" as const,
   favorite: false,

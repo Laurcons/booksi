@@ -33,7 +33,7 @@ const storedBook = {
   author: "Frank Herbert",
   isbn: "978-606-4-00000-0",
   totalPages: 620,
-  genre: "SCIFI" as const,
+  genre: "FICTION" as const,
   olEditionKey: null,
   status: "READING" as const,
   favorite: false,
@@ -179,7 +179,7 @@ describe("books routes (Sprints 1–3)", () => {
         author: "Frank Herbert",
         isbn: "978-606-4-00000-0",
         totalPages: 620,
-        genre: "SCIFI",
+        genre: "FICTION",
         status: "READING",
         favorite: false,
         pagesRead: 143,
@@ -684,9 +684,9 @@ describe("books routes (Sprints 1–3)", () => {
     });
 
     it("filters by genre, one value only (§D17)", async () => {
-      expect(await whereFor("genre=SCIFI")).toEqual({
+      expect(await whereFor("genre=FICTION")).toEqual({
         userId: "user-1",
-        genre: "SCIFI",
+        genre: "FICTION",
       });
     });
 
@@ -709,18 +709,18 @@ describe("books routes (Sprints 1–3)", () => {
 
     it("combines the three filters with AND", async () => {
       expect(
-        await whereFor("status=FINISHED&genre=SCIFI&favorite=true"),
+        await whereFor("status=FINISHED&genre=FICTION&favorite=true"),
       ).toEqual({
         userId: "user-1",
         status: { in: ["FINISHED"] },
-        genre: "SCIFI",
+        genre: "FICTION",
         favorite: true,
       });
     });
 
     it("keeps the user scope whatever the filters say", async () => {
       // S0.3 is not something a query parameter may widen.
-      expect(await whereFor("favorite=true&genre=POETRY")).toMatchObject({
+      expect(await whereFor("favorite=true&genre=POETRY_THEATRE")).toMatchObject({
         userId: "user-1",
       });
     });
