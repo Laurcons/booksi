@@ -93,7 +93,11 @@ jobs:
           GOOGLE_CALLBACK_URL="http://localhost:3000/auth/google/callback"
           JWT_SECRET=ci-secret-long-enough-to-pass-validation
           WEB_ORIGIN="http://localhost:5173"
+          API_ORIGIN="http://localhost:3000"
           TRUST_PROXY=0
+          MCP_CLIENT_ID=ci-mcp-client-id
+          MCP_CLIENT_SECRET=ci-mcp-client-secret
+          MCP_REDIRECT_URIS="http://localhost:5173/mcp/callback"
           ENV
 
       - run: npm run prisma:deploy --workspace backend
