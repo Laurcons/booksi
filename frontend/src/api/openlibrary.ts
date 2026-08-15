@@ -99,7 +99,23 @@ export function useIsbnSuggestion(isbn: string, ready: boolean) {
 }
 
 /**
- * S4.3 — the manual upload.
+ * The resize-then-PUT job itself, apart from the mutation wrapper below.
+ *
+ * Split out so the add-book dialog can run it once a freshly created book's id
+ * is known, outside of any hook whose `bookId` is fixed at render time.
+ */
+export async function uploadCoverImage(bookId: string, file: File): Promise<CoverRef> {
+  const image = await resizeCover(file);
+
+  return apiFetch<CoverRef>(`/books/${bookId}/cover`, {
+    method: "PUT",
+    headers: { "Content-Type": image.type },
+    body: image,
+  });
+}
+
+/**
+ * S4.3 — the manual upload, while editing.
  *
  * The resize happens inside the mutation rather than at the input, so that
  * "uploading" covers the whole job the user is waiting on: a 4MB photograph
@@ -114,15 +130,7 @@ export function useUploadCover(bookId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (file: File) => {
-      const image = await resizeCover(file);
-
-      return apiFetch<CoverRef>(`/books/${bookId}/cover`, {
-        method: "PUT",
-        headers: { "Content-Type": image.type },
-        body: image,
-      });
-    },
+    mutationFn: (file: File) => uploadCoverImage(bookId, file),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }),
   });
 }

@@ -55,6 +55,8 @@ const defaults = (call: ApiCall) => {
   if (call.url.includes("/openlibrary/search")) return [dune];
   if (call.url.includes("/openlibrary/editions/")) return duneEdition;
   if (call.url.includes("/openlibrary/isbn/")) return duneEdition;
+  // AuthorInput's own `useBooks` call, for its suggestion list.
+  if (call.url.includes("/books?")) return [];
   return makeBook();
 };
 
@@ -237,10 +239,14 @@ describe("BookFormDialog — the cover (S4.3)", () => {
     expect(screen.getByText("Copertă")).toBeInTheDocument();
   });
 
-  it("does not offer it while adding, since there is no book to attach it to", () => {
+  it("offers a picker rather than the upload while adding, since there is no book yet to PUT to", () => {
     renderForm(defaults);
 
-    expect(screen.queryByText("Copertă")).not.toBeInTheDocument();
+    expect(screen.getByText("Copertă")).toBeInTheDocument();
+    // The upload's own file input carries this label too, so the distinguishing
+    // check is that nothing here is wired to `PUT /books/{id}/cover` — see
+    // `BookFormDialog.cover-on-create.test.tsx`.
+    expect(screen.queryByAltText(/Coperta cărții/)).not.toBeInTheDocument();
   });
 
   it("draws the stored cover when there is one", () => {

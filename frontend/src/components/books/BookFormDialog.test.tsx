@@ -4,9 +4,14 @@ import type { Book } from "@bookcsi/shared";
 import { lastWrite, makeBook, renderWithQuery, stubApi } from "../../test/helpers";
 import { BookFormDialog } from "./BookFormDialog";
 
-/** ISBN duplicates answer with a list; everything else with a book. */
+/**
+ * ISBN duplicates and the author-suggestion list (`AuthorInput`'s own
+ * `useBooks` call) answer with a list; everything else with a book.
+ */
 const responder = (call: { url: string }) =>
-  call.url.includes("isbn-duplicates") ? [] : makeBook();
+  call.url.includes("isbn-duplicates") || call.url.includes("/books?")
+    ? []
+    : makeBook();
 
 function renderForm(book?: Book) {
   const calls = stubApi(responder);

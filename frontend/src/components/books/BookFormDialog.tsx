@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
   createBookSchema,
@@ -17,11 +18,17 @@ import {
   type CreateBookInput,
   type OpenLibraryResult,
 } from "@bookcsi/shared";
-import { useCreateBook, useIsbnDuplicates, useUpdateBook } from "../../api/books";
-import { useEditionSuggestion, useIsbnSuggestion } from "../../api/openlibrary";
+import { BOOKS_KEY, useCreateBook, useIsbnDuplicates, useUpdateBook } from "../../api/books";
+import {
+  useEditionSuggestion,
+  useIsbnSuggestion,
+  uploadCoverImage,
+} from "../../api/openlibrary";
 import { errorMessage } from "../../lib/api";
 import { useDebounced } from "../../lib/use-debounced";
 import { Modal } from "../Modal";
+import { AuthorInput } from "./AuthorInput";
+import { CoverPicker } from "./CoverPicker";
 import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
 import { StarRatingInput } from "./StarRating";
@@ -142,6 +149,14 @@ export function BookFormDialog({
   const create = useCreateBook();
   const update = useUpdateBook();
   const editing = book !== undefined;
+  const queryClient = useQueryClient();
+
+  /**
+   * A cover picked before the book exists — there's no id yet for the upload
+   * route to address (see `CoverPicker`), so it travels alongside the create
+   * request and goes up right after, the same way `olEditionKey` does.
+   */
+  const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null);
 
   const {
     register,
@@ -287,6 +302,8 @@ export function BookFormDialog({
   const status = watch("status");
   const ratingValue = watch("rating");
   const ratingField = register("rating");
+  const authorValue = watch("author");
+  const authorField = register("author");
 
   const submit = handleSubmit(async (payload) => {
     if (editing) {
@@ -301,10 +318,20 @@ export function BookFormDialog({
     } else {
       // §D8: given the edition, the server downloads and stores the cover as
       // part of creating the book. Nothing else on the client knows about it.
-      await create.mutateAsync({
+      const created = await create.mutateAsync({
         ...onlyFilled(payload),
         ...(olEditionKey === null ? {} : { olEditionKey }),
       });
+
+      // A manually picked file goes up once the id it needs exists — after
+      // the dialog is already gone, on the same best-effort footing as the
+      // Open Library fetch above: a failure here costs the cover, not the
+      // book, and Edit is the way back to it.
+      if (pendingCoverFile !== null) {
+        void uploadCoverImage(created.id, pendingCoverFile)
+          .then(() => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }))
+          .catch(() => {});
+      }
     }
 
     onClose();
@@ -339,7 +366,15 @@ export function BookFormDialog({
           </Field>
 
           <Field label="Autor" error={errors.author}>
-            <input {...register("author")} className={INPUT} autoComplete="off" />
+            <AuthorInput
+              name={authorField.name}
+              value={authorValue}
+              className={INPUT}
+              onChange={authorField.onChange}
+              onBlur={authorField.onBlur}
+              inputRef={authorField.ref}
+              onSelect={(author) => setValue("author", author, { shouldDirty: true })}
+            />
           </Field>
 
           <Field label="Nr. de pagini" error={errors.totalPages} hint="Poate lipsi">
@@ -488,9 +523,18 @@ export function BookFormDialog({
             </div>
           </div>
 
-          {/* S4.3 — only while editing: the upload route addresses a book by
-              id, and a book being added has not got one yet. */}
-          {editing && <CoverUpload book={book} />}
+          {/* S4.3 while editing; a picker instead while adding, since the
+              upload route addresses a book by id and this one has not got
+              one yet (see `CoverPicker`). */}
+          {editing ? (
+            <CoverUpload book={book} />
+          ) : (
+            <CoverPicker
+              title={watch("title")}
+              file={pendingCoverFile}
+              onChange={setPendingCoverFile}
+            />
+          )}
         </div>
 
         {failure && (
