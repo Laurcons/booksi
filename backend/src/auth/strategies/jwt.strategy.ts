@@ -49,6 +49,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
       throw AppError.unauthenticated();
     }
 
-    return AuthService.toAuthUser(user);
+    // Taken straight off the token rather than looked up (§D38's
+    // `signSessionToken`) — this runs on every request, and the admin's
+    // identity is not the thing being authorized here.
+    const impersonatedBy = payload.impersonatorId
+      ? { id: payload.impersonatorId, email: payload.impersonatorEmail! }
+      : null;
+
+    return AuthService.toAuthUser(user, impersonatedBy);
   }
 }

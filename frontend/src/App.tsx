@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { RequireAuth } from "./components/RequireAuth";
 import { queryClient } from "./lib/query-client";
+import { AdminImpersonatePage } from "./pages/AdminImpersonatePage";
 import { BudgetPage } from "./pages/BudgetPage";
 import { ChallengePage } from "./pages/ChallengePage";
 import { ConnectorsPage } from "./pages/ConnectorsPage";
@@ -47,6 +48,9 @@ export default function App() {
                 Header.tsx's AccountMenu): this is account security, not a
                 content view alongside the library/gallery/stats. */}
             <Route path="/connectors" element={<ConnectorsPage />} />
+            {/* §D38 — the admin "log in as" picker, reachable the same way as
+                /connectors (account menu, not the main nav). */}
+            <Route path="/admin/impersonate" element={<AdminImpersonatePage />} />
             {/* §D37, docs/kobo_design.md §Autentificare — where a signed-in
                 session approves the code a Kobo is showing, since the device
                 cannot complete Google's consent screen itself. */}

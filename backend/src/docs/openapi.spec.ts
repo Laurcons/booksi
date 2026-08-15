@@ -78,6 +78,7 @@ describe("OpenAPI document", () => {
   it("covers every route the app exposes", () => {
     expect(operations().map((o) => o.id).sort()).toEqual([
       "DELETE /books/{id}",
+      "GET /auth/admin/users",
       "GET /auth/google",
       "GET /auth/google/callback",
       "GET /auth/me",
@@ -91,7 +92,9 @@ describe("OpenAPI document", () => {
       "GET /openlibrary/isbn/{isbn}",
       "GET /openlibrary/search",
       "PATCH /books/{id}",
+      "POST /auth/impersonate/{userId}",
       "POST /auth/logout",
+      "POST /auth/stop-impersonating",
       "POST /books",
       "POST /books/{id}/purchase",
       "PUT /books/{id}/cover",

@@ -2,6 +2,7 @@ import type { INestApplication } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swagger";
 import { z } from "zod";
 import {
+  adminUserSummarySchema,
   authUserSchema,
   bookSchema,
   bookSuggestionSchema,
@@ -63,6 +64,7 @@ import {
 
 export type SchemaName =
   | "AuthUser"
+  | "AdminUserSummary"
   | "Book"
   | "CreateBookInput"
   | "UpdateBookInput"
@@ -90,6 +92,7 @@ export type SchemaName =
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   AuthUser: toOpenApiSchema(authUserSchema, "output"),
+  AdminUserSummary: toOpenApiSchema(adminUserSummarySchema, "output"),
   Book: toOpenApiSchema(bookSchema, "output"),
   CreateBookInput: toOpenApiSchema(createBookSchema, "input"),
   UpdateBookInput: toOpenApiSchema(updateBookSchema, "input"),

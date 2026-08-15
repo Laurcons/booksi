@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AuthUser } from "@bookcsi/shared";
+import type { AdminUserSummary, AuthUser } from "@bookcsi/shared";
 import { API_URL, apiFetch, UnauthorizedError } from "../lib/api";
+
+/** §D38 — the admin picker's search asks for at least this many characters. */
+export const MIN_ADMIN_SEARCH_LENGTH = 2;
 
 export const CURRENT_USER_KEY = ["auth", "me"] as const;
 
@@ -44,5 +47,49 @@ export function useLogout() {
       queryClient.setQueryData(CURRENT_USER_KEY, null);
       queryClient.clear();
     },
+  });
+}
+
+/**
+ * §D38 — an admin takes on another account's session. The whole cache is
+ * dropped on success, same as `useLogout`: the admin's own library/settings
+ * must not bleed into the impersonated view, and vice versa on the way back.
+ */
+export function useImpersonate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<void>(`/auth/impersonate/${userId}`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.clear();
+    },
+  });
+}
+
+/** §D38 — the way back out of `useImpersonate`. */
+export function useStopImpersonating() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiFetch<void>("/auth/stop-impersonating", { method: "POST" }),
+    onSuccess: () => {
+      queryClient.clear();
+    },
+  });
+}
+
+/** §D38 — backs the admin picker's search box. */
+export function useSearchAdminUsers(q: string) {
+  const trimmed = q.trim();
+
+  return useQuery({
+    queryKey: ["auth", "admin", "users", trimmed] as const,
+    queryFn: () =>
+      apiFetch<AdminUserSummary[]>(
+        `/auth/admin/users?q=${encodeURIComponent(trimmed)}`,
+      ),
+    enabled: trimmed.length >= MIN_ADMIN_SEARCH_LENGTH,
+    retry: false,
   });
 }

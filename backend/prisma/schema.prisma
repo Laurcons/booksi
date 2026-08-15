@@ -27,6 +27,10 @@ model User {
   /// on every device — see S0.2.
   tokenVersion Int @default(0)
 
+  /// Set from `ADMIN_EMAILS` (config, not a UI) on every login — see §D38.
+  /// Gates the impersonation routes on `AuthController` and nothing else.
+  isAdmin Boolean @default(false)
+
   books          Book[]
   settings       Settings?
   mcpGrants      McpGrant[]

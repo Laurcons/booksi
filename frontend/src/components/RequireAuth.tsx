@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
-import { useCurrentUser } from "../api/auth";
+import { useCurrentUser, useStopImpersonating } from "../api/auth";
 import { rememberReturnTo, takeReturnTo } from "../lib/return-to";
 
 /**
@@ -48,7 +48,40 @@ export function RequireAuth() {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      {user.impersonatedBy && <ImpersonationBanner impersonatedBy={user.impersonatedBy} />}
+      <Outlet />
+    </>
+  );
+}
+
+/**
+ * §D38 — shown on every authenticated route while a session is an admin
+ * impersonating someone else, so it's never mistaken for the admin's own.
+ */
+function ImpersonationBanner({
+  impersonatedBy,
+}: {
+  impersonatedBy: { id: string; email: string };
+}) {
+  const stopImpersonating = useStopImpersonating();
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-status-abandoned/40 bg-status-abandoned/10 px-6 py-2 text-sm text-ink">
+      <span>
+        Ești autentificat ca acest cont, impersonat de <strong>{impersonatedBy.email}</strong>.
+      </span>
+      <button
+        type="button"
+        disabled={stopImpersonating.isPending}
+        onClick={() => stopImpersonating.mutate()}
+        className="shrink-0 rounded-lg border border-line bg-surface-2 px-3 py-1 text-sm font-medium text-ink transition-colors duration-150 hover:bg-surface-3 disabled:opacity-60"
+      >
+        {stopImpersonating.isPending ? "Se revine…" : "Revino la contul tău"}
+      </button>
+    </div>
+  );
 }
 
 function BootScreen() {

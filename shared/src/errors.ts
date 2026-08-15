@@ -30,6 +30,8 @@ export const ERROR_CODES = [
   "NOT_FOUND",
   /** No session, or one that is no longer valid (§D23). */
   "UNAUTHENTICATED",
+  /** A real session, but not one allowed to use this route (§D38). */
+  "FORBIDDEN",
   /** Too many requests too quickly. Actionable: wait. */
   "RATE_LIMITED",
   /**

@@ -589,6 +589,35 @@ niciun tabel public de User-Agent nu trece de dispozitive din 2012. Autentificar
 deschisă — Google refuză consimțământul în browsere pe care le consideră nesigure, deci pe
 dispozitiv va trebui o împerechere prin cod, nu fluxul OAuth obișnuit.
 
+### D38 — Impersonarea admin refolosește sesiunea, nu e un ecran separat de „vezi ca"
+
+Un admin trebuie să poată prelua sesiunea unui alt cont, pentru suport/depanare, fără ca vreun
+cont să poată fi vândut sau autohostat pentru profit de altcineva decât proprietarul instanței —
+asta rămâne o chestiune de licență (LICENSE), nu de cod.
+
+**Decizie: token-ul de sesiune existent, nu un mecanism separat.** `sub` din JWT devine
+id-ul contului țintă, deci fiecare verificare `@CurrentUser()`/de proprietate din aplicație
+continuă să funcționeze neschimbată — nu există un „mod vizualizare" paralel de întreținut.
+Identitatea adminului călătorește totuși în același token (`impersonatorId`/`impersonatorEmail`,
+`auth.service.ts`), ca `JwtStrategy.validate` să o poată atașa la `AuthUser.impersonatedBy` fără
+un al doilea SELECT pe fiecare cerere — cheltuiala aceea s-ar repeta la fiecare request cât
+durează impersonarea, nu doar o dată, la începutul ei.
+
+**`isAdmin` vine din `ADMIN_EMAILS`, nu dintr-un ecran de administrare.** Aceeași convenție ca
+`MCP_REDIRECT_URIS`: o listă separată prin virgulă, reevaluată la fiecare login. Nu există
+poveste de „primul admin cine îl numește" — a fost cerută explicit o soluție fără UI de
+gestionare a rolurilor, iar reevaluarea la login înseamnă că scoaterea unei adrese din variabilă
+își face efectul la următoarea autentificare, nu la următoarea migrare.
+
+**Auditul e o linie de log, nu un tabel.** `AuthController` scrie cu `Logger.warn` la începutul
+și la sfârșitul unei impersonări — cine, pe cine. Un tabel persistent ar fi fost interogabil mai
+târziu, dar ar fi prima entitate din schemă a cărei singură treabă e „cine a văzut datele cui",
+cerință care nu există încă altundeva în aplicație.
+
+**Admin poate impersona alt admin.** Nu există o interdicție admin-pe-admin: singura restricție
+e auto-impersonarea (400 direct în `AuthController.impersonate`), care n-ar face nimic decât să
+încurce contul propriu.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

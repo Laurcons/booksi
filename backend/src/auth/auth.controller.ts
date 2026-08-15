@@ -3,7 +3,10 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
+  Param,
   Post,
+  Query,
   Req,
   Res,
   UseFilters,
@@ -12,6 +15,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import {
   ApiCookieAuth,
+  ApiForbiddenResponse,
   ApiFoundResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -22,11 +26,13 @@ import {
 import { Throttle, minutes } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import type { User } from "@prisma/client";
-import type { AuthUser } from "@bookcsi/shared";
+import type { AdminUserSummary, AuthUser } from "@bookcsi/shared";
+import { AppError } from "../common/app-error";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
+import { AdminGuard } from "../common/guards/admin.guard";
 import type { Env } from "../config/env";
-import { ref } from "../docs/openapi";
+import { arrayOf, ref } from "../docs/openapi";
 import { AuthService } from "./auth.service";
 import {
   GoogleCallbackGuard,
@@ -53,6 +59,8 @@ const LOGIN_RATE = {
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly config: ConfigService<Env, true>,
@@ -171,6 +179,100 @@ export class AuthController {
 
     const { maxAge: _maxAge, ...options } = this.cookieOptions();
     res.clearCookie(SESSION_COOKIE, options);
+  }
+
+  /**
+   * §D38 — an admin takes on another account's session for support/
+   * debugging. Reuses the ordinary session cookie/JWT: `sub` becomes the
+   * target, so every existing `@CurrentUser()` check keeps working
+   * unmodified, and the admin's own id/email ride along in the token so the
+   * app can show who's driving and offer a way back.
+   */
+  @ApiOperation({
+    summary: "Impersonează un utilizator (admin)",
+    description:
+      "§D38 — doar pentru conturi cu `isAdmin`. Cookie-ul de sesiune devine " +
+      "cel al contului țintă; identitatea adminului rămâne în token, pentru " +
+      "banner și `POST /auth/stop-impersonating`.",
+  })
+  @ApiNoContentResponse({ description: "Cookie-ul de sesiune a devenit cel al contului țintă." })
+  @ApiForbiddenResponse({ description: "Contul autentificat nu e admin.", schema: ref("HttpError") })
+  @UseGuards(AdminGuard)
+  @Post("impersonate/:userId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async impersonate(
+    @Param("userId") userId: string,
+    @CurrentUser() admin: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    if (userId === admin.id) {
+      throw AppError.validation("Nu te poți impersona pe tine însuți.");
+    }
+
+    const target = await this.authService.findById(userId);
+    if (!target) {
+      throw AppError.notFound();
+    }
+
+    const token = this.authService.signSessionToken(target, {
+      id: admin.id,
+      email: admin.email,
+    });
+    res.cookie(SESSION_COOKIE, token, this.cookieOptions());
+
+    this.logger.warn(
+      `${admin.email} (${admin.id}) impersonating ${target.email} (${target.id})`,
+    );
+  }
+
+  /**
+   * The way back out of §D38's impersonation — re-signs an ordinary token
+   * for the admin who started it. Deliberately not admin-only: the caller is
+   * wearing the *target's* session, who need not be an admin themselves.
+   */
+  @ApiOperation({
+    summary: "Revine la contul propriu (admin)",
+    description: "§D38 — anulează o impersonare pornită prin `POST /auth/impersonate/:userId`.",
+  })
+  @ApiNoContentResponse({ description: "Cookie-ul de sesiune a redevenit cel al adminului." })
+  @Post("stop-impersonating")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async stopImpersonating(
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    if (!user.impersonatedBy) {
+      throw AppError.validation("Nu ești în modul impersonare.");
+    }
+
+    const admin = await this.authService.findById(user.impersonatedBy.id);
+    if (!admin) {
+      throw AppError.notFound();
+    }
+
+    const token = this.authService.signSessionToken(admin);
+    res.cookie(SESSION_COOKIE, token, this.cookieOptions());
+
+    this.logger.warn(`${admin.email} (${admin.id}) stopped impersonating ${user.email} (${user.id})`);
+  }
+
+  /**
+   * Backs the admin picker (§D38) — search, not a full listing, since the
+   * point is finding one account, not browsing every one.
+   */
+  @ApiOperation({
+    summary: "Caută utilizatori (admin)",
+    description: "§D38 — potrivire pe email, pentru ecranul de impersonare.",
+  })
+  @ApiOkResponse({ schema: arrayOf("AdminUserSummary") })
+  @ApiForbiddenResponse({ description: "Contul autentificat nu e admin.", schema: ref("HttpError") })
+  @UseGuards(AdminGuard)
+  @Get("admin/users")
+  searchUsers(
+    @Query("q") q: string | undefined,
+    @CurrentUser() admin: AuthUser,
+  ): Promise<AdminUserSummary[]> {
+    return this.authService.searchUsers(q?.trim() ?? "", admin.id);
   }
 
   private cookieOptions() {

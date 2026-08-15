@@ -327,6 +327,18 @@ function AccountMenu({ user }: { user: AuthUser }) {
           >
             Împerechere Kobo
           </Link>
+          {/* §D38 — vizibil doar pentru conturi admin; ruta e oricum
+              protejată de `AdminGuard` pe backend. */}
+          {user.isAdmin && (
+            <Link
+              to="/admin/impersonate"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block border-b border-line px-4 py-3 text-left text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
+            >
+              Impersonează utilizator
+            </Link>
+          )}
           <button
             type="button"
             role="menuitem"

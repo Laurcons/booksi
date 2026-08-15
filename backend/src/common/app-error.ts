@@ -46,6 +46,11 @@ export class AppError extends HttpException {
     return new AppError(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", message);
   }
 
+  /** A real session, but the account behind it isn't admin (§D38). */
+  static forbidden(message = "Nu ai acces la această acțiune."): AppError {
+    return new AppError(HttpStatus.FORBIDDEN, "FORBIDDEN", message);
+  }
+
   /**
    * Sprint 4 — Open Library did not answer, or answered with something
    * unusable. Actionable despite being a 5xx: the manual form is right there,

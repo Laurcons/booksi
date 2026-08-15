@@ -1,6 +1,7 @@
 import { Controller, Get, INestApplication } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
+import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
@@ -19,6 +20,22 @@ const storedUser = {
   avatarUrl: "https://example.com/a.png",
   createdAt: new Date("2026-01-01T00:00:00Z"),
   tokenVersion: 0,
+  isAdmin: false,
+};
+
+const adminUser = {
+  ...storedUser,
+  id: "admin-1",
+  googleId: "google-admin",
+  email: "admin@example.com",
+  isAdmin: true,
+};
+
+const targetUser = {
+  ...storedUser,
+  id: "user-2",
+  googleId: "google-2",
+  email: "target@example.com",
 };
 
 /**
@@ -36,10 +53,12 @@ class ProbeController {
 describe("auth routes", () => {
   let app: INestApplication;
   let authService: AuthService;
+  let jwtService: JwtService;
   const prisma = {
     $connect: jest.fn(),
     user: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       upsert: jest.fn(),
       update: jest.fn(),
     },
@@ -80,6 +99,7 @@ describe("auth routes", () => {
     await app.init();
 
     authService = app.get(AuthService);
+    jwtService = app.get(JwtService);
   });
 
   afterAll(async () => {
@@ -116,6 +136,8 @@ describe("auth routes", () => {
         email: "cineva@example.com",
         name: "Cineva",
         avatarUrl: "https://example.com/a.png",
+        isAdmin: false,
+        impersonatedBy: null,
       });
       // googleId is a join key, not something the client ever needs.
       expect(res.body.googleId).toBeUndefined();
@@ -210,6 +232,140 @@ describe("auth routes", () => {
     });
   });
 
+  /** §D38 — the admin "log in as" feature. */
+  describe("impersonation (§D38)", () => {
+    const findUniqueById = (users: Record<string, typeof storedUser>) =>
+      jest.fn(({ where }: { where: { id: string } }) =>
+        Promise.resolve(users[where.id] ?? null),
+      );
+
+    const cookieFor = (
+      user: typeof storedUser,
+      impersonator?: { id: string; email: string },
+    ) => `${SESSION_COOKIE}=${authService.signSessionToken(user, impersonator)}`;
+
+    const tokenFromSetCookie = (res: request.Response) => {
+      const setCookie = res.headers["set-cookie"] as unknown as string[];
+      return setCookie[0].split(";")[0].split("=")[1];
+    };
+
+    describe("POST /auth/impersonate/:userId", () => {
+      it("403s for a non-admin", async () => {
+        prisma.user.findUnique.mockResolvedValue(storedUser);
+
+        await request(app.getHttpServer())
+          .post(`/auth/impersonate/${targetUser.id}`)
+          .set("Cookie", cookieFor(storedUser))
+          .expect(403);
+      });
+
+      it("400s on self-impersonation", async () => {
+        prisma.user.findUnique.mockResolvedValue(adminUser);
+
+        await request(app.getHttpServer())
+          .post(`/auth/impersonate/${adminUser.id}`)
+          .set("Cookie", cookieFor(adminUser))
+          .expect(400);
+      });
+
+      it("404s for a target that does not exist", async () => {
+        prisma.user.findUnique = findUniqueById({ [adminUser.id]: adminUser });
+
+        await request(app.getHttpServer())
+          .post("/auth/impersonate/does-not-exist")
+          .set("Cookie", cookieFor(adminUser))
+          .expect(404);
+      });
+
+      it("signs a cookie for the target, carrying the admin's identity", async () => {
+        prisma.user.findUnique = findUniqueById({
+          [adminUser.id]: adminUser,
+          [targetUser.id]: targetUser,
+        });
+
+        const res = await request(app.getHttpServer())
+          .post(`/auth/impersonate/${targetUser.id}`)
+          .set("Cookie", cookieFor(adminUser))
+          .expect(204);
+
+        const payload = jwtService.verify(tokenFromSetCookie(res));
+        expect(payload).toMatchObject({
+          sub: targetUser.id,
+          impersonatorId: adminUser.id,
+          impersonatorEmail: adminUser.email,
+        });
+      });
+    });
+
+    describe("POST /auth/stop-impersonating", () => {
+      it("400s when the session is not an impersonation", async () => {
+        prisma.user.findUnique.mockResolvedValue(storedUser);
+
+        await request(app.getHttpServer())
+          .post("/auth/stop-impersonating")
+          .set("Cookie", cookieFor(storedUser))
+          .expect(400);
+      });
+
+      it("restores the admin's own session", async () => {
+        prisma.user.findUnique = findUniqueById({
+          [adminUser.id]: adminUser,
+          [targetUser.id]: targetUser,
+        });
+
+        const res = await request(app.getHttpServer())
+          .post("/auth/stop-impersonating")
+          .set(
+            "Cookie",
+            cookieFor(targetUser, { id: adminUser.id, email: adminUser.email }),
+          )
+          .expect(204);
+
+        const payload = jwtService.verify(tokenFromSetCookie(res));
+        expect(payload).toMatchObject({ sub: adminUser.id });
+        expect(payload).not.toHaveProperty("impersonatorId");
+      });
+    });
+
+    describe("GET /auth/admin/users", () => {
+      it("403s for a non-admin", async () => {
+        prisma.user.findUnique.mockResolvedValue(storedUser);
+
+        await request(app.getHttpServer())
+          .get("/auth/admin/users?q=target")
+          .set("Cookie", cookieFor(storedUser))
+          .expect(403);
+      });
+
+      it("searches by email, excluding the caller", async () => {
+        prisma.user.findUnique.mockResolvedValue(adminUser);
+        prisma.user.findMany.mockResolvedValue([targetUser]);
+
+        const res = await request(app.getHttpServer())
+          .get("/auth/admin/users?q=target")
+          .set("Cookie", cookieFor(adminUser))
+          .expect(200);
+
+        expect(prisma.user.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              email: { contains: "target" },
+              id: { not: adminUser.id },
+            }),
+          }),
+        );
+        expect(res.body).toEqual([
+          {
+            id: targetUser.id,
+            email: targetUser.email,
+            name: targetUser.name,
+            avatarUrl: targetUser.avatarUrl,
+          },
+        ]);
+      });
+    });
+  });
+
   describe("GET /auth/google", () => {
     it("redirects the browser to Google", async () => {
       const res = await request(app.getHttpServer())
@@ -285,9 +441,11 @@ describe("AuthService", () => {
     const prisma = {
       user: { upsert: jest.fn().mockResolvedValue(storedUser) },
     } as unknown as PrismaService;
-    const service = new AuthService(prisma, {
-      sign: () => "token",
-    } as never);
+    const service = new AuthService(
+      prisma,
+      { sign: () => "token" } as never,
+      { get: () => undefined } as never,
+    );
 
     await service.upsertFromGoogle({
       googleId: "google-1",
@@ -309,6 +467,8 @@ describe("AuthService", () => {
       email: "cineva@example.com",
       name: "Cineva",
       avatarUrl: "https://example.com/a.png",
+      isAdmin: false,
+      impersonatedBy: null,
     });
   });
 });

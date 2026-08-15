@@ -1,7 +1,9 @@
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
-import type { AuthUser } from "@bookcsi/shared";
+import type { AdminUserSummary, AuthUser } from "@bookcsi/shared";
+import type { Env } from "../config/env";
 import { PrismaService } from "../prisma/prisma.service";
 import { SESSION_TTL_DAYS } from "./session";
 
@@ -25,6 +27,15 @@ export interface SessionPayload {
    * the tokens this exists to invalidate still working.
    */
   ver: number;
+  /**
+   * Set only while an admin is impersonating (§D38). `sub` above is already
+   * the *target* user — every existing `@CurrentUser()` check keeps working
+   * unmodified — so this pair exists purely to let the app show who is
+   * driving the session and offer a way back, without a second database
+   * lookup on every impersonated request.
+   */
+  impersonatorId?: string;
+  impersonatorEmail?: string;
 }
 
 @Injectable()
@@ -32,17 +43,22 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /**
    * First login creates the account outright (S0.1) — there is no approval step
    * and no invitation. Later logins refresh the profile, since a user can
-   * rename themselves or change their picture on Google's side.
+   * rename themselves or change their picture on Google's side. `isAdmin` is
+   * refreshed the same way, off `ADMIN_EMAILS` (§D38): editing that variable
+   * takes effect the next time the account signs in.
    *
    * The key is `googleId`, not `email`: Google Workspace addresses can be
    * renamed while the subject id stays put.
    */
   async upsertFromGoogle(profile: GoogleProfileData): Promise<User> {
+    const isAdmin = this.isAdminEmail(profile.email);
+
     return this.prisma.user.upsert({
       where: { googleId: profile.googleId },
       create: {
@@ -50,21 +66,73 @@ export class AuthService {
         email: profile.email,
         name: profile.name,
         avatarUrl: profile.avatarUrl,
+        isAdmin,
       },
       update: {
         email: profile.email,
         name: profile.name,
         avatarUrl: profile.avatarUrl,
+        isAdmin,
       },
     });
+  }
+
+  private isAdminEmail(email: string): boolean {
+    const adminEmails = this.config.get("ADMIN_EMAILS", { infer: true });
+    if (!adminEmails) {
+      return false;
+    }
+    const needle = email.toLowerCase();
+    return adminEmails
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .includes(needle);
   }
 
   findById(id: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
-  signSessionToken(user: Pick<User, "id" | "tokenVersion">): string {
-    const payload: SessionPayload = { sub: user.id, ver: user.tokenVersion };
+  /**
+   * Backs the admin "who do I impersonate" search (§D38). `contains` with no
+   * `mode` — MySQL's default collation is already case-insensitive, unlike
+   * Postgres, where this would need `mode: "insensitive"`.
+   */
+  async searchUsers(query: string, excludeUserId: string): Promise<AdminUserSummary[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        email: { contains: query },
+        id: { not: excludeUserId },
+      },
+      orderBy: { email: "asc" },
+      take: 20,
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+    }));
+  }
+
+  /**
+   * `impersonator` set signs a token that authenticates *as* `user` while
+   * carrying who started the session (§D38's `impersonatorId`/`Email`).
+   * Omitted, this is an ordinary login/refresh token.
+   */
+  signSessionToken(
+    user: Pick<User, "id" | "tokenVersion">,
+    impersonator?: { id: string; email: string },
+  ): string {
+    const payload: SessionPayload = {
+      sub: user.id,
+      ver: user.tokenVersion,
+      ...(impersonator && {
+        impersonatorId: impersonator.id,
+        impersonatorEmail: impersonator.email,
+      }),
+    };
     return this.jwt.sign(payload, { expiresIn: `${SESSION_TTL_DAYS}d` });
   }
 
@@ -113,12 +181,17 @@ export class AuthService {
   }
 
   /** Strips `googleId` and `createdAt` — the client has no use for either. */
-  static toAuthUser(user: User): AuthUser {
+  static toAuthUser(
+    user: User,
+    impersonatedBy: { id: string; email: string } | null = null,
+  ): AuthUser {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       avatarUrl: user.avatarUrl,
+      isAdmin: user.isAdmin,
+      impersonatedBy,
     };
   }
 }
