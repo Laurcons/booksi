@@ -89,7 +89,7 @@ export const calendarDateSchema = z
   .meta({ examples: ["2026-08-06"] });
 
 /** A cleared form field arrives as `""`; the column stores NULL. */
-const nullableText = (max: number) =>
+export const nullableText = (max: number) =>
   z
     .string()
     .trim()

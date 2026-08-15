@@ -14,6 +14,7 @@ import type {
 } from "@bookcsi/shared";
 import { apiFetch } from "../lib/api";
 import { BUDGET_KEY } from "./budget";
+import { CHALLENGES_KEY } from "./challenges";
 import { STATS_KEY } from "./stats";
 
 /**
@@ -32,11 +33,16 @@ export const BOOKS_KEY = ["books"] as const;
  * refetched on the way to `/budget` and nobody could see the gap. S8.1 puts the
  * figures at the top of `/`, above the table that edits them: tick a book off
  * as finished and "cărți citite" has to move, in that moment, on that screen.
+ *
+ * `CHALLENGES_KEY` joined the list for the same reason: a challenge embeds
+ * full `Book` rows (`ChallengesService.findOne`), so marking one finished from
+ * the challenge page — or from anywhere else — has to move the shelf and the
+ * two progress bars there too, not just the table this hook was written for.
  */
 function invalidateBookData(queryClient: {
   invalidateQueries: (filters: { queryKey: readonly unknown[] }) => unknown;
 }): void {
-  for (const key of [BOOKS_KEY, STATS_KEY, BUDGET_KEY]) {
+  for (const key of [BOOKS_KEY, STATS_KEY, BUDGET_KEY, CHALLENGES_KEY]) {
     void queryClient.invalidateQueries({ queryKey: key });
   }
 }

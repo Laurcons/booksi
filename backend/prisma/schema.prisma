@@ -31,6 +31,7 @@ model User {
   settings       Settings?
   mcpGrants      McpGrant[]
   devicePairings DevicePairing[]
+  challenges     Challenge[]
 }
 
 enum Status {
@@ -94,6 +95,7 @@ model Book {
   updatedAt DateTime @updatedAt
 
   cover Cover?
+  challenges ChallengeBook[]
 
   @@index([userId, status])
   @@index([userId, finishedOn])
@@ -121,6 +123,47 @@ model Cover {
   /// would keep the old one for a year. `?v=<updatedAt>` moves with the image,
   /// so the new URL is simply a URL the cache has never seen.
   updatedAt DateTime @updatedAt
+}
+
+/// A curated set of books against a deadline — see the design conversation
+/// that led here (frontend/src/pages/ChallengePage.tsx started as a
+/// local-state-only mock; this is what backs it for real).
+///
+/// `deadline` is a calendar day, not an instant, for the same reason the
+/// three status dates on `Book` are (`@db.Date`, book.ts's own comment):
+/// "the challenge ends August 31st" must not drift a day depending on which
+/// side of UTC midnight the reader is on.
+model Challenge {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?  @db.Text
+  deadline    DateTime @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  books ChallengeBook[]
+
+  @@index([userId])
+}
+
+/// The join table. Many-to-many rather than a `challengeId` column on `Book`:
+/// a book finished for one challenge can legitimately sit in a second (a
+/// backlog challenge and a genre challenge both claiming the same read), and
+/// a column on `Book` would cap it at one.
+model ChallengeBook {
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  bookId      String
+  book        Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  addedAt DateTime @default(now())
+
+  @@id([challengeId, bookId])
+  @@index([bookId])
 }
 
 model Settings {

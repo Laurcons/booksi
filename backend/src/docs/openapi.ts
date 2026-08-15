@@ -8,9 +8,13 @@ import {
   budgetByMonthSchema,
   budgetSummarySchema,
   coverRefSchema,
+  addChallengeBookSchema,
   approvePairingSchema,
+  challengeSchema,
+  challengeSummarySchema,
   consumePairingResponseSchema,
   createBookSchema,
+  createChallengeSchema,
   createPairingResponseSchema,
   httpErrorSchema,
   isbnDuplicateSchema,
@@ -20,6 +24,7 @@ import {
   statsByMonthSchema,
   statsOverviewSchema,
   updateBookSchema,
+  updateChallengeSchema,
   updateSettingsSchema,
   wishlistSummarySchema,
 } from "@bookcsi/shared";
@@ -76,6 +81,11 @@ export type SchemaName =
   | "PairingStatusResponse"
   | "ApprovePairingInput"
   | "ConsumePairingResponse"
+  | "Challenge"
+  | "ChallengeSummary"
+  | "CreateChallengeInput"
+  | "UpdateChallengeInput"
+  | "AddChallengeBookInput"
   | "HttpError";
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
@@ -102,6 +112,12 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   PairingStatusResponse: toOpenApiSchema(pairingStatusResponseSchema, "output"),
   ApprovePairingInput: toOpenApiSchema(approvePairingSchema, "input"),
   ConsumePairingResponse: toOpenApiSchema(consumePairingResponseSchema, "output"),
+  // A curated set of books against a deadline (frontend/src/pages/ChallengePage.tsx).
+  Challenge: toOpenApiSchema(challengeSchema, "output"),
+  ChallengeSummary: toOpenApiSchema(challengeSummarySchema, "output"),
+  CreateChallengeInput: toOpenApiSchema(createChallengeSchema, "input"),
+  UpdateChallengeInput: toOpenApiSchema(updateChallengeSchema, "input"),
+  AddChallengeBookInput: toOpenApiSchema(addChallengeBookSchema, "input"),
   HttpError: toOpenApiSchema(httpErrorSchema, "output"),
 };
 

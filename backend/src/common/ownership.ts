@@ -11,13 +11,19 @@ import { AppError } from "./app-error";
  *   const book = ownedOrNotFound(
  *     await prisma.book.findFirst({ where: { id, userId } }),
  *   );
+ *
+ * The message defaults to the book wording, since every caller was about a
+ * book until `ChallengesService` — pass one explicitly for anything else.
  */
-export function ownedOrNotFound<T>(row: T | null | undefined): T {
+export function ownedOrNotFound<T>(
+  row: T | null | undefined,
+  message = "Cartea asta nu există sau nu e a ta.",
+): T {
   if (row === null || row === undefined) {
     // A sentence rather than Nest's bare "Not Found": this is shown to
     // somebody who followed a stale link or a deleted bookmark, and §D27 says
     // an error they can act on gets words they can read.
-    throw AppError.notFound("Cartea asta nu există sau nu e a ta.");
+    throw AppError.notFound(message);
   }
 
   return row;

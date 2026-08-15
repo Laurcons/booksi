@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { RequireAuth } from "./components/RequireAuth";
 import { queryClient } from "./lib/query-client";
 import { BudgetPage } from "./pages/BudgetPage";
+import { ChallengePage } from "./pages/ChallengePage";
 import { ConnectorsPage } from "./pages/ConnectorsPage";
 import { GalleryPage } from "./pages/GalleryPage";
 import { LibraryPage } from "./pages/LibraryPage";
@@ -50,6 +51,8 @@ export default function App() {
                 session approves the code a Kobo is showing, since the device
                 cannot complete Google's consent screen itself. */}
             <Route path="/pair-kobo" element={<PairKoboPage />} />
+            {/* A curated set of books against a deadline — backend/src/challenges/. */}
+            <Route path="/challenge" element={<ChallengePage />} />
             <Route path="*" element={<LibraryPage />} />
           </Route>
         </Routes>

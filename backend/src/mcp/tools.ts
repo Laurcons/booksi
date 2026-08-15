@@ -4,15 +4,18 @@ import { z } from "zod";
 import {
   bookSortSchema,
   createBookSchema,
+  createChallengeSchema,
   genreSchema,
   openLibrarySearchQuerySchema,
   statusSchema,
   updateBookSchema,
+  updateChallengeSchema,
   type HttpErrorBody,
   type ListBooksQuery,
 } from "@bookcsi/shared";
 import type { BooksService } from "../books/books.service";
 import type { BudgetService } from "../budget/budget.service";
+import type { ChallengesService } from "../challenges/challenges.service";
 import { AppError } from "../common/app-error";
 import type { OpenLibraryService } from "../openlibrary/open-library.service";
 import type { StatsService } from "../stats/stats.service";
@@ -28,6 +31,7 @@ export interface ToolContext {
   stats: StatsService;
   budget: BudgetService;
   openLibrary: OpenLibraryService;
+  challenges: ChallengesService;
 }
 
 function textResult(data: unknown): CallToolResult {
@@ -56,9 +60,9 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : "A apărut o eroare neașteptată.";
 }
 
-/** docs/MCP.md §9 steps 4–5 — all eight tools, one `library` scope, no branching. */
+/** docs/MCP.md §9 steps 4–5 — one `library` scope, no branching. */
 export function registerTools(server: McpServer, ctx: ToolContext): void {
-  const { userId, books, stats, budget, openLibrary } = ctx;
+  const { userId, books, stats, budget, openLibrary, challenges } = ctx;
 
   server.registerTool(
     "search_library",
@@ -239,6 +243,158 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         return textResult(await openLibrary.search(args.q));
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_challenges",
+    {
+      title: "Listează provocările",
+      description:
+        "Apelează când utilizatorul întreabă ce provocări de citit are, sau cât mai are din una " +
+        "anume — de exemplu „ce provocări am” sau „cât mai am de citit din provocarea de vară”. " +
+        "Întoarce un rezumat (titlu, termen, câte cărți, câte terminate), nu cărțile complete — " +
+        "pentru acelea există get_challenge.",
+    },
+    async () => {
+      try {
+        return textResult(await challenges.list(userId));
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_challenge",
+    {
+      title: "Detaliile unei provocări",
+      description:
+        "Apelează când utilizatorul întreabă despre o provocare anume și îi știi deja id-ul — de " +
+        "obicei din răspunsul lui list_challenges. Întoarce și cărțile ei, cu statusul curent al " +
+        "fiecăreia, nu doar id-uri.",
+      inputSchema: {
+        id: z.string().min(1).describe("Id-ul provocării, așa cum apare în list_challenges."),
+      },
+    },
+    async (args) => {
+      try {
+        return textResult(await challenges.findOne(userId, args.id));
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "create_challenge",
+    {
+      title: "Creează o provocare",
+      description:
+        "Apelează când utilizatorul cere explicit să creeze o provocare de citit — un titlu și un " +
+        "termen (deadline) sunt obligatorii. Cărțile se pot da direct prin bookIds (id-uri din " +
+        "search_library) sau adăugate ulterior cu add_book_to_challenge. NU crea o provocare doar " +
+        "fiindcă a fost menționat un termen în conversație — numai la o cerere clară.",
+      inputSchema: createChallengeSchema,
+    },
+    async (args) => {
+      try {
+        return textResult(await challenges.create(userId, args));
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "update_challenge",
+    {
+      title: "Modifică o provocare",
+      description:
+        "Apelează pentru orice schimbare pe titlul, descrierea sau termenul unei provocări " +
+        "existente — de exemplu „mută termenul provocării de vară la 15 septembrie”. Apartenența " +
+        "cărților nu e aici: pentru asta există add_book_to_challenge și " +
+        "remove_book_from_challenge. Trimite doar câmpurile care se schimbă. Ai nevoie de id, din " +
+        "list_challenges.",
+      inputSchema: {
+        id: z.string().min(1).describe("Id-ul provocării."),
+        ...updateChallengeSchema.shape,
+      },
+    },
+    async (args) => {
+      const { id, ...input } = args;
+      try {
+        return textResult(await challenges.update(userId, id, input));
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "delete_challenge",
+    {
+      title: "Șterge o provocare",
+      description:
+        "Apelează doar la o cerere explicită și fără ambiguitate de ștergere a unei provocări — " +
+        "ireversibil, fără coș de gunoi. Cărțile din ea NU se șterg din bibliotecă, doar " +
+        "provocarea însăși. Dacă utilizatorul pare nesigur, confirmă mai întâi ce provocare anume, " +
+        "prin list_challenges.",
+      inputSchema: { id: z.string().min(1).describe("Id-ul provocării de șters.") },
+    },
+    async (args) => {
+      try {
+        await challenges.remove(userId, args.id);
+        return textResult({ deleted: true, id: args.id });
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "add_book_to_challenge",
+    {
+      title: "Adaugă o carte la o provocare",
+      description:
+        "Apelează pentru a adăuga o carte deja existentă în bibliotecă la o provocare — de " +
+        "exemplu „pune Dune în provocarea de vară”. Ai nevoie de id-ul cărții (din search_library " +
+        "sau get_book) și de id-ul provocării (din list_challenges). NU creează cartea — dacă nu " +
+        "există încă în bibliotecă, folosește întâi add_book. Idempotentă: dacă e deja acolo, nu e " +
+        "o eroare.",
+      inputSchema: {
+        challengeId: z.string().min(1).describe("Id-ul provocării."),
+        bookId: z.string().min(1).describe("Id-ul cărții de adăugat."),
+      },
+    },
+    async (args) => {
+      try {
+        return textResult(await challenges.addBook(userId, args.challengeId, args.bookId));
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "remove_book_from_challenge",
+    {
+      title: "Scoate o carte dintr-o provocare",
+      description:
+        "Apelează pentru a scoate o carte dintr-o provocare, fără s-o ștergi din bibliotecă — " +
+        "pentru asta există delete_book, o unealtă separată și distructivă. Idempotentă la fel ca " +
+        "add_book_to_challenge: o carte care nu e pe listă lasă provocarea neschimbată.",
+      inputSchema: {
+        challengeId: z.string().min(1).describe("Id-ul provocării."),
+        bookId: z.string().min(1).describe("Id-ul cărții de scos."),
+      },
+    },
+    async (args) => {
+      try {
+        return textResult(await challenges.removeBook(userId, args.challengeId, args.bookId));
       } catch (error) {
         return errorResult(errorText(error));
       }

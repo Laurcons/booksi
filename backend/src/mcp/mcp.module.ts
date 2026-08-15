@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { BooksModule } from "../books/books.module";
 import { BudgetModule } from "../budget/budget.module";
+import { ChallengesModule } from "../challenges/challenges.module";
 import type { Env } from "../config/env";
 import { OpenLibraryModule } from "../openlibrary/open-library.module";
 import { StatsModule } from "../stats/stats.module";
@@ -22,6 +23,7 @@ import { WellKnownController } from "./well-known.controller";
     BudgetModule,
     StatsModule,
     OpenLibraryModule,
+    ChallengesModule,
     // Signs the short-lived `req` param `/oauth/authorize` hands to the
     // consent screen (docs/MCP.md §9 step 3) — the same `JWT_SECRET` as the
     // session cookie, but never confusable with one: see

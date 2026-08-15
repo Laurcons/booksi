@@ -230,8 +230,9 @@ de CORS-ul din §D20, care rămâne exact cum e — `/mcp` nu se apelează dintr
 ## 8. Suprafața de unelte
 
 Serviciile primesc deja `userId` ca argument și controllerele sunt subțiri, deci uneltele sunt
-învelișuri peste `BooksService`, `StatsService`, `BudgetService` și `OpenLibraryService`.
-Schemele de intrare se iau din `shared/` — aceleași `zod` care validează REST-ul.
+învelișuri peste `BooksService`, `StatsService`, `BudgetService`, `OpenLibraryService` și
+`ChallengesService`. Schemele de intrare se iau din `shared/` — aceleași `zod` care validează
+REST-ul.
 
 | Unealtă | Serviciu |
 |---|---|
@@ -243,6 +244,13 @@ Schemele de intrare se iau din `shared/` — aceleași `zod` care validează RES
 | `get_reading_stats` | `StatsService` |
 | `get_budget` | `BudgetService` |
 | `search_open_library` | `OpenLibraryService.search` |
+| `list_challenges` | `ChallengesService.list` — rezumat, fără cărțile complete |
+| `get_challenge` | `ChallengesService.findOne` — cu cărțile ei |
+| `create_challenge` | `ChallengesService.create` |
+| `update_challenge` | `ChallengesService.update` — titlu, descriere, termen |
+| `delete_challenge` | `ChallengesService.remove` |
+| `add_book_to_challenge` | `ChallengesService.addBook` — idempotentă |
+| `remove_book_from_challenge` | `ChallengesService.removeBook` — idempotentă |
 
 **Un singur scope, `library`, cu drepturi depline** — inclusiv ștergere. E biblioteca proprie a
 utilizatorului și separarea citire/scriere ar cere un al doilea flux de consimțământ pentru un

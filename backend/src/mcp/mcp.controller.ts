@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { Request, Response } from "express";
 import { BooksService } from "../books/books.service";
 import { BudgetService } from "../budget/budget.service";
+import { ChallengesService } from "../challenges/challenges.service";
 import { Public } from "../common/decorators/public.decorator";
 import type { Env } from "../config/env";
 import { OpenLibraryService } from "../openlibrary/open-library.service";
@@ -30,6 +31,7 @@ export class McpController {
     private readonly stats: StatsService,
     private readonly budget: BudgetService,
     private readonly openLibrary: OpenLibraryService,
+    private readonly challenges: ChallengesService,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
@@ -60,6 +62,7 @@ export class McpController {
       stats: this.stats,
       budget: this.budget,
       openLibrary: this.openLibrary,
+      challenges: this.challenges,
     });
 
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

@@ -24,6 +24,8 @@ const NAV: { label: string; to?: string }[] = [
   { label: "Wishlist", to: "/wishlist" },
   { label: "Buget", to: "/budget" },
   { label: "Statistici", to: "/stats" },
+  // A curated set of books against a deadline — backend/src/challenges/.
+  { label: "Provocare", to: "/challenge" },
 ];
 
 const NAV_ITEM =

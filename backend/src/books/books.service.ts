@@ -153,6 +153,40 @@ export class BooksService {
   }
 
   /**
+   * `ChallengesService`'s way of turning a challenge's book ids into full
+   * rows — one query for the whole set rather than one `findOne` per book,
+   * the same reasoning `findAll` already applies to a filtered library.
+   * Scoped by `userId` like every other read here: an id belonging to
+   * somebody else's book is silently excluded rather than surfaced, which is
+   * how `ChallengesService` can trust the result without a second ownership
+   * check of its own.
+   */
+  async findByIds(userId: string, ids: string[]): Promise<Book[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.book.findMany({
+      where: { userId, id: { in: ids } },
+      include: WITH_COVER,
+    });
+
+    return rows.map(toBook);
+  }
+
+  /** Ownership check for a set of ids at once — `ChallengesService` uses this
+   * before attaching a book to a challenge, or before creating one with an
+   * initial list, so that a challenge can never reference a book it does not
+   * own. */
+  async countOwned(userId: string, ids: string[]): Promise<number> {
+    if (ids.length === 0) {
+      return 0;
+    }
+
+    return this.prisma.book.count({ where: { userId, id: { in: ids } } });
+  }
+
+  /**
    * S3.3. Summed in SQL over `DECIMAL(10,2)`, so the total is exact and stays
    * exact however long the wishlist grows — the same reason §D6's two prices
    * are decimal columns rather than floats.

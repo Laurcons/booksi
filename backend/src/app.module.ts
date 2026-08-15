@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule, minutes, seconds } from "@nestjs/throt
 import { AuthModule } from "./auth/auth.module";
 import { BooksModule } from "./books/books.module";
 import { BudgetModule } from "./budget/budget.module";
+import { ChallengesModule } from "./challenges/challenges.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { AppExceptionFilter } from "./common/filters/app-exception.filter";
 import { validateEnv } from "./config/env";
@@ -55,6 +56,12 @@ import { StatsModule } from "./stats/stats.module";
     // Sprint 6. Read-only aggregations (§ „valori derivate”), plus the one
     // setting they read: S6.3's monthly budget.
     BudgetModule,
+    // A curated set of books against a deadline (frontend/src/pages/ChallengePage.tsx
+    // started as a local-state mock; this is the real entity behind it).
+    // Depends on BooksModule for ownership checks and row-to-`Book` mapping —
+    // named after it here for the same reason CoversModule is named next to
+    // BooksModule above: the app's surface reads off this list.
+    ChallengesModule,
     SettingsModule,
     // Sprints 7–8. Read-only too, and the only place the page-counting rule
     // (§D10) is implemented — the dashboard reads it from here rather than
