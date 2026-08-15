@@ -2,6 +2,7 @@
   "name": "bookcsi",
   "private": true,
   "version": "0.0.0",
+  "license": "SEE LICENSE IN LICENSE",
   "workspaces": [
     "shared",
     "backend",

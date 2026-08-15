@@ -2,6 +2,7 @@
   "name": "@bookcsi/shared",
   "private": true,
   "version": "0.0.0",
+  "license": "SEE LICENSE IN ../LICENSE",
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
