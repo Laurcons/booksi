@@ -98,6 +98,11 @@ jobs:
 
       - run: npm run prisma:deploy --workspace backend
 
+      # Unlike `migrate dev`, `migrate deploy` does not generate the client —
+      # it's meant for a deploy pipeline where generation is its own step, so
+      # the build below needs this run explicitly (see the `check` job above).
+      - run: npm run prisma:generate --workspace backend
+
       - run: npx playwright install --with-deps chromium
 
       - run: npm run build --workspace backend
