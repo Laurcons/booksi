@@ -441,6 +441,83 @@ describe("books routes (Sprints 1–3)", () => {
     });
   });
 
+  /**
+   * §D40 — the description. Written like any other field, which is the whole
+   * design: the assistant that fills it in over MCP reaches it through the same
+   * `PATCH` a person does, so there is nothing here that only Claude can call.
+   */
+  describe("description (§D40)", () => {
+    const SYNOPSIS =
+      "Pe planeta deșertică Arrakis, singura sursă din univers a mirodeniei, " +
+      "tânărul Paul Atreides ajunge în mijlocul unui război pentru controlul ei.";
+
+    beforeEach(() => {
+      prisma.book.findFirst.mockResolvedValue(storedBook);
+      prisma.book.update.mockResolvedValue({ ...storedBook, description: SYNOPSIS });
+      prisma.book.create.mockResolvedValue({ ...storedBook, description: SYNOPSIS });
+    });
+
+    it("stores a description sent on its own", async () => {
+      await as("patch", "/books/book-1").send({ description: SYNOPSIS }).expect(200);
+
+      expect(writtenData(prisma.book.update).description).toBe(SYNOPSIS);
+    });
+
+    it("returns it on the book, so the profile page has something to draw", async () => {
+      const res = await as("patch", "/books/book-1")
+        .send({ description: SYNOPSIS })
+        .expect(200);
+
+      expect(res.body.description).toBe(SYNOPSIS);
+    });
+
+    it("takes one at creation too", async () => {
+      await as("post", "/books")
+        .send({ title: "Dune", description: SYNOPSIS })
+        .expect(201);
+
+      expect(writtenData(prisma.book.create).description).toBe(SYNOPSIS);
+    });
+
+    it("lets the description be cleared", async () => {
+      await as("patch", "/books/book-1").send({ description: null }).expect(200);
+
+      expect(writtenData(prisma.book.update).description).toBeNull();
+    });
+
+    it("turns a blanked-out textarea into NULL, not an empty string", async () => {
+      await as("patch", "/books/book-1").send({ description: "   " }).expect(200);
+
+      expect(writtenData(prisma.book.update).description).toBeNull();
+    });
+
+    it("leaves the description alone when the request does not mention it", async () => {
+      await as("patch", "/books/book-1").send({ pagesRead: 200 }).expect(200);
+
+      expect(writtenData(prisma.book.update).description).toBeUndefined();
+    });
+
+    /**
+     * The cap is what keeps `get_book` from handing a model an unbounded wall
+     * of text (docs/MCP.md §8). 5000 characters is several paragraphs; the
+     * column behind it is TEXT, so the limit is the schema's choice rather
+     * than the database's.
+     */
+    it("refuses a description past the 5000-character cap", async () => {
+      const res = await as("patch", "/books/book-1")
+        .send({ description: "a".repeat(5001) })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain("description");
+    });
+
+    it("accepts one exactly at the cap", async () => {
+      await as("patch", "/books/book-1")
+        .send({ description: "a".repeat(5000) })
+        .expect(200);
+    });
+  });
+
   describe("PATCH /books/:id (S2.1, S2.3, S2.4)", () => {
     beforeEach(() => {
       prisma.book.findFirst.mockResolvedValue(storedBook);

@@ -392,12 +392,56 @@ estetică/gamificată.
 - Culoarea cotorului e derivată din gen.
 - Ordonare implicită după `data_cumparare`, cu opțiune de sortare alfabetică. Amândouă sunt
   sortări server-side pe ruta de listare (§D29), nu un `sort()` în client.
-- Click pe un cotor deschide detaliile cărții — același dialog pe care îl deschide un card din
+- Click pe un cotor deschide detaliile cărții — același ecran pe care îl deschide un card din
   galerie (S5.1). „Detaliile cărții" sunt un singur ecran în aplicație.
+  **Actualizat de S9.1:** acel ecran era `BookFormDialog`; de la §D41 e `/books/:id`, iar
+  formularul rămâne doar suprafața de editare. Regula „un singur ecran" ține în continuare —
+  s-a schimbat care e.
 - Cotorul e un buton: se ajunge la el cu tastatura, iar fișa lui apare și la focus, nu doar la
   hover. Un raft care se citește doar cu mausul e decor.
 - **Unde:** `/shelf`, pe a șasea intrare din navigație — cea care a scris „Tracker" opt
   sprinturi fără ca vreun story să livreze ceva cu numele ăsta (§D32).
+
+---
+
+## Sprint 9 — Fișa cărții
+
+**Din afara planului inițial.** Primul story cerut după ce cele opt sprinturi erau livrate, și
+primul care depinde de MCP ca să-și țină promisiunea: descrierea nu vine de la bookcsi.
+
+### S9.1 — Fișa cărții, cu descriere
+Ca utilizator, vreau un ecran care să arate toate detaliile unei cărți plus o descriere a ei,
+ca să văd cartea întreagă fără să deschid formularul de editare.
+
+- **Unde:** `/books/:id`, singura rută cu parametru din aplicație — o carte e singurul lucru din
+  bookcsi care merită link direct.
+- Se ajunge acolo din toate cele cinci locuri unde apare o carte: titlul din tabel, cardul din
+  galerie, cotorul de pe raft, rândul dintr-o provocare și rândul din wishlist. Creionul de lângă
+  titlu deschide în continuare formularul (§D41) — fișa se citește, dialogul scrie.
+- Butonul „înapoi" duce **acolo de unde s-a venit**, cu numele ecranului scris pe el („Înapoi la
+  raft"). O carte deschisă dintr-un link sau după un F5 nu are de unde veni: atunci duce la
+  wishlist dacă e o carte de pe wishlist, altfel la bibliotecă. Niciodată în afara aplicației
+  (§D41 explică de ce nu e `navigate(-1)`).
+- Câmpurile lipsă nu se afișează cu liniuță — majoritatea cărților au o mână de detalii din
+  unsprezece (§D4), iar o grilă mai mult goală nu spune nimic.
+- Ștergerea de pe fișă duce înapoi la ecranul de origine, nu lasă utilizatorul pe pagina unei
+  cărți care nu mai există.
+
+### S9.2 — Descrierea o completează Claude
+Ca utilizator, vreau ca Claude să caute pe net despre ce e cartea și să-mi scrie descrierea în
+bibliotecă, ca să n-o scriu eu pentru fiecare carte.
+
+- **bookcsi nu aduce descrieri.** Nu există căutare pe web în aplicație și nu se preia descrierea
+  din Open Library — integrarea cu Claude se face **numai prin MCP** (§D40).
+- Nu există unealtă MCP nouă: descrierea e un câmp ca oricare altul, scris prin `update_book` (sau
+  dat direct la `add_book`). Descrierea uneltei îi spune modelului că poate căuta și ce ton să
+  folosească — română, persoana a treia, fără spoilere.
+- `get_book` întoarce descrierea; `search_library` **nu** — altfel o întrebare de tipul „ce cărți
+  am" ar costa un sinopsis per carte din contextul conversației (§D40).
+- Descrierea e editabilă din formular ca orice alt câmp: ce a scris Claude se poate corecta, iar
+  golirea casetei șterge coloana.
+- Nu se reține că descrierea a fost scrisă de un model. Nu există etichetă „generat de AI" și nici
+  câmp de proveniență — §D40 spune de ce.
 
 ---
 

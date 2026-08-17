@@ -6,13 +6,18 @@ import { BookTable } from "./BookTable";
 
 const QUERY: ListBooksQuery = { sort: "createdAt", order: "desc" };
 
-function renderTable(books: Book[], price?: "paid" | "estimated") {
+function renderTable(
+  books: Book[],
+  price?: "paid" | "estimated",
+  handlers: { onOpen?: () => void; onEdit?: () => void } = {},
+) {
   return renderWithQuery(
     <BookTable
       books={books}
       query={QUERY}
       onQueryChange={vi.fn()}
-      onEdit={vi.fn()}
+      onOpen={handlers.onOpen ?? vi.fn()}
+      onEdit={handlers.onEdit ?? vi.fn()}
       onDelete={vi.fn()}
       price={price}
     />,
@@ -228,5 +233,41 @@ describe("BookTable — the cover column (S1.2, filled in by Sprint 4)", () => {
 
     expect(document.querySelector("img")).toBeNull();
     expect(screen.getByText("D")).toBeInTheDocument();
+  });
+});
+
+/**
+ * §D41 — the row has two ways in and they stopped meaning the same thing when
+ * the book got a page of its own. Worth pinning down: before the profile
+ * existed the title *was* the edit button, so a regression here would look
+ * like nothing more than an old habit coming back.
+ */
+describe("BookTable — the title and the pencil (§D41)", () => {
+  it("opens the book's page from the title", async () => {
+    const onOpen = vi.fn();
+    const onEdit = vi.fn();
+    const { user } = renderTable([makeBook({ title: "Dune" })], undefined, {
+      onOpen,
+      onEdit,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Dune" }));
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
+  it("still opens the form from the pencil beside it", async () => {
+    const onOpen = vi.fn();
+    const onEdit = vi.fn();
+    const { user } = renderTable([makeBook({ title: "Dune" })], undefined, {
+      onOpen,
+      onEdit,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Editează" }));
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
   });
 });

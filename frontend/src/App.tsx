@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { RequireAuth } from "./components/RequireAuth";
 import { queryClient } from "./lib/query-client";
 import { AdminImpersonatePage } from "./pages/AdminImpersonatePage";
+import { BookProfilePage } from "./pages/BookProfilePage";
 import { BudgetPage } from "./pages/BudgetPage";
 import { ChallengePage } from "./pages/ChallengePage";
 import { ConnectorsPage } from "./pages/ConnectorsPage";
@@ -26,6 +27,10 @@ export default function App() {
               guard on the API (S0.3). */}
           <Route element={<RequireAuth />}>
             <Route path="/" element={<LibraryPage />} />
+            {/* §D40/§D41 — one book, in full. Every listing screen opens it,
+                and it is the only route here that takes a parameter: a book is
+                the one thing in the app worth linking to directly. */}
+            <Route path="/books/:id" element={<BookProfilePage />} />
             {/* S3.1 — a view of the same books, not a second collection. */}
             <Route path="/wishlist" element={<WishlistPage />} />
             {/* S5.1 — the gallery is its own screen, not a toggle over the

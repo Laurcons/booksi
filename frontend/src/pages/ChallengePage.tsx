@@ -11,12 +11,12 @@ import { useChallenge, useChallenges } from "../api/challenges";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { StatusPill } from "../components/StatusPill";
-import { BookFormDialog } from "../components/books/BookFormDialog";
 import { CoverThumb } from "../components/books/CoverThumb";
 import { StartReadingDialog } from "../components/books/StartReadingDialog";
 import { ChallengeEditDialog } from "../components/challenges/ChallengeEditDialog";
 import { CreateChallengeDialog } from "../components/challenges/CreateChallengeDialog";
 import { FinishChallengeBookDialog } from "../components/challenges/FinishChallengeBookDialog";
+import { useOpenBook } from "../lib/book-origin";
 import { plural } from "../lib/plural";
 import { NEXT_STATUS, NEXT_STATUS_LABEL } from "../lib/status";
 import { spineColor, spineHeight, spineWidth } from "../lib/shelf";
@@ -53,7 +53,7 @@ export function ChallengePage() {
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [viewingBook, setViewingBook] = useState<Book | null>(null);
+  const openBook = useOpenBook("provocare");
 
   if (listPending) {
     return (
@@ -165,13 +165,13 @@ export function ChallengePage() {
         </Note>
       ) : (
         <>
-          <ChallengeShelf books={challenge.books} onOpen={setViewingBook} />
+          <ChallengeShelf books={challenge.books} onOpen={openBook} />
 
           <div>
             <p className="mb-3 text-sm text-ink-3">{plural(total, "carte", "cărți")} în provocare</p>
             <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface-1">
               {challenge.books.map((b) => (
-                <ChallengeBookRow key={b.id} book={b} onOpen={() => setViewingBook(b)} />
+                <ChallengeBookRow key={b.id} book={b} onOpen={() => openBook(b)} />
               ))}
             </div>
           </div>
@@ -186,9 +186,6 @@ export function ChallengePage() {
         />
       )}
 
-      {viewingBook && (
-        <BookFormDialog book={viewingBook} onClose={() => setViewingBook(null)} />
-      )}
     </Page>
   );
 }
@@ -578,7 +575,7 @@ function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) 
 /**
  * The bespoke, challenge-only control from the design conversation: editing
  * the current page directly in the row, rather than through
- * `BookFormDialog`'s full edit form (which stays reachable too, via the
+ * the book's own page (which stays one click away, via the
  * title/spine — this is the quick path for the one field a challenge asks
  * you to touch most often).
  */

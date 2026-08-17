@@ -134,6 +134,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       // A trimmed row per book, not the full `Book` — this tool answers "which
       // ones", and every extra field is context spent for nothing the model
       // asked (docs/MCP.md §8). `get_book` is where the detail lives.
+      //
+      // `description` is the field that makes this rule bite rather than merely
+      // tidy (§D40): it is prose, up to 5000 characters of it, and a library
+      // that answered "ce cărți am" with one per book would spend more context
+      // on synopses nobody asked for than on the answer.
       return textResult(
         results.map((book) => ({
           id: book.id,
@@ -154,8 +159,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       title: "Detaliile unei cărți",
       description:
         "Apelează când utilizatorul întreabă despre o carte anume și îi știi deja id-ul — de obicei " +
-        "din răspunsul lui search_library. NU e o unealtă de căutare: cu un titlu sau un ISBN, dar " +
-        "fără id, folosește search_library mai întâi.",
+        "din răspunsul lui search_library. Întoarce toate câmpurile, inclusiv descrierea, dacă are " +
+        "una. NU e o unealtă de căutare: cu un titlu sau un ISBN, dar fără id, folosește " +
+        "search_library mai întâi.",
       inputSchema: {
         id: z.string().min(1).describe("Id-ul cărții, așa cum apare în search_library."),
       },
@@ -175,8 +181,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       title: "Adaugă o carte",
       description:
         "Apelează când utilizatorul cere explicit să adauge o carte în bibliotecă — doar titlul e " +
-        "obligatoriu. NU o folosi doar pentru că a fost menționată o carte în conversație; adaugă " +
-        "numai la o cerere clară de tipul „adaugă X” sau „pune X pe wishlist”.",
+        "obligatoriu, dar poți completa și description (un rezumat scris de tine) dacă ți se cere. " +
+        "NU o folosi doar pentru că a fost menționată o carte în conversație; adaugă numai la o " +
+        "cerere clară de tipul „adaugă X” sau „pune X pe wishlist”.",
       inputSchema: createBookSchema,
     },
     async (args) => {
@@ -198,8 +205,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       description:
         "Apelează pentru orice schimbare pe o carte existentă, inclusiv statusul și progresul de " +
         "citire (pagesRead) — nu există o unealtă separată pentru „am mai citit din ea” sau „am " +
-        "terminat-o”, e tot update_book. Trimite doar câmpurile care se schimbă; restul rămân neatinse. " +
-        "Ai nevoie de id, din search_library sau get_book.",
+        "terminat-o”, e tot update_book. Tot aici se scrie și descrierea cărții (description): " +
+        "dacă utilizatorul îți cere să-i completezi descrierea, caută despre ce e cartea și scrie " +
+        "un rezumat în română, la persoana a treia, fără spoilere — bookcsi nu aduce singur " +
+        "descrieri de nicăieri, tu ești sursa. Trimite doar câmpurile care se schimbă; restul rămân " +
+        "neatinse. Ai nevoie de id, din search_library sau get_book.",
       inputSchema: { id: z.string().min(1).describe("Id-ul cărții."), ...updateBookSchema.shape },
     },
     async (args) => {

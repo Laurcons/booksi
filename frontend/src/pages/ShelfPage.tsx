@@ -1,10 +1,10 @@
 import { useState } from "react";
-import type { Book, ListBooksQuery, Status } from "@bookcsi/shared";
+import type { ListBooksQuery, Status } from "@bookcsi/shared";
 import { useBooks } from "../api/books";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { Shelf } from "../components/Shelf";
-import { BookFormDialog } from "../components/books/BookFormDialog";
+import { useOpenBook } from "../lib/book-origin";
 import { plural } from "../lib/plural";
 import { SHELF_ORDERS, type ShelfOrder } from "../lib/shelf";
 
@@ -35,7 +35,7 @@ function queryFor(order: ShelfOrder): ListBooksQuery {
 
 export function ShelfPage() {
   const [order, setOrder] = useState<ShelfOrder>("purchased");
-  const [editing, setEditing] = useState<Book | null>(null);
+  const openBook = useOpenBook("raft");
 
   const { data: books, isPending, isError, error, refetch } = useBooks(
     queryFor(order),
@@ -75,7 +75,7 @@ export function ShelfPage() {
               {plural(books.length, "carte", "cărți")} pe raft
             </p>
 
-            <Shelf books={books} onOpen={setEditing} />
+            <Shelf books={books} onOpen={openBook} />
           </>
         )}
 
@@ -85,12 +85,6 @@ export function ShelfPage() {
         {books && books.length === 0 && <EmptyShelf />}
       </main>
 
-      {/* Same dialog the gallery opens on a card (S5.1): "the book's details"
-          is one screen in this app, and a second one would be a second place to
-          keep the fields in step. */}
-      {editing !== null && (
-        <BookFormDialog book={editing} onClose={() => setEditing(null)} />
-      )}
     </div>
   );
 }

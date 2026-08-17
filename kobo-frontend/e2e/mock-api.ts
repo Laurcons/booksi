@@ -80,6 +80,7 @@ export function createMockApi(): Express {
       publicationYear: null,
       volume: null,
       format: null,
+      description: null,
       status: "WISHLIST",
       favorite: false,
       pagesRead: 0,

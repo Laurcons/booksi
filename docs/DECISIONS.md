@@ -670,6 +670,64 @@ turistice, atlase · `HISTORY` → Istorie · `RELIGION` → Religie · `PHILOSO
 personală · `LIFESTYLE_SPORT_LEISURE` → Lifestyle, sport, timp liber · `ROMANIA` → România ·
 `EDUCATIONAL_SOFTWARE` → Soft educațional
 
+### D40 — Cartea capătă o descriere, iar sursa ei e Claude prin MCP, nu bookcsi
+
+Cererea are două jumătăți care se citesc ca una singură: „o fișă a cărții (toate detaliile plus
+descrierea ei)" și „aș vrea ca Claudiu să poată să ia descrierile de pe net și să mi le adauge".
+A doua e cea care decide arhitectura.
+
+**Decizie: `Book` primește o coloană `description` (TEXT, plafonată la 5000 de caractere), și
+atât.** Nicio integrare de căutare pe web în bookcsi, niciun scraper, nicio preluare automată
+din Open Library. Coloana e text obișnuit, editabil de utilizator — iar asistentul care o
+completează o scrie prin `update_book`, unealta MCP care exista deja. Modelul are deja acces la
+web de partea lui; bookcsi n-are ce adăuga acolo decât o a doua sursă de bug-uri și o cheie de
+API în plus.
+
+Consecința care merită spusă: **nu se reține de unde a venit o descriere.** Nici `descriptionSource`,
+nici o marcă „scris de AI". Ar fi un câmp pe care nimic din aplicație nu-l citește, și ar sugera
+o distincție care nu există — o descriere scrisă de Claude și corectată apoi de utilizator în
+formular n-ar mai avea un răspuns adevărat.
+
+**Plafonul de 5000 de caractere e o decizie despre MCP, nu despre baza de date.** Coloana e TEXT
+(64KB); limita e în `createBookSchema`. Motivul e `get_book`, care întoarce cartea întreagă unui
+model: o coloană nemărginită ar fi un câmp prin care o carte poate consuma oricât din contextul
+conversației. Din același motiv `search_library` **nu** întoarce descrierea — rândul lui rămâne
+cel subțire de la §MCP.md §8, fiindcă „ce cărți am" nu e o întrebare la care se răspunde cu
+douăzeci de sinopsisuri.
+
+Descrierea nu apare nici pe Kobo deocamdată. Ecranul e e-ink și nu are voie să scroleze
+(`kobo_design.md`), iar un text de lungime arbitrară e exact problema pe care regula aia o
+interzice — e o decizie de design proprie, nu o consecință a acesteia.
+
+### D41 — Cartea capătă un ecran propriu, iar „înapoi" ține minte de unde s-a venit
+
+§S8.2 spunea că „detaliile cărții sunt un singur ecran în aplicație", iar acel ecran era
+`BookFormDialog`. Descrierea din §D40 rupe asumpția: un sinopsis de câteva paragrafe într-un
+`<textarea>`, între ISBN și numărul de pagini, e text pe care trebuie să intri în modul de
+editare ca să-l citești.
+
+**Decizie: `/books/:id` devine ecranul de citit, iar dialogul rămâne ecranul de scris.** Titlul
+dintr-un rând, cardul din galerie, cotorul de pe raft și rândul dintr-o provocare duc toate
+acolo; creionul de lângă titlu deschide în continuare formularul, iar de pe fișă se ajunge la el
+cu un buton. Împărțirea e pe ce faci, nu pe ce vezi — înainte de fișă cele două erau
+obligatoriu același click, fiindcă nu exista un al doilea loc unde să te duci.
+
+**Butonul „înapoi" nu e `navigate(-1)`.** O carte se deschide din cinci ecrane și din niciunul:
+un link lipit în chat, un bookmark, un F5 pe fișa însăși. `navigate(-1)` merge prin istoricul
+browserului, nu prin structura aplicației, deci exact cazurile fără intrare de istoric —
+linkul rece și reîncărcarea — scot utilizatorul din bookcsi. Și nu se poate eticheta: un buton
+care nu știe unde merge poate desena doar o săgeată.
+
+Așa că **originea călătorește cu navigarea**, în `state`-ul intrării de istoric: ecranul care
+deschide cartea își scrie acolo calea și numele („galerie", „raft", „provocare"). Supraviețuiește
+unui reload, fiindcă browserul persistă `history.state`, și e ceea ce transformă „←" în „← Înapoi
+la raft". Când nu există stare — sosirea cu adevărat rece — se cade pe ecranul căruia îi
+aparține cartea: wishlist pentru o carte de pe wishlist, biblioteca pentru restul.
+
+Starea e **parsată, nu presupusă**. E scriabilă din consolă și poate supraviețui formei care a
+scris-o, iar o cale absolută în spatele unui buton scris „înapoi" e un open redirect cu o vorbă
+prietenoasă pe el — aceeași regulă pe care `return-to.ts` o aplică deja căii de după login.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

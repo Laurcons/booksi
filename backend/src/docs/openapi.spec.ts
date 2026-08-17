@@ -145,6 +145,10 @@ describe("OpenAPI document", () => {
     it("accepts the fields Sprints 1 to 5 own", () => {
       expect(Object.keys(schema().properties ?? {}).sort()).toEqual([
         "author",
+        // §D40 — writable like any other field, and writable by *anyone* who
+        // holds the route: the MCP assistant that fills it in is an ordinary
+        // client of this schema, not a special case with a route of its own.
+        "description",
         "estimatedPrice",
         // S5.2 — writable from the sprint that owns it, and through this route
         // rather than one of its own (§D30).

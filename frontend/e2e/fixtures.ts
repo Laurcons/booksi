@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { test as base, expect } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 
 /**
  * The seam between the Playwright suite and a running system.
@@ -60,5 +60,18 @@ export const test = base.extend<{ seed: Seed }>({
     await use(seed);
   },
 });
+
+/**
+ * Open a book's edit form by name, from wherever the book is listed.
+ *
+ * Two clicks rather than one since §D40: the title opens the book's page, and
+ * the form is a button on it. Worth a helper rather than two lines repeated
+ * across the suite — these tests are about covers and prices, and the route to
+ * the form is incidental to every one of them.
+ */
+export async function openEditForm(page: Page, title: string): Promise<void> {
+  await page.getByRole("button", { name: title }).click();
+  await page.getByRole("button", { name: "Editează" }).click();
+}
 
 export { expect };

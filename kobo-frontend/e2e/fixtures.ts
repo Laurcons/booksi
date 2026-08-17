@@ -18,6 +18,8 @@ function book(overrides: Partial<Book> & Pick<Book, "id" | "title">): Book {
     publicationYear: null,
     volume: null,
     format: null,
+    // §D40 — the column exists on every book; the Kobo does not draw it yet.
+    description: null,
     status: "READING",
     favorite: false,
     pagesRead: 0,

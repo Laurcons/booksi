@@ -26,7 +26,8 @@ import { StatusPill } from "./StatusPill";
  * the prototype's `<div className="cursor-pointer">` had no click handler, no
  * tab stop and a hover card that a touch screen could never summon — a shelf
  * you can only read with a mouse is decoration. The card now answers to focus
- * as well as hover, and `Enter` opens the same dialog the gallery does.
+ * as well as hover, and `Enter` opens the book's own page, the same screen a
+ * gallery card opens (§D40).
  */
 export function Shelf({
   books,

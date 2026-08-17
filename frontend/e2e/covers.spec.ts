@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures.js";
+import { expect, openEditForm, test } from "./fixtures.js";
 
 /**
  * S4.3's resize, which only a real browser can execute.
@@ -31,7 +31,7 @@ test.describe("uploading a cover (S4.3)", () => {
 
     // Any book will do; the upload lives in the edit dialog because the route
     // addresses a book by id.
-    await page.getByRole("button", { name: "Dune" }).click();
+    await openEditForm(page, "Dune");
 
     await page.getByLabel(/Încarcă o imagine/).setInputFiles({
       name: "poza.png",
@@ -62,7 +62,7 @@ test.describe("uploading a cover (S4.3)", () => {
     seed: _seed,
   }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Dune" }).click();
+    await openEditForm(page, "Dune");
 
     await page.getByLabel(/Încarcă o imagine/).setInputFiles({
       name: "poza.png",

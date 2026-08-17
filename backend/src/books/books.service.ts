@@ -40,6 +40,7 @@ type BookWriteData = {
   publicationYear?: number | null;
   volume?: number | null;
   format?: string | null;
+  description?: string | null;
   olEditionKey?: string | null;
   status?: Status;
   favorite?: boolean;
@@ -381,6 +382,7 @@ function writeData(input: BookWriteInput): BookWriteData {
     publicationYear: input.publicationYear,
     volume: input.volume,
     format: input.format,
+    description: input.description,
     olEditionKey: input.olEditionKey,
     status: input.status,
     favorite: input.favorite,
@@ -425,6 +427,7 @@ function toBook(row: BookRowWithCover): Book {
     publicationYear: row.publicationYear,
     volume: row.volume,
     format: row.format,
+    description: row.description,
 
     status: row.status,
     favorite: row.favorite,

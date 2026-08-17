@@ -98,6 +98,15 @@ model Book {
   format          String? // free-text dimensions, e.g. "13x20 cm"
   olEditionKey    String?
 
+  /// §D40 — what the book is about, in prose. `TEXT` rather than a `VARCHAR`
+  /// because this is the one column on the row that is paragraphs rather than
+  /// a value; the schema caps it at 5000 characters, well inside TEXT's 64KB.
+  ///
+  /// Never fetched by bookcsi itself. It is typed by the user or written by an
+  /// assistant through `update_book` over MCP — the integration the card asks
+  /// for, and the only one (docs/MCP.md §1).
+  description String? @db.Text
+
   // state (user-input)
   status    Status  @default(WISHLIST)
   favorite  Boolean @default(false)

@@ -10,6 +10,7 @@ import { BookFormDialog } from "../components/books/BookFormDialog";
 import { BookTable } from "../components/books/BookTable";
 import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
 import { EmptyLibrary } from "../components/books/EmptyLibrary";
+import { useOpenBook } from "../lib/book-origin";
 import { plural } from "../lib/plural";
 
 /**
@@ -38,6 +39,7 @@ export function LibraryPage() {
     order: "desc",
   });
   const [dialog, setDialog] = useState<Dialog>(null);
+  const openBook = useOpenBook("bibliotecă");
 
   const { data: books, isPending, isError, error, refetch } = useBooks(query);
 
@@ -71,6 +73,7 @@ export function LibraryPage() {
               books={books}
               query={query}
               onQueryChange={setQuery}
+              onOpen={openBook}
               onEdit={(book) => setDialog({ kind: "edit", book })}
               onDelete={(book) => setDialog({ kind: "delete", book })}
             />

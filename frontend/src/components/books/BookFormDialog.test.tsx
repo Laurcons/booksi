@@ -259,3 +259,55 @@ describe("BookFormDialog — creating with Sprint 2 fields", () => {
     );
   });
 });
+
+/**
+ * §D40 — the description is the one prose field on the form, and the one an
+ * assistant is expected to have written before the user ever opens this
+ * dialog. So what matters here is that editing does not disturb it: a form
+ * that sent the field on every save would overwrite a synopsis whenever
+ * someone came in to fix the page count.
+ */
+describe("BookFormDialog — description (§D40)", () => {
+  it("sends what was typed", async () => {
+    const { calls, user } = renderForm(makeBook());
+
+    await user.type(screen.getByLabelText(/Descriere/), "Despre Arrakis.");
+    await user.click(save());
+
+    await waitFor(() =>
+      expect(lastWrite(calls)).toEqual({ description: "Despre Arrakis." }),
+    );
+  });
+
+  it("shows the one already on the book", () => {
+    renderForm(makeBook({ description: "Scrisă de Claude." }));
+
+    expect(screen.getByLabelText(/Descriere/)).toHaveValue("Scrisă de Claude.");
+  });
+
+  it("leaves an untouched description out of the payload entirely", async () => {
+    const { calls, user } = renderForm(makeBook({ description: "Scrisă de Claude." }));
+
+    const pages = screen.getByLabelText(/Pagina la care am ajuns/);
+    await user.clear(pages);
+    await user.type(pages, "300");
+    await user.click(save());
+
+    // Not `description: "Scrisă de Claude."` sent back unchanged, and above all
+    // not `null`: only what the user actually edited travels (`onlyDirty`).
+    await waitFor(() => expect(lastWrite(calls)).toEqual({ pagesRead: 300 }));
+  });
+
+  it("clears it when the textarea is emptied", async () => {
+    const { calls, user } = renderForm(makeBook({ description: "Scrisă de Claude." }));
+
+    await user.clear(screen.getByLabelText(/Descriere/));
+    await user.click(save());
+
+    // `null`, not `""` — and the form owns no rule of its own that says so:
+    // the payload is piped through `createBookSchema`, the same `nullableText`
+    // the API validates with, so an emptied box becomes a cleared column on
+    // both sides by construction.
+    await waitFor(() => expect(lastWrite(calls)).toEqual({ description: null }));
+  });
+});

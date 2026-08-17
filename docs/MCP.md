@@ -236,10 +236,10 @@ REST-ul.
 
 | Unealtă | Serviciu |
 |---|---|
-| `search_library` | `BooksService.list` — filtre pe status, gen, favorite, text |
-| `get_book` | `BooksService.findOne` |
+| `search_library` | `BooksService.list` — filtre pe status, gen, favorite, text; rând subțire, **fără** `description` |
+| `get_book` | `BooksService.findOne` — cartea întreagă, inclusiv `description` |
 | `add_book` | `BooksService.create` |
-| `update_book` | `BooksService.update` — inclusiv status și progres |
+| `update_book` | `BooksService.update` — inclusiv status, progres și `description` (§D40) |
 | `delete_book` | `BooksService.remove` |
 | `get_reading_stats` | `StatsService` |
 | `get_budget` | `BudgetService` |
@@ -262,6 +262,12 @@ acum" e măsurabil mai bună decât „Listează cărți", fiindcă modelul aleg
 Fiecare unealtă spune și ce **nu** face, ca să nu fie aleasă în locul vecinei. Răspunsurile
 conțin câmpurile necesare răspunsului, nu rândul întreg — fiecare câmp în plus e context
 consumat degeaba.
+
+**`description` e cazul în care regula de mai sus chiar contează** (§D40). E proză, până la 5000
+de caractere, și e singurul câmp al cărții care poate fi mai lung decât tot restul rândului la un
+loc — deci `get_book` o întoarce, iar `search_library` n-o întoarce. Tot §D40: descrierea nu se
+aduce de nicăieri de către bookcsi. Modelul e sursa, `update_book` e drumul, iar descrierea acelei
+unelte îi spune explicit că poate căuta despre carte și în ce ton să scrie.
 
 ---
 

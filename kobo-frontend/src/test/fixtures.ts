@@ -13,6 +13,10 @@ export function makeBook(overrides: Partial<Book> = {}): Book {
     publicationYear: null,
     volume: null,
     format: null,
+    // §D40 — carried because `Book` has the column, not because the Kobo shows
+    // it: the description is a web-only surface for now, and an e-ink screen
+    // that must not scroll (kobo_design.md) is its own design problem.
+    description: null,
     status: "READING",
     favorite: false,
     pagesRead: 143,

@@ -125,6 +125,7 @@ export const bookSchema = z.object({
   publicationYear: z.number().int().nullable(),
   volume: z.number().int().nullable(),
   format: z.string().nullable(),
+  description: z.string().nullable(),
 
   status: statusSchema,
   favorite: z.boolean(),
@@ -189,6 +190,25 @@ export const createBookSchema = z.strictObject({
     .optional(),
   volume: z.number().int().positive().max(999).nullable().optional(),
   format: nullableText(100).optional(),
+
+  /**
+   * §D40 — the book's own text: what it is about, in prose rather than in
+   * fields.
+   *
+   * The one thing on this schema bookcsi will not go and fetch for itself.
+   * Open Library publishes descriptions and the service that talks to it is
+   * already here, but the feature was asked for the other way round — an
+   * assistant reads the net and writes the result in through `update_book`
+   * (docs/MCP.md), and bookcsi keeps no scraper of its own. The column is
+   * therefore ordinary user-editable text with no special provenance, which
+   * is also why nothing here records where a description came from.
+   *
+   * 5000 characters: several paragraphs, which is what a synopsis runs to,
+   * and small enough that `get_book` returning one whole does not blow up a
+   * model's context the way an unbounded column could.
+   */
+  description: nullableText(5000).optional(),
+
   status: statusSchema.optional(),
 
   /**

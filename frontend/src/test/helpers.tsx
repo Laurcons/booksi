@@ -140,6 +140,9 @@ export function makeBook(overrides: Partial<Book> = {}): Book {
     publicationYear: null,
     volume: null,
     format: null,
+    // §D40 — most books have none, which is what the profile's empty state is
+    // written for.
+    description: null,
     status: "READING",
     favorite: false,
     pagesRead: 143,

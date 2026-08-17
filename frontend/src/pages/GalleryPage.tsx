@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Book, ListBooksQuery } from "@bookcsi/shared";
+import type { ListBooksQuery } from "@bookcsi/shared";
 import { useBooks } from "../api/books";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
@@ -7,6 +7,7 @@ import { BookCard } from "../components/books/BookCard";
 import { BookFormDialog } from "../components/books/BookFormDialog";
 import { EmptyLibrary } from "../components/books/EmptyLibrary";
 import { GalleryFilters } from "../components/books/GalleryFilters";
+import { useOpenBook } from "../lib/book-origin";
 import { isFiltered } from "../lib/filters";
 import { plural } from "../lib/plural";
 
@@ -21,20 +22,24 @@ import { plural } from "../lib/plural";
  * No sort control here. S1.2 owns "the table is sortable", S5.1 and S5.3 never
  * ask for it, and the default order (newest first) is the library's own.
  */
-type Dialog = { kind: "add" } | { kind: "edit"; book: Book } | null;
-
 const INITIAL_QUERY: ListBooksQuery = { sort: "createdAt", order: "desc" };
 
 export function GalleryPage() {
   const [query, setQuery] = useState<ListBooksQuery>(INITIAL_QUERY);
-  const [dialog, setDialog] = useState<Dialog>(null);
+  /**
+   * Only "add" is left here. A card used to open the edit form, because that
+   * form was the only thing "the book's details" could mean; since §D40 a card
+   * opens the book's page instead, and editing is a button on that page.
+   */
+  const [adding, setAdding] = useState(false);
+  const openBook = useOpenBook("galerie");
 
   const { data: books, isPending, isError, error, refetch } = useBooks(query);
   const filtering = isFiltered(query);
 
   return (
     <div className="min-h-dvh">
-      <Header onAddBook={() => setDialog({ kind: "add" })} />
+      <Header onAddBook={() => setAdding(true)} />
 
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <div>
@@ -70,10 +75,7 @@ export function GalleryPage() {
             <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
               {books.map((book) => (
                 <li key={book.id}>
-                  <BookCard
-                    book={book}
-                    onOpen={() => setDialog({ kind: "edit", book })}
-                  />
+                  <BookCard book={book} onOpen={() => openBook(book)} />
                 </li>
               ))}
             </ul>
@@ -84,7 +86,7 @@ export function GalleryPage() {
             an empty library needs a first book, an empty *filter* needs its
             filters back (§D29). */}
         {books && books.length === 0 && !filtering && (
-          <EmptyLibrary onAdd={() => setDialog({ kind: "add" })} />
+          <EmptyLibrary onAdd={() => setAdding(true)} />
         )}
 
         {books && books.length === 0 && filtering && (
@@ -92,10 +94,7 @@ export function GalleryPage() {
         )}
       </main>
 
-      {dialog?.kind === "add" && <BookFormDialog onClose={() => setDialog(null)} />}
-      {dialog?.kind === "edit" && (
-        <BookFormDialog book={dialog.book} onClose={() => setDialog(null)} />
-      )}
+      {adding && <BookFormDialog onClose={() => setAdding(false)} />}
     </div>
   );
 }

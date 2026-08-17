@@ -86,6 +86,26 @@ export function useBooks(query: ListBooksQuery) {
   });
 }
 
+/**
+ * §D40 — one book, for the profile screen.
+ *
+ * A request of its own rather than a lookup in whatever list happens to be
+ * cached, because the profile is reachable without a list ever having loaded:
+ * a pasted link, a bookmark, a reload. Keyed under `BOOKS_KEY` so the ordinary
+ * invalidation after a write refreshes it along with everything else.
+ *
+ * `retry: false` for the same reason the ISBN lookup has it — a 404 here is
+ * the answer (the book was deleted, or the id is somebody else's), and
+ * re-asking three times only delays saying so.
+ */
+export function useBook(id: string) {
+  return useQuery({
+    queryKey: [...BOOKS_KEY, "one", id] as const,
+    queryFn: () => apiFetch<Book>(`/books/${id}`),
+    retry: false,
+  });
+}
+
 /** S3.3 — the total and the coverage that qualifies it, both from the server. */
 export function useWishlistSummary() {
   return useQuery({
@@ -143,7 +163,17 @@ export function useDeleteBook() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch<void>(`/books/${id}`, { method: "DELETE" }),
-    onSuccess: () => invalidateBookData(queryClient),
+    onSuccess: (_result, id) => {
+      /**
+       * Dropped, not invalidated. `useBook` caches under the same `BOOKS_KEY`
+       * prefix as the lists, so the blanket invalidation below would mark the
+       * deleted book's own entry stale and refetch it — one guaranteed 404 per
+       * deletion, from a screen that has already navigated away (§D41). There
+       * is nothing to refresh: the row is gone.
+       */
+      queryClient.removeQueries({ queryKey: [...BOOKS_KEY, "one", id] });
+      invalidateBookData(queryClient);
+    },
   });
 }
 

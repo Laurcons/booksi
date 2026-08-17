@@ -224,6 +224,26 @@ să navighezi nu mai e „la deschiderea aplicației".
 - **Sub `xl` nu există tabel**, ci fișe cu același conținut (§D34). Nouă coloane pe un telefon
   înseamnă scroll orizontal peste status și peste toate acțiunile.
 
+### Fișa cărții (S9.1)
+
+Două coloane peste `sm`: coperta la 2:3 în stânga, la lățime fixă, restul în dreapta. Sub `sm`
+se suprapun, coperta prima — e cel mai rapid mod de a confirma că ai deschis cartea la care te
+gândeai.
+
+- **Descrierea e corpul paginii, nu un rând în grilă.** `max-w-prose`, `leading-relaxed`,
+  `whitespace-pre-line` ca paragrafele scrise de un model să supraviețuiască. Un sinopsis e
+  singurul text din aplicație care se citește, nu se scanează, și se aliniază la aceleași reguli
+  ca proza de oriunde altundeva.
+- **Detaliile absente nu se desenează.** Fără liniuțe, fără rânduri goale: majoritatea cărților
+  au trei-patru din unsprezece câmpuri (§D4), iar o grilă cu opt „—" arată ca o pagină stricată,
+  nu ca o carte despre care se știe puțin.
+- **Butonul „înapoi" își spune destinația** — „Înapoi la raft", nu o săgeată singură. E un
+  `<a>`, nu un `<button>`: duce la o cale reală, deci middle-click și „copy link" trebuie să
+  meargă (§D41).
+- Starea goală a descrierii e singurul loc din interfață care spune că Claude poate scrie în
+  bibliotecă. Nu e decor: nu există buton care s-o completeze, fiindcă bookcsi nu aduce descrieri
+  (§D40) — deci golul e locul unde se explică cine poate.
+
 ### Meniul pe ecran îngust
 
 Sub `md`, navigația e un **sertar** deschis din hamburger, nu o bară de taburi jos și nu o

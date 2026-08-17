@@ -7,6 +7,7 @@ import { BookFormDialog } from "../components/books/BookFormDialog";
 import { BookTable } from "../components/books/BookTable";
 import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
 import { WishlistTotal } from "../components/books/WishlistTotal";
+import { useOpenBook } from "../lib/book-origin";
 
 /**
  * Sprint 3 — the wishlist.
@@ -32,6 +33,7 @@ export function WishlistPage() {
     order: "desc",
   });
   const [dialog, setDialog] = useState<Dialog>(null);
+  const openBook = useOpenBook("wishlist");
 
   // The filter is not part of the sort state: it is what this page *is*, and
   // a header click must not be able to drop it. A one-element list since S5.3
@@ -81,6 +83,7 @@ export function WishlistPage() {
               books={books.data}
               query={query}
               onQueryChange={({ sort, order }) => setSort({ sort, order })}
+              onOpen={openBook}
               onEdit={(book) => setDialog({ kind: "edit", book })}
               onDelete={(book) => setDialog({ kind: "delete", book })}
               price="estimated"

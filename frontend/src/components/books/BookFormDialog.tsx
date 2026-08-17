@@ -53,6 +53,7 @@ const bookFormSchema = z
     publicationYear: z.string(),
     volume: z.string(),
     format: z.string(),
+    description: z.string(),
     status: statusSchema,
     pagesRead: z.string(),
     rating: z.union([z.enum(["1", "2", "3", "4", "5"]), z.literal("")]),
@@ -75,6 +76,9 @@ const bookFormSchema = z
       values.publicationYear.trim() === "" ? null : Number(values.publicationYear),
     volume: values.volume.trim() === "" ? null : Number(values.volume),
     format: values.format,
+    // §D40 — plain text either way; `nullableText` on the API side is what
+    // turns a textarea the user emptied back into a NULL column.
+    description: values.description,
     status: values.status,
     // S2.1. Blank is 0, not null: the column has no null to store, and "I
     // haven't opened it yet" is genuinely page zero.
@@ -147,6 +151,7 @@ const EMPTY: BookFormValues = {
   publicationYear: "",
   volume: "",
   format: "",
+  description: "",
   status: "WISHLIST",
   pagesRead: "",
   rating: "",
@@ -465,6 +470,25 @@ export function BookFormDialog({
             <input {...register("format")} className={INPUT} autoComplete="off" />
           </Field>
 
+          {/* §D40 — the only field here that is prose rather than a value, so
+              it spans the grid and gets room to be read while it is written.
+              The hint says where else it can come from: bookcsi fetches no
+              descriptions itself, and an assistant connected over MCP writing
+              this field is the feature, not a workaround. */}
+          <Field
+            className="sm:col-span-2"
+            label="Descriere"
+            error={errors.description}
+            hint="Opțional — o poate completa și Claude"
+          >
+            <textarea
+              {...register("description")}
+              rows={5}
+              className={`${INPUT} resize-y leading-relaxed`}
+              placeholder="Despre ce e cartea…"
+            />
+          </Field>
+
           {/* The duplicate warning comes first, and it comes first on screen
               too: S4.2's fill is the convenience, this is the answer. */}
           {duplicates.data && duplicates.data.length > 0 && (
@@ -737,6 +761,7 @@ function toFormValues(book: Book): BookFormValues {
     publicationYear: book.publicationYear === null ? "" : String(book.publicationYear),
     volume: book.volume === null ? "" : String(book.volume),
     format: book.format ?? "",
+    description: book.description ?? "",
     status: book.status,
     // Page zero shows as an empty box rather than a literal "0", so the field
     // reads as "nothing recorded yet" instead of as a measurement.

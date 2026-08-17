@@ -164,6 +164,7 @@ model Book {
   volume          Int?
   format          String? // free-text dimensions, e.g. "13x20 cm"
   olEditionKey    String?
+  description     String? @db.Text // §D40 — prose; scris de utilizator sau de Claude prin MCP
 
   // state (user-input)
   status    Status  @default(WISHLIST)
@@ -336,6 +337,23 @@ Două capcane, ambele în parsarea unui query string:
 (§D30), fără rută dedicată.
 
 ---
+
+## Fișa cărții (Sprint 9)
+
+`/books/:id` e singura rută cu parametru din frontend, și nu are o rută de API a ei: citește
+`GET /books/:id`, care exista de la Sprint 1. Ce e nou pe server e o singură coloană,
+`description` (§D40) — restul fișei desenează câmpuri care erau deja acolo.
+
+**Originea navigării stă în `history.state`**, nu în URL și nu într-un store. Fiecare ecran care
+deschide o carte scrie acolo `{ to, label }` prin `useOpenBook` (`frontend/src/lib/book-origin.ts`),
+iar fișa citește cu `useBookOrigin`. `history.state` supraviețuiește unui reload, ceea ce e exact
+proprietatea de care butonul „înapoi" are nevoie; în schimb nu supraviețuiește unui link rece, și
+atunci se cade pe ecranul cărui îi aparține cartea. Starea e validată la citire (cale internă,
+etichetă nevidă) — vezi §D41.
+
+**MCP nu capătă nicio unealtă nouă.** `description` intră în `createBookSchema`/`updateBookSchema`,
+deci `add_book` și `update_book` o scriu fără cod nou; `get_book` o întoarce, iar rândul subțire
+al lui `search_library` o omite deliberat (§D40, MCP.md §8).
 
 ## Erori (§D27)
 

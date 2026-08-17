@@ -10,9 +10,18 @@ import { Modal } from "../Modal";
 export function DeleteBookDialog({
   book,
   onClose,
+  onDeleted,
 }: {
   book: Book;
   onClose: () => void;
+  /**
+   * What to do once the book is actually gone, for callers that need to tell
+   * the two endings apart. A listing does not: cancelling and deleting both
+   * end with the dialog closing over a list that refetches itself. The book's
+   * own page does — it cannot stay on a profile whose book no longer exists,
+   * so it navigates away instead of closing (§D41).
+   */
+  onDeleted?: () => void;
 }) {
   const remove = useDeleteBook();
 
@@ -43,7 +52,9 @@ export function DeleteBookDialog({
         <button
           type="button"
           disabled={remove.isPending}
-          onClick={() => remove.mutate(book.id, { onSuccess: onClose })}
+          onClick={() =>
+            remove.mutate(book.id, { onSuccess: onDeleted ?? onClose })
+          }
           className="rounded-lg border border-status-abandoned/40 px-4 py-2 text-sm font-medium text-ink-2 transition-colors duration-150 hover:border-status-abandoned hover:text-ink disabled:opacity-60"
         >
           {remove.isPending ? "Se șterge…" : "Șterge definitiv"}

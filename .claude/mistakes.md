@@ -31,3 +31,61 @@ on a separate element holding the real value, not on the display input — and
 this has to be verified by actually driving it in a browser across a
 multi-field form, since unit tests that mount one component in isolation
 won't reproduce a bug that only fires on a sibling field's re-render.
+
+### Changing where a click leads breaks assertions *after* the flow, not just the click
+
+Moved the book title from "opens the edit dialog" to "opens `/books/:id`", and
+updated every e2e spec that clicked a title — via a shared `openEditForm`
+helper, so the click path itself was handled everywhere at once.
+
+One test still failed, and not at the click: `wishlist.spec.ts › follows an
+edited price` edits a price, saves, then asserts the wishlist total. Saving
+used to close a dialog and leave the user on the wishlist; now it leaves them
+on the book's page, where that locator matches nothing.
+
+**Lesson:** a navigation change has two blast radii. The obvious one is every
+call site that triggers it — easy to grep, easy to fix in one helper. The
+quiet one is every assertion that runs *after* the flow completes and assumed
+where the user would be standing. Grep for the click, then re-read what each
+of those tests does next.
+
+### Verification scripts need the same care as the code they verify
+
+The Playwright script I wrote to drive the feature in a browser had three
+faults that cost more time than the feature did:
+
+- **Not idempotent.** It deleted a book, so the second run failed on a missing
+  fixture. A driver script gets run repeatedly by definition — reseed inside
+  it, or look data up rather than assuming it.
+- **Hardcoded seeded ids.** The seed mints fresh cuids each run, so the ids
+  went stale the moment I reseeded. Look them up by title from the API.
+- **Over-literal assertions.** Compared `innerText().trim()` against
+  `"← Înapoi la galerie"` when the arrow is its own `<span>` and the DOM
+  yields `"←\nÎnapoi la galerie"`. Six false failures that looked like real
+  ones. Normalise whitespace before comparing rendered text.
+
+### Verifying late, and in one big batch, reads as being stuck
+
+Noticed by the user, not by me: "why is it taking so long?"
+
+The code was finished and green — 348 backend, 301 frontend, typecheck and
+lint clean. What followed was a long silent stretch that produced no visible
+progress, because I sat down to write a ten-check Playwright driver (five
+entry points, reload, two fallbacks, an edit round-trip, a delete) before
+running a single one of them. Then it failed three times on its own bugs —
+a stale hardcoded id, a non-idempotent delete, an over-literal string compare
+— so the first actual signal about the *feature* arrived several minutes after
+the feature was done.
+
+Compounding it: `chromium-cli` (what the `run` skill assumes) is not installed
+here, and a driver script written into the scratchpad cannot resolve
+`playwright` from `node_modules` — import it by absolute path, or run the
+script from inside the workspace.
+
+**Lesson:** get one end-to-end check running before broadening. Load the page,
+screenshot it, look at it — *then* add the other nine assertions. The first
+check is also what shakes out the harness's own bugs, and shaking them out
+against one assertion is far cheaper than against ten. When a verification
+pass will run long regardless, say so before starting it rather than going
+quiet: "code's green, now driving it in a browser, ~5 min" costs one line and
+buys the user the choice to skip it.

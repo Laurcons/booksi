@@ -56,6 +56,7 @@ export function BookTable({
   books,
   query,
   onQueryChange,
+  onOpen,
   onEdit,
   onDelete,
   price = "paid",
@@ -63,6 +64,13 @@ export function BookTable({
   books: Book[];
   query: ListBooksQuery;
   onQueryChange: (query: ListBooksQuery) => void;
+  /**
+   * §D41 — the title goes to the book's page. Separate from `onEdit` since
+   * the profile arrived: the title is the row's "tell me about this book", the
+   * pencil beside it is "let me change it", and before there was a page to
+   * read they were necessarily the same click.
+   */
+  onOpen: (book: Book) => void;
   onEdit: (book: Book) => void;
   onDelete: (book: Book) => void;
   /** Which of §D6's two prices this view is about. */
@@ -94,6 +102,7 @@ export function BookTable({
         books={books}
         query={query}
         onQueryChange={onQueryChange}
+        onOpen={onOpen}
         onEdit={onEdit}
         onDelete={onDelete}
         price={price}
@@ -163,6 +172,7 @@ export function BookTable({
               key={book.id}
               book={book}
               price={price}
+              onOpen={() => onOpen(book)}
               onEdit={() => onEdit(book)}
               onDelete={() => onDelete(book)}
             />
@@ -222,11 +232,13 @@ function useAdvance(book: Book) {
 function Row({
   book,
   price,
+  onOpen,
   onEdit,
   onDelete,
 }: {
   book: Book;
   price: PriceColumn;
+  onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -240,7 +252,7 @@ function Row({
       <Td>
         <button
           type="button"
-          onClick={onEdit}
+          onClick={onOpen}
           className="text-left font-medium text-ink transition-colors duration-150 hover:text-accent"
         >
           {book.title}
@@ -306,6 +318,7 @@ function BookCards({
   books,
   query,
   onQueryChange,
+  onOpen,
   onEdit,
   onDelete,
   price,
@@ -313,6 +326,7 @@ function BookCards({
   books: Book[];
   query: ListBooksQuery;
   onQueryChange: (query: ListBooksQuery) => void;
+  onOpen: (book: Book) => void;
   onEdit: (book: Book) => void;
   onDelete: (book: Book) => void;
   price: PriceColumn;
@@ -327,6 +341,7 @@ function BookCards({
             <BookRowCard
               book={book}
               price={price}
+              onOpen={() => onOpen(book)}
               onEdit={() => onEdit(book)}
               onDelete={() => onDelete(book)}
             />
@@ -390,11 +405,13 @@ const SORT_OPTIONS: { sort: BookSort; label: string }[] = [
 function BookRowCard({
   book,
   price,
+  onOpen,
   onEdit,
   onDelete,
 }: {
   book: Book;
   price: PriceColumn;
+  onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -409,7 +426,7 @@ function BookRowCard({
         <div className="min-w-0 flex-1">
           <button
             type="button"
-            onClick={onEdit}
+            onClick={onOpen}
             className="line-clamp-2 text-left font-medium text-ink transition-colors duration-150 hover:text-accent"
           >
             {book.title}
