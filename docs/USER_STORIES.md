@@ -477,6 +477,39 @@ n-o caut cu ochii într-un tabel de câteva sute de rânduri.
 
 ---
 
+## Sprint 11 — Scanare ISBN
+
+**Al treilea story de după livrare.** Nu adaugă nici ecran, nici rută: e o a doua cale de a
+completa un câmp care exista deja, iar tot ce urmează după el e S4.2, nemodificat.
+
+### S11.1 — Scanez codul de bare al cărții
+Ca utilizator, vreau să scanez codul de bare de pe spatele cărții, ca să nu tastez treisprezece
+cifre și să nu greșesc niciuna.
+
+- **Un buton lângă câmpul ISBN** pornește camera. Camera nu pornește la deschiderea
+  formularului, ci doar când se cere, și se stinge singură după prima citire reușită.
+- Se citește **EAN-13 cu prefix 978/979** — codul de bare al unei cărți *este* ISBN-13-ul ei,
+  deci nu se convertește nimic. Orice alt cod din cadru se ignoră: multe cărți au un **al doilea**
+  cod de bare (prețul, EAN-5), iar revistele au ISSN (§D43).
+- **Cifra de control se verifică**, spre deosebire de ISBN-ul tastat. Un cod citit greșit e un
+  eșec real și frecvent — o sclipire pe copertă și decodorul dă treisprezece cifre greșite cu
+  toată încrederea. Dacă nu trece verificarea, scanerul pur și simplu continuă să caute (§D43).
+- După citire, ISBN-ul intră în câmp **ca și cum ar fi fost tastat**, deci pornește exact fluxul
+  din S4.2: întâi avertismentul de duplicat, apoi completarea din Open Library — titlu, autor,
+  pagini, editură, an și copertă.
+- Ce a scris deja utilizatorul **nu se suprascrie** (regula lui S4.2): scanarea completează
+  golurile.
+- Dacă Open Library nu cunoaște ISBN-ul, **ISBN-ul scanat rămâne în câmp**. Codul a fost citit
+  corect; pierderea lui ar fi singurul rezultat inacceptabil al unei scanări reușite.
+- **Fiecare eșec spune ce s-a întâmplat**, în cuvinte diferite: acces refuzat, nicio cameră,
+  browser fără API de cameră, sau conexiune fără HTTPS. În toate cazurile formularul rămâne
+  complet utilizabil manual — criteriul de degradare din Sprint 4.
+- **Nu funcționează fără HTTPS** (sau pe `localhost`). Contează la testarea de pe telefon:
+  aplicația deschisă de pe o adresă din LAN, pe http, nu are cameră deloc.
+- Interfața pentru Kobo nu primește scanare: dispozitivul nu are cameră.
+
+---
+
 ## Backlog opțional (neprogramat)
 
 Story-uri utile, dar care nu blochează niciun sprint. De prioritizat când e cazul.

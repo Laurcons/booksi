@@ -485,3 +485,64 @@ export const isbnLookupSchema = z
     "Un ISBN are 10 sau 13 cifre",
   )
   .meta({ examples: ["978-0-441-01359-3"] });
+
+/**
+ * §D43 — the Bookland prefixes. An EAN-13 that starts with one of these *is* an
+ * ISBN-13; anything else on the back of a book is some other barcode.
+ */
+const BOOKLAND_PREFIXES = ["978", "979"];
+
+/**
+ * §D43 — whether thirteen digits are a well-formed ISBN-13, checksum included.
+ *
+ * **Note what this does not change.** `isbnLookupSchema` above still checks
+ * length alone, and the comment there still holds: for something a person
+ * *typed*, "we could not find it" is a truer answer than "invalid ISBN", and a
+ * transposed digit should not be met with an accusation.
+ *
+ * A camera inverts that reasoning, which is the only reason this exists. A
+ * misread barcode is a real and common failure mode — one bar clipped by glare
+ * and the decoder hands back thirteen confident, wrong digits. Nobody typed
+ * them, so there is no one to correct; and the check digit is precisely the
+ * mechanism that catches it. Failing it means "keep looking", not "you are
+ * wrong", so the scanner simply does not stop on that frame.
+ *
+ * The weighting is ISBN-13's own: alternating 1 and 3 across the first twelve
+ * digits, and the total including the check digit is a multiple of ten.
+ */
+export function isValidIsbn13(value: string): boolean {
+  const digits = normalizeIsbn(value);
+
+  if (digits.length !== 13 || !/^\d{13}$/.test(digits)) {
+    return false;
+  }
+
+  const sum = [...digits].reduce(
+    (total, digit, index) => total + Number(digit) * (index % 2 === 0 ? 1 : 3),
+    0,
+  );
+
+  return sum % 10 === 0;
+}
+
+/**
+ * §D43 — whether a decoded barcode is the book's ISBN rather than something
+ * else printed next to it.
+ *
+ * The something else is not hypothetical: a great many books carry a **second**
+ * barcode, the EAN-5 price add-on, and periodicals carry an ISSN. A scanner
+ * that accepted whatever it decoded first would cheerfully fill the price code
+ * into the ISBN field, and the Open Library lookup would then miss for a reason
+ * nothing on screen could explain.
+ *
+ * So both halves are required: the Bookland prefix says "this is a book's
+ * barcode", and the checksum says "and it was read correctly".
+ */
+export function isScannedIsbn(value: string): boolean {
+  const digits = normalizeIsbn(value);
+
+  return (
+    BOOKLAND_PREFIXES.some((prefix) => digits.startsWith(prefix)) &&
+    isValidIsbn13(digits)
+  );
+}

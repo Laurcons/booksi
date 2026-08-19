@@ -277,11 +277,17 @@ stocată, iar D18 o pune în baza de date — ambele se pot face doar server-sid
 |---|---|
 | `GET /openlibrary/search?q=` | proxy peste Search API; cel mult 10 *works* normalizate |
 | `GET /openlibrary/editions/:key` | ediția aleasă, ca set de câmpuri de formular (§D7) |
-| `GET /openlibrary/isbn/:isbn` | același set de câmpuri, ajuns din ISBN |
+| `GET /openlibrary/isbn/:isbn` | același set de câmpuri, ajuns din ISBN — și ruta pe care o folosește și scanarea (§D43) |
 | `GET /openlibrary/covers/:key` | proxy peste `covers.openlibrary.org` — miniaturile din lista de rezultate |
 | `POST /books` | la creare, dacă vine cu `olEditionKey`, descarcă coperta și o salvează |
 | `PUT /books/:id/cover` | upload manual: body brut `image/*`, max 5MB (S4.3) |
 | `GET /covers/:bookId` | servește blob-ul, cu `Cache-Control: max-age=31536000, immutable` |
+
+**Scanarea codului de bare (Sprint 11) nu adaugă nimic aici.** Camera produce un ISBN, îl scrie în
+câmpul din formular și cu asta se termină rolul ei: mai departe pleacă exact `GET
+/openlibrary/isbn/:isbn` de mai sus, cu tot cu verificarea de duplicat dinaintea lui. Singurul cod
+nou e în frontend — decodarea (`src/lib/barcode.ts`, nativ sau wasm) și componenta care ține camera
+(§D43). Nicio rută, niciun serviciu, nicio coloană.
 
 Căutarea și lookup-ul după ISBN folosesc două API-uri diferite ale Open Library, din motive
 diferite. Search API dă *works* și e singurul care caută după text liber. Completarea folosește

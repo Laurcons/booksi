@@ -1,3 +1,5 @@
+import { writeBarcodeVideo } from "./barcode-video.js";
+import { SCAN_ISBN, SCAN_VIDEO } from "./scan-fixture.js";
 import { API_URL, WEB_URL } from "./urls.js";
 
 /**
@@ -11,6 +13,13 @@ import { API_URL, WEB_URL } from "./urls.js";
  * start it.
  */
 export default async function globalSetup() {
+  /**
+   * §D43 — the barcode Chromium will be shown instead of a camera. Written here
+   * rather than committed (see `barcode-video.ts`), and before the first browser
+   * starts, because the path is a launch argument.
+   */
+  writeBarcodeVideo(SCAN_ISBN, SCAN_VIDEO);
+
   const checks: [string, string][] = [
     ["API", `${API_URL}/docs-json`],
     ["web app", WEB_URL],

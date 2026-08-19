@@ -796,6 +796,74 @@ un e-reader. Rămâne un story separat.
 **Raftul nu primește căutare** deloc: e o metaforă fizică (§D33), iar un raft filtrat la două
 cărți arată ca o eroare de randare, nu ca un rezultat.
 
+### D43 — Scanarea ISBN-ului e o a doua tastatură, nu o a doua cale de import
+
+S11.1 cere scanarea codului de bare. Tentația e să o tratezi ca pe o integrare nouă — camera
+citește, ceva aduce datele, formularul se umple. Nu e nevoie: **S4.2 face deja tot ce urmează după
+ISBN.** Scrii treisprezece cifre în câmpul ISBN și pleacă verificarea de duplicat, apoi
+completarea din Open Library, cu regulile ei deja stabilite.
+
+**Decizie: scanerul raportează un ISBN și nimic altceva.** Fără rută nouă, fără serviciu nou, fără
+a doua cale de completare care ar putea ajunge să se comporte diferit de cea tastată. Componenta e
+o tastatură alternativă pentru un câmp.
+
+**Linia care leagă totul e `shouldDirty`**, și e singura care ar strica funcționalitatea în tăcere
+dacă lipsea: căutarea din S4.2 e condiționată de `dirtyFields.isbn`, deci un `setValue` fără el ar
+umple câmpul și n-ar cere nimic — exact ce se vede când Open Library e picat. Are test propriu
+tocmai pentru că nu se vede la citirea codului.
+
+**Se verifică cifra de control, deși la tastare nu se verifică.** `isbnLookupSchema` spune explicit
+de ce nu o verifică: pentru ceva *tastat*, „nu l-am găsit" e un răspuns mai adevărat decât „ISBN
+invalid", iar o cifră inversată nu merită o acuzație. La cameră raționamentul se inversează —
+un cod citit greșit e frecvent (o sclipire, o mișcare) și nimeni nu l-a tastat, deci nu e nimeni de
+corectat. Cifra de control e exact mecanismul care prinde asta, iar eșecul înseamnă „mai caută", nu
+„greșești": scanerul doar nu se oprește pe cadrul acela.
+
+**Se cere prefixul Bookland, nu doar checksum-ul.** Un ISSN de revistă e un EAN-13 perfect valid
+care începe cu 977, iar multe cărți au un **al doilea** cod de bare lipit lângă ISBN — prețul, ca
+EAN-5. Un scaner care accepta primul cod decodat ar fi pus prețul în câmpul ISBN, iar căutarea ar fi
+ratat dintr-un motiv pe care nimic de pe ecran nu l-ar fi explicat.
+
+**Două motoare de decodare, o singură interfață.** `BarcodeDetector` e în browser pe Chrome pentru
+Android și macOS, și lipsește pe iOS Safari, Firefox și Chrome pe Windows/Linux. Cum un cod de bare
+se scanează ținând telefonul în mână, iar pe iOS toate browserele sunt Safari, varianta fără suport
+nativ nu e un caz marginal, ci cel mai probabil. Deci: nativ când există, altfel ponyfill-ul din
+`barcode-detector` (ZXing compilat în WebAssembly).
+
+Nativul se verifică, nu se presupune: `getSupportedFormats()` spune dacă știe EAN-13, fiindcă lista
+vine de la sistemul de operare. Un detector care există dar nu citește cărți ar deschide camera și
+n-ar potrivi niciodată nimic.
+
+**Wasm-ul se încarcă leneș și de pe originea noastră.** Ambele jumătăți sunt obligatorii. E un
+megabyte, deci n-are ce căuta în pachetul pe care îl descarcă toată lumea ca să-și citească
+biblioteca — un `import()` dinamic îl aduce la prima apăsare a butonului, pe browserele care au
+nevoie de el. Și `zxing-wasm` l-ar lua implicit de pe un CDN, ceea ce ar încălca exact regula „zero
+cereri către alte gazde" (kobo_design.md §Buget de pagină) pe care întreg proxy-ul de Open Library
+există ca să o respecte; `?url` îl transformă în asset emis de Vite, servit de nginx din `/assets`.
+
+**Camera se eliberează pe fiecare drum de ieșire**, inclusiv pe cel care nu are cleanup: `getUserMedia`
+se rezolvă când utilizatorul răspunde la promptul de permisiune, ceea ce poate fi mult după ce a
+închis dialogul. Stream-ul ajunge atunci fără nimeni care să-l opreacă, iar ledul camerei rămâne
+aprins până se închide tab-ul. De aceea calea asincronă verifică un flag pus de cleanup, și de aceea
+are test propriu.
+
+**Are nevoie de HTTPS**, fiind un secure context. Aranjamentul din §D37 termină TLS pe 443, deci în
+producție e în regulă, iar `localhost` e exceptat prin origine. Unde se vede lipsa: testarea de pe
+telefon, pe o adresă din LAN, pe http — `navigator.mediaDevices` e pur și simplu `undefined`, ceea ce
+e indistinct de „browserul nu poate". Se verifică `isSecureContext` separat tocmai ca mesajul să
+spună cauza.
+
+**Testarea are două niveluri, fiindcă niciunul nu ajunge singur.** jsdom nu are nici `getUserMedia`,
+nici `BarcodeDetector`, deci suita unitară înlocuiește decodorul. Ce rămâne neacoperit acolo e exact
+ce se poate strica: dacă wasm-ul se încarcă și citește un cadru. Așa că suita e2e îi dă lui Chromium
+un fișier Y4M în loc de webcam (`--use-file-for-fake-video-capture`) — stream real, decodor real,
+pixeli reali, doar lumina e sintetică. Videoul e **generat**, nu comis: codificarea EAN-13 scrisă în
+`e2e/barcode-video.ts` e sursă care se poate citi, un binar de câteva sute de kilobytes n-ar fi.
+Singurul lucru interceptat acolo e ruta de Open Library, ca verdele testului să nu depindă de un
+terț care răspunde peste rețea — `retries: 0` există ca să nu absoarbă exact așa ceva.
+
+**Kobo nu primește scanare**: dispozitivul nu are cameră.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

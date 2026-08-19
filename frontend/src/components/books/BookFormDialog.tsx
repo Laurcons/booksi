@@ -28,6 +28,7 @@ import { Modal } from "../Modal";
 import { AuthorInput } from "./AuthorInput";
 import { CategoryPicker } from "./CategoryPicker";
 import { CoverPicker } from "./CoverPicker";
+import { IsbnScanner } from "./IsbnScanner";
 import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
 import { StarRatingInput } from "./StarRating";
@@ -206,6 +207,13 @@ export function BookFormDialog({
    * create request only.
    */
   const [olEditionKey, setOlEditionKey] = useState<string | null>(null);
+
+  /**
+   * §D43 — whether the camera is on. Mounting `IsbnScanner` is what opens it and
+   * unmounting is what releases it, so this flag is the camera's on/off switch
+   * rather than merely a visibility toggle.
+   */
+  const [scanning, setScanning] = useState(false);
 
   const edition = useEditionSuggestion();
 
@@ -423,7 +431,52 @@ export function BookFormDialog({
           </Field>
 
           <Field label="ISBN" error={errors.isbn} hint="Opțional">
-            <input {...register("isbn")} className={INPUT} autoComplete="off" />
+            <div className="flex items-center gap-2">
+              <input
+                {...register("isbn")}
+                className={INPUT}
+                autoComplete="off"
+                inputMode="numeric"
+              />
+              <button
+                type="button"
+                onClick={() => setScanning((on) => !on)}
+                aria-pressed={scanning}
+                title="Scanează codul de bare"
+                className="shrink-0 rounded-lg border border-line px-3 py-2 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet hover:text-ink"
+              >
+                {/* The label carries the meaning; the glyph is decoration, so it
+                    is hidden rather than read out as punctuation. */}
+                <span aria-hidden>▥</span>
+                <span className="sr-only">Scanează codul de bare</span>
+              </button>
+            </div>
+
+            {scanning && (
+              <div className="mt-2">
+                <IsbnScanner
+                  onFound={(scanned) => {
+                    /**
+                     * §D43 — `shouldDirty` is the whole integration, and it is
+                     * the one line that would silently do nothing if it were
+                     * left out: S4.2's lookup is gated on `dirtyFields.isbn`,
+                     * so a value set quietly here would fill the field and then
+                     * fetch nothing, which looks exactly like Open Library
+                     * being down.
+                     */
+                    setValue("isbn", scanned, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    // One scan, one close. Leaving the camera running after a
+                    // hit invites a second book being scanned into a form that
+                    // is already about the first.
+                    setScanning(false);
+                  }}
+                  onClose={() => setScanning(false)}
+                />
+              </div>
+            )}
           </Field>
 
           <Field label="Categorie" error={errors.genre}>
