@@ -146,7 +146,7 @@ export class OpenLibraryService {
       throw new AppError(
         HttpStatus.NOT_FOUND,
         "OPEN_LIBRARY_NOT_FOUND",
-        "Open Library nu cunoaște cartea asta. Completeaz-o manual.",
+        "error.openLibrary.bookNotFound",
       );
     }
 

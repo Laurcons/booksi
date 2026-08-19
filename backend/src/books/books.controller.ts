@@ -43,9 +43,9 @@ import {
 } from "@bookcsi/shared";
 import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { arrayOf, ref } from "../docs/openapi";
 import { BooksService } from "./books.service";
+import { ValidatedBody, ValidatedQuery } from "../common/validated";
 
 /**
  * The whole controller sits behind the global `JwtAuthGuard` — no `@Public()`
@@ -151,7 +151,7 @@ export class BooksController {
   @Get()
   list(
     @CurrentUser() user: AuthUser,
-    @Query(new ZodValidationPipe(listBooksQuerySchema)) query: ListBooksQuery,
+    @ValidatedQuery(listBooksQuerySchema) query: ListBooksQuery,
   ): Promise<Book[]> {
     return this.books.findAll(user.id, query);
   }
@@ -181,7 +181,7 @@ export class BooksController {
   @Get("isbn-duplicates")
   isbnDuplicates(
     @CurrentUser() user: AuthUser,
-    @Query(new ZodValidationPipe(isbnDuplicatesQuerySchema))
+    @ValidatedQuery(isbnDuplicatesQuerySchema)
     query: IsbnDuplicatesQuery,
   ): Promise<IsbnDuplicate[]> {
     return this.books.isbnDuplicates(user.id, query);
@@ -250,7 +250,7 @@ export class BooksController {
   @Post()
   create(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(createBookSchema)) input: CreateBookInput,
+    @ValidatedBody(createBookSchema) input: CreateBookInput,
   ): Promise<Book> {
     return this.books.create(user.id, input);
   }
@@ -307,7 +307,7 @@ export class BooksController {
   update(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(updateBookSchema)) input: UpdateBookInput,
+    @ValidatedBody(updateBookSchema) input: UpdateBookInput,
   ): Promise<Book> {
     return this.books.update(user.id, id, input);
   }

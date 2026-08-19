@@ -74,7 +74,7 @@ function wrongContentType(req: Request): AppError | null {
     : new AppError(
         HttpStatus.BAD_REQUEST,
         "COVER_FORMAT_UNSUPPORTED",
-        "Trimite imaginea ca body brut, cu Content-Type image/jpeg, image/png sau image/webp.",
+        "error.cover.rawBodyRequired",
       );
 }
 
@@ -84,6 +84,7 @@ function tooLarge(limit: number): AppError {
   return new AppError(
     HttpStatus.PAYLOAD_TOO_LARGE,
     "COVER_TOO_LARGE",
-    `Imaginea depășește ${mb}MB. Micșoreaz-o și încearcă din nou.`,
+    "error.cover.tooLarge",
+    { vars: { mb } },
   );
 }

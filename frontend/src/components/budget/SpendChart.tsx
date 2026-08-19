@@ -15,7 +15,7 @@ import {
   type BudgetMonth,
 } from "@bookcsi/shared";
 import { monthLabel, monthTick } from "../../lib/month";
-import { plural } from "../../lib/plural";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S6.2 — money spent per month, as bars.
@@ -62,6 +62,8 @@ export function SpendChart({
    */
   budget?: number | null;
 }) {
+  const t = useT();
+
   // A budget above every bar would otherwise sit off the top of the plot, where
   // a reference nobody can see is worse than none.
   const showBudget = budget !== null && budget > 0;
@@ -97,7 +99,7 @@ export function SpendChart({
                 />
                 <XAxis
                   dataKey="month"
-                  tickFormatter={monthTick}
+                  tickFormatter={(month: string) => monthTick(month, t)}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={10}
@@ -156,7 +158,7 @@ export function SpendChart({
             <tbody>
               {data.months.map((entry) => (
                 <tr key={entry.month}>
-                  <th scope="row">{monthLabel(entry.month)}</th>
+                  <th scope="row">{monthLabel(entry.month, t)}</th>
                   <td>{formatMoney(entry.spent)}</td>
                 </tr>
               ))}
@@ -171,9 +173,11 @@ export function SpendChart({
           just repeat the total's own note a few pixels away. */}
       {data.undated.books > 0 && (
         <p className="mt-4 text-sm text-ink-3">
-          {plural(data.undated.books, "carte n-are", "cărți n-au")} dată de
-          cumpărare ({formatMoney(data.undated.total)} {CURRENCY}), deci nu apar
-          în grafic — sunt însă în totalul de sus.
+          {t("chart.spend.undated", {
+            count: data.undated.books,
+            amount: formatMoney(data.undated.total),
+            currency: CURRENCY,
+          })}
         </p>
       )}
     </section>
@@ -219,6 +223,8 @@ export function SpendTooltip({
   payload?: { value?: number; payload?: BudgetMonth }[];
   label?: string;
 }) {
+  const t = useT();
+
   if (active !== true || payload === undefined || payload.length === 0) {
     return null;
   }
@@ -229,7 +235,7 @@ export function SpendTooltip({
 
   return (
     <div className="max-w-64 rounded-lg border border-line bg-surface-3 px-3 py-2 text-sm shadow-lg shadow-black/40">
-      <p className="text-ink-3">{monthLabel(String(label))}</p>
+      <p className="text-ink-3">{monthLabel(String(label), t)}</p>
       <p className="tabular text-ink">
         {formatMoney(payload[0].value ?? 0)} {CURRENCY}
       </p>
@@ -252,7 +258,7 @@ export function SpendTooltip({
             /* "și altele" would hide how many are hidden, which is the one
                thing this line exists to say. */
             <li className="text-ink-3">
-              și încă {plural(others, "carte", "cărți")}
+              {t("chart.spend.others", { count: others })}
             </li>
           )}
         </ul>

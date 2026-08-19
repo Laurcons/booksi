@@ -1,6 +1,6 @@
 import { INestApplication } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import cookieParser from "cookie-parser";
@@ -12,6 +12,7 @@ import { SESSION_COOKIE } from "../auth/session";
 import { BooksModule } from "../books/books.module";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { AuditModule } from "../audit/audit.module";
+import { AppExceptionFilter } from "../common/filters/app-exception.filter";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -23,6 +24,9 @@ const storedUser = {
   avatarUrl: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   tokenVersion: 0,
+  // §D44 — a real row always has one; the column is NOT NULL with a
+  // default, and every account predating §D44 is Romanian.
+  locale: "ro",
 };
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
@@ -115,7 +119,15 @@ describe("covers (Sprint 4)", () => {
         // created from a search result arrives with its cover.
         BooksModule,
       ],
-      providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+      providers: [
+        { provide: APP_GUARD, useClass: JwtAuthGuard },
+        // §D44 — without the filter these routes answer with `AppError`'s
+        // own body, which is built in `DEFAULT_LOCALE` for the bypass case.
+        // Production always has it, and it is what puts the message in the
+        // reader's language, so a test without it is asserting a shape
+        // nobody receives.
+        { provide: APP_FILTER, useClass: AppExceptionFilter },
+      ],
     })
       .overrideProvider(PrismaService)
       .useValue(prisma)

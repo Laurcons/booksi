@@ -10,8 +10,8 @@ import { GalleryFilters } from "../components/books/GalleryFilters";
 import { NoMatches } from "../components/books/NoMatches";
 import { useOpenBook } from "../lib/book-origin";
 import { isFiltered, isSearched } from "../lib/filters";
-import { plural } from "../lib/plural";
 import { useBookSearch } from "../lib/use-book-search";
+import { useT } from "../i18n/locale-context";
 
 /**
  * Sprint 5 — the gallery.
@@ -27,6 +27,7 @@ import { useBookSearch } from "../lib/use-book-search";
 const INITIAL_QUERY: ListBooksQuery = { sort: "createdAt", order: "desc" };
 
 export function GalleryPage() {
+  const t = useT();
   const [filters, setFilters] = useState<ListBooksQuery>(INITIAL_QUERY);
   const { search, setSearch, q } = useBookSearch();
   /**
@@ -85,8 +86,9 @@ export function GalleryPage() {
             {/* Under the filters rather than beside them: with a filter on, how
                 many books survived it is the first thing worth knowing. */}
             <p className="text-sm text-ink-3">
-              {plural(books.length, "carte", "cărți")}
-              {filtering ? " după filtrare" : ""}
+              {filtering
+                ? t("gallery.countFiltered", { count: books.length })
+                : t("gallery.count", { count: books.length })}
             </p>
 
             <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">

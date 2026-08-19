@@ -188,7 +188,7 @@ export class OAuthService {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         "MCP_CONSENT_REQUEST_INVALID",
-        "Cererea a expirat sau nu mai e validă. Reia conectarea din asistent.",
+        "error.mcp.consentInvalid",
       );
     }
 
@@ -196,7 +196,7 @@ export class OAuthService {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         "MCP_CONSENT_REQUEST_INVALID",
-        "Cererea a expirat sau nu mai e validă. Reia conectarea din asistent.",
+        "error.mcp.consentInvalid",
       );
     }
 

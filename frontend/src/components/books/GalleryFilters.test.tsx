@@ -1,15 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ListBooksQuery } from "@bookcsi/shared";
 import { GalleryFilters } from "./GalleryFilters";
+import { renderWithQuery } from "../../test/helpers";
 
 const BASE: ListBooksQuery = { sort: "createdAt", order: "desc" };
 
 function renderFilters(query: ListBooksQuery = BASE, search = "") {
   const onChange = vi.fn();
   const onSearchChange = vi.fn();
-  render(
+  renderWithQuery(
     <GalleryFilters
       query={query}
       onChange={onChange}

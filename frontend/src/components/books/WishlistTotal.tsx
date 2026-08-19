@@ -1,5 +1,6 @@
 import type { WishlistSummary } from "@bookcsi/shared";
 import { coverage } from "../../lib/wishlist-coverage";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S3.3 — what the wishlist would cost, and how much of the wishlist that
@@ -14,6 +15,7 @@ import { coverage } from "../../lib/wishlist-coverage";
  * no card grid, no series color — this is a figure, not a chart.
  */
 export function WishlistTotal({ summary }: { summary: WishlistSummary }) {
+  const t = useT();
   return (
     <div className="rounded-xl border border-line bg-surface-1 px-8 py-7">
       <p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
@@ -23,7 +25,7 @@ export function WishlistTotal({ summary }: { summary: WishlistSummary }) {
         {summary.total.toFixed(2)}{" "}
         <span className="font-sans text-2xl text-ink-2">lei</span>
       </p>
-      <p className="mt-2 text-sm text-ink-3">{coverage(summary)}</p>
+      <p className="mt-2 text-sm text-ink-3">{coverage(summary, t)}</p>
     </div>
   );
 }

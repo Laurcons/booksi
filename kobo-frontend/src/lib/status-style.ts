@@ -1,4 +1,5 @@
-import { STATUS_LABEL, type Status } from "@bookcsi/shared";
+import { statusLabel, type Status } from "@bookcsi/shared";
+import { KOBO_LOCALE } from "./locale";
 import { html, type Html } from "./html";
 import { accentWidth, bodyFont, fontSize, ink, ruleWidth } from "./tokens";
 import { webPx } from "./units";
@@ -45,6 +46,6 @@ export function statusPill(status: Status): Html {
 
   return html`<span
     style="display: inline-block; border: ${style.border}; padding: ${webPx(2)}px ${webPx(8)}px; font-family: ${bodyFont}; font-size: ${fontSize.meta}px; color: ${style.color};"
-    >${STATUS_LABEL[status]}</span
+    >${statusLabel(status, KOBO_LOCALE)}</span
   >`;
 }

@@ -1,4 +1,3 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,7 +8,7 @@ import {
   isRatable,
   normalizeIsbn,
   statusSchema,
-  STATUS_LABEL,
+  statusLabel,
   STATUS_VALUES,
   type Book,
   type BookSuggestion,
@@ -32,6 +31,8 @@ import { IsbnScanner } from "./IsbnScanner";
 import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
 import { StarRatingInput } from "./StarRating";
+import { useLocale } from "../../i18n/locale-context";
+import { useLocalizedResolver } from "../../i18n/zod-resolver";
 
 /**
  * S1.1 (add) and S1.3 (edit) are the same form: every field is editable at any
@@ -171,6 +172,7 @@ export function BookFormDialog({
   book?: Book;
   onClose: () => void;
 }) {
+  const { locale } = useLocale();
   const create = useCreateBook();
   const update = useUpdateBook();
   const editing = book !== undefined;
@@ -191,7 +193,8 @@ export function BookFormDialog({
     getValues,
     formState: { errors, dirtyFields, isSubmitting },
   } = useForm<BookFormValues, unknown, CreateBookInput>({
-    resolver: zodResolver(bookFormSchema),
+    // §D44 — the schema carries keys, so the resolver has to word them.
+    resolver: useLocalizedResolver(bookFormSchema),
     defaultValues: book ? toFormValues(book) : EMPTY,
   });
 
@@ -560,7 +563,7 @@ export function BookFormDialog({
             <select {...register("status")} className={INPUT}>
               {STATUS_VALUES.map((status) => (
                 <option key={status} value={status}>
-                  {STATUS_LABEL[status]}
+                  {statusLabel(status, locale)}
                 </option>
               ))}
             </select>

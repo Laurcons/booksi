@@ -21,8 +21,7 @@ const MAX_CODE_ATTEMPTS = 5;
  * the browser side only ever has a code a person just typed, for which
  * "wrong" and "expired" call for the same next action: look at the Kobo again.
  */
-const INVALID_MESSAGE =
-  "Codul nu e valid sau a expirat. Ia un cod nou de pe dispozitiv.";
+const INVALID_KEY = "error.pairing.invalid" as const;
 
 @Injectable()
 export class PairingService {
@@ -75,7 +74,7 @@ export class PairingService {
     });
 
     if (!row) {
-      throw AppError.pairingInvalid(INVALID_MESSAGE);
+      throw AppError.pairingInvalid(INVALID_KEY);
     }
 
     return { status: deriveStatus(row), code: row.code };
@@ -94,7 +93,7 @@ export class PairingService {
     });
 
     if (!row || deriveStatus(row) !== "pending") {
-      throw AppError.pairingInvalid(INVALID_MESSAGE);
+      throw AppError.pairingInvalid(INVALID_KEY);
     }
 
     await this.prisma.devicePairing.update({
@@ -120,14 +119,14 @@ export class PairingService {
     });
 
     if (!row || deriveStatus(row) !== "approved" || !row.approvedByUserId) {
-      throw AppError.pairingInvalid(INVALID_MESSAGE);
+      throw AppError.pairingInvalid(INVALID_KEY);
     }
 
     const user = await this.authService.findById(row.approvedByUserId);
 
     if (!user) {
       // The approving account was deleted between approval and this tap.
-      throw AppError.pairingInvalid(INVALID_MESSAGE);
+      throw AppError.pairingInvalid(INVALID_KEY);
     }
 
     await this.prisma.devicePairing.update({

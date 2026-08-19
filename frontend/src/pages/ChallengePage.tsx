@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   formatCount,
-  GENRE_LABEL,
+  genreLabel,
   progressLabel,
   progressRatio,
   type Book,
@@ -17,9 +17,10 @@ import { ChallengeEditDialog } from "../components/challenges/ChallengeEditDialo
 import { CreateChallengeDialog } from "../components/challenges/CreateChallengeDialog";
 import { FinishChallengeBookDialog } from "../components/challenges/FinishChallengeBookDialog";
 import { useOpenBook } from "../lib/book-origin";
-import { plural } from "../lib/plural";
-import { NEXT_STATUS, NEXT_STATUS_LABEL } from "../lib/status";
+import { NEXT_STATUS } from "../lib/status";
 import { spineColor, spineHeight, spineWidth } from "../lib/shelf";
+import { useLocale, useT } from "../i18n/locale-context";
+import { useNextStatusLabel } from "../i18n/next-status";
 
 /**
  * A curated set of books against a deadline — backed for real by
@@ -34,6 +35,7 @@ import { spineColor, spineHeight, spineWidth } from "../lib/shelf";
  * shelf's own fill-in, not a HUD bolted on top.
  */
 export function ChallengePage() {
+  const { locale, t } = useLocale();
   const {
     data: challenges,
     isPending: listPending,
@@ -109,7 +111,10 @@ export function ChallengePage() {
   const progressRatioValue = hasPageData ? pages.ratio : total === 0 ? 0 : finished / total;
   const progressLabelText = hasPageData ? "Pagini citite" : "Cărți";
   const progressCaption = hasPageData
-    ? `${formatCount(pages.read)} din ${formatCount(pages.total)} pagini`
+    ? t("challenge.pagesOf", {
+        read: formatCount(pages.read, locale),
+        total: formatCount(pages.total, locale),
+      })
     : undefined;
 
   const startMs = new Date(challenge.createdAt).getTime();
@@ -168,7 +173,9 @@ export function ChallengePage() {
           <ChallengeShelf books={challenge.books} onOpen={openBook} />
 
           <div>
-            <p className="mb-3 text-sm text-ink-3">{plural(total, "carte", "cărți")} în provocare</p>
+            <p className="mb-3 text-sm text-ink-3">
+              {t("challenge.bookCount", { count: total })}
+            </p>
             <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface-1">
               {challenge.books.map((b) => (
                 <ChallengeBookRow key={b.id} book={b} onOpen={() => openBook(b)} />
@@ -241,6 +248,7 @@ function ChallengeHero({
   daysLeft: number;
   deadlineLabel: string;
 }) {
+  const t = useT();
   // Same scale, same bar height, stacked — the point is that the two lengths
   // read as one comparison. Longer top bar than bottom: ahead of pace.
   const behind = timeRatio - progressPercent > 0.05;
@@ -271,8 +279,7 @@ function ChallengeHero({
         )}
         {missingPageCounts > 0 && (
           <p className="text-xs text-ink-3">
-            {plural(missingPageCounts, "carte nu are", "cărți nu au")} număr de pagini — nu
-            intră în calculul paginilor.
+            {t("challenge.missingPages", { count: missingPageCounts })}
           </p>
         )}
       </div>
@@ -284,7 +291,7 @@ function ChallengeHero({
           <>
             <p className="tabular font-display text-3xl leading-none text-ink">{daysLeft}</p>
             <p className="mt-2 text-[11px] font-medium tracking-[0.08em] text-ink-3 uppercase">
-              {plural(daysLeft, "zi rămasă", "zile rămase")}
+              {t("challenge.daysLeft", { count: daysLeft })}
             </p>
             <p className="mt-1 text-xs text-ink-3">până pe {deadlineLabel}</p>
           </>
@@ -500,6 +507,8 @@ function MiniPlank() {
  * the rest of the app's.
  */
 function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) {
+  const nextLabel = useNextStatusLabel();
+  const { locale } = useLocale();
   const update = useUpdateBook();
   const purchase = usePurchaseBook();
   const [asking, setAsking] = useState(false);
@@ -543,7 +552,7 @@ function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) 
           </button>
           <p className="truncate text-sm text-ink-3">
             {book.author}
-            {book.genre !== null && ` · ${GENRE_LABEL[book.genre]}`}
+            {book.genre !== null && ` · ${genreLabel(book.genre, locale)}`}
           </p>
           {book.status === "READING" && <PageProgressEditor book={book} />}
         </div>
@@ -558,7 +567,7 @@ function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) 
               onClick={advance}
               className="shrink-0 rounded-lg border border-accent-quiet px-2.5 py-1.5 text-xs font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-50"
             >
-              {NEXT_STATUS_LABEL[book.status]}
+              {nextLabel(book.status)}
             </button>
           )}
         </div>

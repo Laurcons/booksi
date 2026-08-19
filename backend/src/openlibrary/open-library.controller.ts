@@ -25,10 +25,10 @@ import {
   type OpenLibrarySearchQuery,
 } from "@bookcsi/shared";
 import { AppError } from "../common/app-error";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { arrayOf, ref } from "../docs/openapi";
 import { OpenLibraryClient } from "./open-library.client";
 import { OpenLibraryService } from "./open-library.service";
+import { ValidatedParam, ValidatedQuery } from "../common/validated";
 
 /** A day. A cover that exists does not become a different image. */
 const THUMBNAIL_MAX_AGE = 60 * 60 * 24;
@@ -109,7 +109,7 @@ export class OpenLibraryController {
   })
   @Get("search")
   search(
-    @Query(new ZodValidationPipe(openLibrarySearchQuerySchema))
+    @ValidatedQuery(openLibrarySearchQuerySchema)
     query: OpenLibrarySearchQuery,
   ): Promise<OpenLibraryResult[]> {
     return this.openLibrary.search(query.q);
@@ -142,7 +142,7 @@ export class OpenLibraryController {
   })
   @Get("editions/:editionKey")
   edition(
-    @Param("editionKey", new ZodValidationPipe(olEditionKeySchema))
+    @ValidatedParam("editionKey", olEditionKeySchema)
     editionKey: string,
   ): Promise<BookSuggestion> {
     return this.openLibrary.suggestByEdition(editionKey);
@@ -178,7 +178,7 @@ export class OpenLibraryController {
   })
   @Get("isbn/:isbn")
   isbn(
-    @Param("isbn", new ZodValidationPipe(isbnLookupSchema)) isbn: string,
+    @ValidatedParam("isbn", isbnLookupSchema) isbn: string,
   ): Promise<BookSuggestion> {
     return this.openLibrary.suggestByIsbn(isbn);
   }
@@ -212,12 +212,12 @@ export class OpenLibraryController {
   @ApiProduces("image/jpeg", "image/png", "image/webp")
   @ApiOkResponse({ description: "Imaginea, cache-uită o zi." })
   @ApiNotFoundResponse({
-    description: "Ediția n-are copertă.",
+    description: "error.openLibrary.noCover",
     schema: ref("HttpError"),
   })
   @Get("covers/:editionKey")
   async thumbnail(
-    @Param("editionKey", new ZodValidationPipe(olEditionKeySchema))
+    @ValidatedParam("editionKey", olEditionKeySchema)
     editionKey: string,
     @Res() res: Response,
   ): Promise<void> {
@@ -229,7 +229,7 @@ export class OpenLibraryController {
       throw new AppError(
         HttpStatus.NOT_FOUND,
         "OPEN_LIBRARY_NOT_FOUND",
-        "Ediția n-are copertă.",
+        "error.openLibrary.noCover",
       );
     }
 

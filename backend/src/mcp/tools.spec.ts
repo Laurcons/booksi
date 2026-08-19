@@ -23,15 +23,21 @@ type Handler = (args: Record<string, unknown>) => Promise<unknown>;
 function registerAndCapture() {
   const handlers = new Map<string, Handler>();
   const schemas = new Map<string, Record<string, unknown>>();
+  const prose = new Map<string, { title?: string; description?: string }>();
 
   const server = {
     registerTool: (
       name: string,
-      config: { inputSchema?: Record<string, unknown> },
+      config: {
+        inputSchema?: Record<string, unknown>;
+        title?: string;
+        description?: string;
+      },
       handler: Handler,
     ) => {
       handlers.set(name, handler);
       schemas.set(name, config.inputSchema ?? {});
+      prose.set(name, { title: config.title, description: config.description });
     },
   } as unknown as McpServer;
 
@@ -56,7 +62,7 @@ function registerAndCapture() {
     audit: { log: () => undefined },
   } as unknown as ToolContext);
 
-  return { handlers, schemas, queries };
+  return { handlers, schemas, queries, prose };
 }
 
 describe("search_library (§D42)", () => {
@@ -122,5 +128,59 @@ describe("search_library (§D42)", () => {
       sort: "createdAt",
       order: "desc",
     });
+  });
+});
+
+describe("what the tools say (§D44)", () => {
+  /**
+   * The one diacritic that belongs here: `search_library` documents that the
+   * database's collation ignores them, and the only way to show that is with a
+   * pair of Romanian words. Everything else being English is the decision this
+   * suite guards.
+   */
+  const COLLATION_EXAMPLE = '"sarpe" finds "Șarpe"';
+
+  const captured = registerAndCapture();
+
+  /** Title, description, and every parameter's own doc — all of it model-facing. */
+  function proseOf(name: string): string {
+    const { title, description } = captured.prose.get(name) ?? {};
+    const params = Object.values(captured.schemas.get(name) ?? {})
+      .map((field) => (field as { description?: string }).description ?? "")
+      .join(" ");
+
+    return `${title ?? ""} ${description ?? ""} ${params}`;
+  }
+
+  it("describes every tool in English, so one set of routing instructions serves both readers", () => {
+    expect(captured.prose.size).toBeGreaterThan(0);
+
+    for (const name of captured.prose.keys()) {
+      const text = proseOf(name).replace(COLLATION_EXAMPLE, "");
+
+      // Romanian is the only other language in the app, and its diacritics are
+      // the cheapest reliable tell that a description slipped back into it.
+      // Asserted as an object so a failure names the tool.
+      expect({ name, romanian: /[ăâîșțĂÂÎȘȚ]/.test(text) }).toEqual({
+        name,
+        romanian: false,
+      });
+    }
+  });
+
+  it("keeps the collation example, which needs the diacritic to make its point", () => {
+    expect(proseOf("search_library")).toContain(COLLATION_EXAMPLE);
+  });
+
+  it("gives every tool a title and a description saying when to call it", () => {
+    // The property docs/MCP.md §8 asks for: a description that says *when*,
+    // not just *what*, because the model picks the tool from it.
+    for (const [name, { title, description }] of captured.prose) {
+      expect({ name, hasTitle: Boolean(title) }).toEqual({ name, hasTitle: true });
+      expect({ name, saysWhen: /Call this/.test(description ?? "") }).toEqual({
+        name,
+        saysWhen: true,
+      });
+    }
   });
 });

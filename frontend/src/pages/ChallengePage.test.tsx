@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import type { Challenge, ChallengeSummary } from "@bookcsi/shared";
 import { lastWrite, makeBook, stubApi, type ApiCall } from "../test/helpers";
 import { ChallengePage } from "./ChallengePage";
+import { renderWithQuery } from "../test/helpers";
 
 const SUMMARY: ChallengeSummary = {
   id: "challenge-1",
@@ -65,7 +66,7 @@ function renderChallengePage({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  render(
+  renderWithQuery(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={["/challenge"]}>
         <ChallengePage />

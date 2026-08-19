@@ -23,8 +23,9 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  // Validation is per parameter, through `ZodValidationPipe` fed by the
-  // schemas in `shared/` — see the note on the pipe for why it is not global.
+  // Validation is per parameter, through the `@Validated*` decorators in
+  // `common/validated.ts`, fed by the schemas in `shared/` — see the note
+  // there for why it is not global, and why a decorator rather than a pipe.
 
   const isProduction = config.get("NODE_ENV", { infer: true }) === "production";
 

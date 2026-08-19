@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import type { StatsByMonth } from "@bookcsi/shared";
 import { monthLabel, monthTick } from "../../lib/month";
-import { plural } from "../../lib/plural";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S7.2 — books finished per month, as bars.
@@ -34,6 +34,8 @@ import { plural } from "../../lib/plural";
  * put January beside April at equal width.
  */
 export function ReadingChart({ data }: { data: StatsByMonth }) {
+  const t = useT();
+
   return (
     <section className="rounded-xl border border-line bg-surface-1 px-8 py-7">
       <h2 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
@@ -56,7 +58,7 @@ export function ReadingChart({ data }: { data: StatsByMonth }) {
                 />
                 <XAxis
                   dataKey="month"
-                  tickFormatter={monthTick}
+                  tickFormatter={(month: string) => monthTick(month, t)}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={10}
@@ -100,7 +102,7 @@ export function ReadingChart({ data }: { data: StatsByMonth }) {
             <tbody>
               {data.months.map((entry) => (
                 <tr key={entry.month}>
-                  <th scope="row">{monthLabel(entry.month)}</th>
+                  <th scope="row">{monthLabel(entry.month, t)}</th>
                   <td>{entry.finished}</td>
                 </tr>
               ))}
@@ -114,10 +116,7 @@ export function ReadingChart({ data }: { data: StatsByMonth }) {
           there is no difference to explain. */}
       {data.undated > 0 && (
         <p className="mt-4 text-sm text-ink-3">
-          {plural(data.undated, "carte terminată n-are", "cărți terminate n-au")}{" "}
-          dată de terminare, deci nu {data.undated === 1 ? "apare" : "apar"} în
-          grafic — {data.undated === 1 ? "e numărată" : "sunt numărate"} însă la
-          „cărți citite".
+          {t("chart.reading.undated", { count: data.undated })}
         </p>
       )}
     </section>
@@ -138,6 +137,8 @@ function ReadingTooltip({
   payload?: { value?: number }[];
   label?: string;
 }) {
+  const t = useT();
+
   if (active !== true || payload === undefined || payload.length === 0) {
     return null;
   }
@@ -146,9 +147,11 @@ function ReadingTooltip({
 
   return (
     <div className="rounded-lg border border-line bg-surface-3 px-3 py-2 text-sm shadow-lg shadow-black/40">
-      <p className="text-ink-3">{monthLabel(String(label))}</p>
+      <p className="text-ink-3">{monthLabel(String(label), t)}</p>
       <p className="tabular text-ink">
-        {finished === 0 ? "nicio carte" : plural(finished, "carte", "cărți")}
+        {finished === 0
+          ? t("chart.reading.tooltip.none")
+          : t("chart.reading.tooltip", { count: finished })}
       </p>
     </div>
   );

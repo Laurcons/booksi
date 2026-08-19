@@ -24,9 +24,9 @@ import {
 } from "@bookcsi/shared";
 import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { arrayOf, ref } from "../docs/openapi";
 import { ChallengesService } from "./challenges.service";
+import { ValidatedBody } from "../common/validated";
 
 /**
  * Same shape as `BooksController`: the whole controller sits behind the
@@ -90,7 +90,7 @@ export class ChallengesController {
   @Post()
   create(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(createChallengeSchema)) input: CreateChallengeInput,
+    @ValidatedBody(createChallengeSchema) input: CreateChallengeInput,
   ): Promise<Challenge> {
     return this.challenges.create(user.id, input);
   }
@@ -114,7 +114,7 @@ export class ChallengesController {
   update(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(updateChallengeSchema)) input: UpdateChallengeInput,
+    @ValidatedBody(updateChallengeSchema) input: UpdateChallengeInput,
   ): Promise<Challenge> {
     return this.challenges.update(user.id, id, input);
   }
@@ -157,7 +157,7 @@ export class ChallengesController {
   addBook(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(addChallengeBookSchema)) input: AddChallengeBookInput,
+    @ValidatedBody(addChallengeBookSchema) input: AddChallengeBookInput,
   ): Promise<Challenge> {
     return this.challenges.addBook(user.id, id, input.bookId);
   }

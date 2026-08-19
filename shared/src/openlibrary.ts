@@ -20,7 +20,7 @@ export const OL_WORK_KEY_PATTERN = /^OL\d+W$/;
 
 export const olEditionKeySchema = z
   .string()
-  .regex(OL_EDITION_KEY_PATTERN, "Cheie de ediție Open Library invalidă")
+  .regex(OL_EDITION_KEY_PATTERN, "validation.openLibrary.editionKey")
   .meta({ examples: ["OL7353617M"] });
 
 /**
@@ -31,7 +31,7 @@ export const olEditionKeySchema = z
  * answer it with the first ten of half a million works.
  */
 export const openLibrarySearchQuerySchema = z.strictObject({
-  q: z.string().trim().min(2, "Caută după cel puțin două caractere").max(200),
+  q: z.string().trim().min(2, "validation.search.tooShort").max(200),
 });
 
 export type OpenLibrarySearchQuery = z.infer<typeof openLibrarySearchQuerySchema>;

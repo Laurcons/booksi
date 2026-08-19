@@ -26,6 +26,7 @@ import {
   statsOverviewSchema,
   updateBookSchema,
   updateChallengeSchema,
+  updateLocaleSchema,
   updateSettingsSchema,
   wishlistSummarySchema,
 } from "@bookcsi/shared";
@@ -88,6 +89,7 @@ export type SchemaName =
   | "CreateChallengeInput"
   | "UpdateChallengeInput"
   | "AddChallengeBookInput"
+  | "UpdateLocaleInput"
   | "HttpError";
 
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
@@ -106,6 +108,8 @@ const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   BudgetByMonth: toOpenApiSchema(budgetByMonthSchema, "output"),
   Settings: toOpenApiSchema(settingsSchema, "output"),
   UpdateSettingsInput: toOpenApiSchema(updateSettingsSchema, "input"),
+  // §D44 — the interface language, on `User` rather than in `Settings`.
+  UpdateLocaleInput: toOpenApiSchema(updateLocaleSchema, "input"),
   // Sprints 7-8 — derived on request as well, so likewise output-only.
   StatsOverview: toOpenApiSchema(statsOverviewSchema, "output"),
   StatsByMonth: toOpenApiSchema(statsByMonthSchema, "output"),

@@ -1,6 +1,8 @@
 import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import type { z } from "zod";
-import { COVER_MAX_BYTES, sniffCoverMimeType, type CoverMimeType } from "@bookcsi/shared";
+import { COVER_MAX_BYTES, sniffCoverMimeType, type CoverMimeType,
+  type ErrorKey,
+} from "@bookcsi/shared";
 import { AppError } from "../common/app-error";
 
 /** Open Library's two hosts. Metadata on one, images on the other. */
@@ -57,7 +59,7 @@ export class OpenLibraryClient {
     if (!response.ok) {
       this.log.warn(`Open Library answered ${response.status} for ${url}`);
       throw badGateway(
-        "Open Library a răspuns cu o eroare. Completează cartea manual.",
+        "error.openLibrary.errorResponse",
       );
     }
 
@@ -65,9 +67,7 @@ export class OpenLibraryClient {
 
     if (!parsed.success) {
       this.log.warn(`Unreadable Open Library response for ${url}: ${parsed.error.message}`);
-      throw badGateway(
-        "Răspunsul de la Open Library n-a putut fi citit. Completează cartea manual.",
-      );
+      throw badGateway("error.openLibrary.unusable");
     }
 
     return parsed.data;
@@ -95,7 +95,7 @@ export class OpenLibraryClient {
 
     if (!response.ok) {
       this.log.warn(`Cover fetch answered ${response.status} for ${url}`);
-      throw badGateway("Coperta n-a putut fi descărcată.");
+      throw badGateway("error.openLibrary.coverDownloadFailed");
     }
 
     const data = Buffer.from(await response.arrayBuffer());
@@ -142,7 +142,7 @@ export class OpenLibraryClient {
       this.log.warn(`Open Library unreachable at ${url}: ${String(cause)}`);
       throw AppError.openLibraryUnavailable(
         HttpStatus.SERVICE_UNAVAILABLE,
-        "Open Library nu răspunde acum. Poți completa cartea manual.",
+        "error.openLibrary.unavailable",
       );
     }
   }
@@ -152,9 +152,7 @@ export class OpenLibraryClient {
       return await response.json();
     } catch (cause) {
       this.log.warn(`Open Library sent non-JSON for ${url}: ${String(cause)}`);
-      throw badGateway(
-        "Răspunsul de la Open Library n-a putut fi citit. Completează cartea manual.",
-      );
+      throw badGateway("error.openLibrary.unusable");
     }
   }
 }
@@ -165,6 +163,6 @@ export class OpenLibraryClient {
  * thing to do about both, and a client branching between them would branch to
  * the same place twice.
  */
-function badGateway(message: string): AppError {
-  return AppError.openLibraryUnavailable(HttpStatus.BAD_GATEWAY, message);
+function badGateway(key: ErrorKey): AppError {
+  return AppError.openLibraryUnavailable(HttpStatus.BAD_GATEWAY, key);
 }

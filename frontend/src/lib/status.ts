@@ -1,4 +1,5 @@
 import type { Status } from "@bookcsi/shared";
+import type { MessageKey } from "../i18n/catalog";
 
 /** docs/DESIGN.md §Statusuri — reserved, never reused as chart series. */
 export const STATUS_COLOR: Record<Status, string> = {
@@ -27,10 +28,17 @@ export const NEXT_STATUS: Record<Status, Status | null> = {
   ABANDONED: null,
 };
 
-export const NEXT_STATUS_LABEL: Record<Status, string> = {
-  WISHLIST: "Am cumpărat-o",
-  PURCHASED: "Încep s-o citesc",
-  READING: "Am terminat-o",
-  FINISHED: "",
-  ABANDONED: "",
+/**
+ * The button's words, as a catalog key rather than a sentence (§D44).
+ *
+ * `null` exactly where `NEXT_STATUS` is null, so the two cannot disagree about
+ * whether a step exists — which the old shape could, since it spelled "no next
+ * step" as `""` and left a caller free to render an empty button.
+ */
+export const NEXT_STATUS_KEY: Record<Status, MessageKey | null> = {
+  WISHLIST: "status.next.purchased",
+  PURCHASED: "status.next.reading",
+  READING: "status.next.finished",
+  FINISHED: null,
+  ABANDONED: null,
 };

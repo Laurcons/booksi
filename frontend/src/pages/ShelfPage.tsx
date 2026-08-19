@@ -5,8 +5,8 @@ import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { Shelf } from "../components/Shelf";
 import { useOpenBook } from "../lib/book-origin";
-import { plural } from "../lib/plural";
 import { SHELF_ORDERS, type ShelfOrder } from "../lib/shelf";
+import { useT } from "../i18n/locale-context";
 
 /**
  * S8.2 — the shelf.
@@ -34,6 +34,7 @@ function queryFor(order: ShelfOrder): ListBooksQuery {
 }
 
 export function ShelfPage() {
+  const t = useT();
   const [order, setOrder] = useState<ShelfOrder>("purchased");
   const openBook = useOpenBook("raft");
 
@@ -72,7 +73,7 @@ export function ShelfPage() {
         {books && books.length > 0 && (
           <>
             <p className="text-sm text-ink-3">
-              {plural(books.length, "carte", "cărți")} pe raft
+              {t("shelf.count", { count: books.length })}
             </p>
 
             <Shelf books={books} onOpen={openBook} />

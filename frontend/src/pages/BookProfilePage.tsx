@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
-  GENRE_LABEL,
+  genreLabel,
   progressLabel,
   progressRatio,
   showsProgressBar,
@@ -17,6 +17,7 @@ import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
 import { StarRating } from "../components/books/StarRating";
 import { useBookOrigin } from "../lib/book-origin";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
+import { useLocale } from "../i18n/locale-context";
 
 /**
  * §D40 — the book's own page: everything known about it, and the description
@@ -142,6 +143,7 @@ function Cover({ book }: { book: Book }) {
 }
 
 function Identity({ book }: { book: Book }) {
+  const { locale } = useLocale();
   return (
     <div>
       <h1 className="font-display text-4xl text-ink">{book.title}</h1>
@@ -154,7 +156,7 @@ function Identity({ book }: { book: Book }) {
         <StatusPill status={book.status} />
         <StarRating rating={book.rating} />
         {book.genre !== null && (
-          <span className="text-sm text-ink-3">{GENRE_LABEL[book.genre]}</span>
+          <span className="text-sm text-ink-3">{genreLabel(book.genre, locale)}</span>
         )}
       </div>
 

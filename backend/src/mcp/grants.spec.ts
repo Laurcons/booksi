@@ -22,6 +22,9 @@ const storedUser = {
   avatarUrl: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   tokenVersion: 0,
+  // §D44 — a real row always has one; the column is NOT NULL with a
+  // default, and every account predating §D44 is Romanian.
+  locale: "ro",
 };
 
 class FakePrisma {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -8,6 +8,7 @@ import { failWith, makeBook, stubApi, type ApiCall } from "../test/helpers";
 import { BookProfilePage } from "./BookProfilePage";
 import { GalleryPage } from "./GalleryPage";
 import { WishlistPage } from "./WishlistPage";
+import { renderWithQuery } from "../test/helpers";
 
 /**
  * §D40 / §D41 — the book's own page, and the back button that has to work from
@@ -43,7 +44,7 @@ function renderAt(
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  render(
+  renderWithQuery(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[entry]}>
         <Routes>

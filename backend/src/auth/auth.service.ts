@@ -2,7 +2,15 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
-import type { AdminUserSummary, AuthUser } from "@bookcsi/shared";
+import {
+  DEFAULT_LOCALE,
+  matchLocale,
+  parseAcceptLanguage,
+  localeSchema,
+  type Locale,
+  type AdminUserSummary,
+  type AuthUser,
+} from "@bookcsi/shared";
 import type { Env } from "../config/env";
 import { PrismaService } from "../prisma/prisma.service";
 import { SESSION_TTL_DAYS } from "./session";
@@ -55,8 +63,19 @@ export class AuthService {
    *
    * The key is `googleId`, not `email`: Google Workspace addresses can be
    * renamed while the subject id stays put.
+   *
+   * `locale` appears on `create` and deliberately **not** on `update` (§D44).
+   * The two halves answer different questions. A new account has expressed no
+   * preference, so the device's is the best guess available and beats the
+   * column's `"ro"` default — which exists for the rows that predate the
+   * column, not for arrivals. An existing account *has* expressed one, by
+   * either choosing it or leaving it, and signing in on a borrowed
+   * English-language laptop is not a request to change it.
    */
-  async upsertFromGoogle(profile: GoogleProfileData): Promise<User> {
+  async upsertFromGoogle(
+    profile: GoogleProfileData,
+    acceptLanguage?: string,
+  ): Promise<User> {
     const isAdmin = this.isAdminEmail(profile.email);
 
     return this.prisma.user.upsert({
@@ -67,6 +86,7 @@ export class AuthService {
         name: profile.name,
         avatarUrl: profile.avatarUrl,
         isAdmin,
+        locale: matchLocale(parseAcceptLanguage(acceptLanguage)),
       },
       update: {
         email: profile.email,
@@ -74,6 +94,20 @@ export class AuthService {
         avatarUrl: profile.avatarUrl,
         isAdmin,
       },
+    });
+  }
+
+  /**
+   * S?/§D44 — the language switch. One column, so a whole-object write and a
+   * patch are the same request.
+   *
+   * Returns the refreshed `AuthUser` rather than nothing, so the client can
+   * settle on the server's answer instead of trusting its own optimistic one.
+   */
+  async setLocale(userId: string, locale: Locale): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { locale },
     });
   }
 
@@ -191,6 +225,12 @@ export class AuthService {
       name: user.name,
       avatarUrl: user.avatarUrl,
       isAdmin: user.isAdmin,
+      // The column is a plain `String` (§D44 — the set of languages is a
+      // property of the interface, not of the data), so a row written by an
+      // older build, a fixture, or a hand-run SQL statement could hold anything.
+      // Narrowed here rather than trusted, because this is the one place the row
+      // becomes the `AuthUser` both ends type against.
+      locale: localeSchema.catch(DEFAULT_LOCALE).parse(user.locale),
       impersonatedBy,
     };
   }

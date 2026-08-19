@@ -9,12 +9,13 @@ import {
   type ListBooksQuery,
 } from "@bookcsi/shared";
 import { usePurchaseBook, useUpdateBook } from "../../api/books";
-import { NEXT_STATUS, NEXT_STATUS_LABEL } from "../../lib/status";
+import { NEXT_STATUS } from "../../lib/status";
 import { useMediaQuery } from "../../lib/use-media-query";
 import { StatusPill } from "../StatusPill";
 import { CoverThumb } from "./CoverThumb";
 import { StarRating } from "./StarRating";
 import { StartReadingDialog } from "./StartReadingDialog";
+import { useNextStatusLabel } from "../../i18n/next-status";
 
 /**
  * S1.2 — the table.
@@ -246,6 +247,7 @@ function Row({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const nextLabel = useNextStatusLabel();
   const { next, advance, advancing, asking, stopAsking } = useAdvance(book);
 
   return (
@@ -289,7 +291,7 @@ function Row({
               onClick={advance}
               className="rounded-lg border border-accent-quiet px-2.5 py-1.5 text-xs font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-50"
             >
-              {NEXT_STATUS_LABEL[book.status]}
+              {nextLabel(book.status)}
             </button>
           )}
           <RowAction onClick={onEdit} label="Editează">
@@ -421,6 +423,7 @@ function BookRowCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const nextLabel = useNextStatusLabel();
   const { next, advance, advancing, asking, stopAsking } = useAdvance(book);
   const money = price === "paid" ? book.paidPrice : book.estimatedPrice;
 
@@ -471,7 +474,7 @@ function BookRowCard({
             onClick={advance}
             className="rounded-lg border border-accent-quiet px-2.5 py-1.5 text-xs font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-50"
           >
-            {NEXT_STATUS_LABEL[book.status]}
+            {nextLabel(book.status)}
           </button>
         )}
 

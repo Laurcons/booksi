@@ -1,5 +1,5 @@
 import { CURRENCY, formatMoney, type UndatedSpend } from "@bookcsi/shared";
-import { plural } from "../../lib/plural";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S6.1 — what the library has cost so far.
@@ -48,14 +48,19 @@ export function SpendTotal({
  * `Terminat`, and only a transition into `Cumpărat` stamps a date (S1.5).
  */
 function UndatedNote({ undated }: { undated: UndatedSpend }) {
+  const t = useT();
+
   if (undated.books === 0) {
-    return <>Fiecare sumă are și o dată de cumpărare.</>;
+    return <>{t("spend.total.allDated")}</>;
   }
 
   return (
     <>
-      Din care {formatMoney(undated.total)} {CURRENCY} pe{" "}
-      {plural(undated.books, "carte fără", "cărți fără")} dată de cumpărare.
+      {t("spend.total.undated", {
+        count: undated.books,
+        amount: formatMoney(undated.total),
+        currency: CURRENCY,
+      })}
     </>
   );
 }

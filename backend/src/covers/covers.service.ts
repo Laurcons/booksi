@@ -71,7 +71,7 @@ export class CoversService {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         "COVER_FORMAT_UNSUPPORTED",
-        "Fișierul nu e o imagine JPEG, PNG sau WebP.",
+        "error.cover.formatUnsupported",
       );
     }
 

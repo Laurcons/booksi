@@ -5,6 +5,7 @@ import {
   type BudgetSummary,
   type StatsOverview,
 } from "@bookcsi/shared";
+import { useLocale } from "../i18n/locale-context";
 import { StatsBar } from "./StatsBar";
 
 /**
@@ -13,7 +14,7 @@ import { StatsBar } from "./StatsBar";
  *
  * **Two sources, and that is the point of both.** The three reading figures are
  * `/stats/overview`, the same response `/stats` reads, so the number under
- * "Cărți citite" is the same number on both screens by construction rather than
+ * `stats.booksFinished` is the same number on both screens by construction rather than
  * by two implementations agreeing (§D10, S8.1). The money is
  * `/budget/summary`, which has computed the month since S6.3 — the alternative
  * would be a second endpoint summing `paidPrice`, and two of those is exactly
@@ -31,15 +32,20 @@ export function DashboardStats({
   /** `/budget/summary`'s own month object — the same one `MonthBudget` reads. */
   month: BudgetSummary["month"];
 }) {
+  const { locale, t } = useLocale();
+
   return (
     <StatsBar
       figures={[
-        { value: formatCount(stats.booksFinished), label: "Cărți citite" },
-        { value: formatCount(stats.booksReading), label: "În curs" },
-        { value: formatCount(stats.pagesRead), label: "Pagini citite" },
+        {
+          value: formatCount(stats.booksFinished, locale),
+          label: t("stats.booksFinished"),
+        },
+        { value: formatCount(stats.booksReading, locale), label: t("stats.booksReading") },
+        { value: formatCount(stats.pagesRead, locale), label: t("stats.pagesRead") },
         {
           value: `${formatMoney(month.spent)} ${CURRENCY}`,
-          label: "Cheltuit luna asta",
+          label: t("stats.spentThisMonth"),
         },
       ]}
     />

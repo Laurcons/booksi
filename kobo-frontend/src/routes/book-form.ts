@@ -1,8 +1,8 @@
 import { Router } from "express";
 import {
-  GENRE_LABEL,
+  genreLabel,
   GENRE_VALUES,
-  STATUS_LABEL,
+  statusLabel,
   STATUS_VALUES,
   type Book,
 } from "@bookcsi/shared";
@@ -30,6 +30,7 @@ import { handleBackendError } from "../lib/route-errors";
 import { bodyFont, fontSize, ink, ruleWidth, touchGap, touchMin } from "../lib/tokens";
 import { webPx } from "../lib/units";
 import { BOOK_FORM_SCRIPT } from "./book-form-script";
+import { KOBO_LOCALE } from "../lib/locale";
 
 /**
  * S1.1 (add) and S1.3/S1.4/S2.1–S2.4 (edit, which is also every status
@@ -77,11 +78,11 @@ const EXTRA_STYLE = `
 
 const GENRE_OPTIONS: [string, string][] = [
   ["", "— fără categorie —"],
-  ...GENRE_VALUES.map((g): [string, string] => [g, GENRE_LABEL[g]]),
+  ...GENRE_VALUES.map((g): [string, string] => [g, genreLabel(g, KOBO_LOCALE)]),
 ];
 
 const STATUS_OPTIONS: [string, string][] = STATUS_VALUES.map(
-  (s): [string, string] => [s, STATUS_LABEL[s]],
+  (s): [string, string] => [s, statusLabel(s, KOBO_LOCALE)],
 );
 
 const RATING_OPTIONS: [string, string][] = [

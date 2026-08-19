@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation } from "react-router";
-import type { AuthUser } from "@bookcsi/shared";
+import { LOCALES, type AuthUser, type Locale } from "@bookcsi/shared";
 import { useCurrentUser, useLogout } from "../api/auth";
+import type { MessageKey } from "../i18n/catalog";
+import { useLocale, useT } from "../i18n/locale-context";
 import { focusable, trapTab } from "../lib/focus-trap";
 
 /**
@@ -17,21 +19,23 @@ import { focusable, trapTab } from "../lib/focus-trap";
  * "Bibliotecă", because a dashboard you have to navigate to is not one you see
  * on opening the app.
  */
-const NAV: { label: string; to?: string }[] = [
-  { label: "Bibliotecă", to: "/" },
-  { label: "Galerie", to: "/gallery" },
-  { label: "Raft", to: "/shelf" },
-  { label: "Wishlist", to: "/wishlist" },
-  { label: "Buget", to: "/budget" },
-  { label: "Statistici", to: "/stats" },
+const NAV: { label: MessageKey; to?: string }[] = [
+  // §D21/§D44 — the path is English and permanent, the label is a catalog key.
+  { label: "nav.library", to: "/" },
+  { label: "nav.gallery", to: "/gallery" },
+  { label: "nav.shelf", to: "/shelf" },
+  { label: "nav.wishlist", to: "/wishlist" },
+  { label: "nav.budget", to: "/budget" },
+  { label: "nav.stats", to: "/stats" },
   // A curated set of books against a deadline — backend/src/challenges/.
-  { label: "Provocare", to: "/challenge" },
+  { label: "nav.challenge", to: "/challenge" },
 ];
 
 const NAV_ITEM =
   "relative rounded-lg px-3 py-2 text-sm transition-colors duration-150 ";
 
 export function Header({ onAddBook }: { onAddBook?: () => void }) {
+  const t = useT();
   const { data: user } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -70,7 +74,7 @@ export function Header({ onAddBook }: { onAddBook?: () => void }) {
                 aria-disabled
                 className={NAV_ITEM + "text-ink-3/60"}
               >
-                {item.label}
+                {t(item.label)}
               </span>
             ) : (
               <NavLink
@@ -88,7 +92,7 @@ export function Header({ onAddBook }: { onAddBook?: () => void }) {
               >
                 {({ isActive }) => (
                   <>
-                    {item.label}
+                    {t(item.label)}
                     {isActive && (
                       <span className="absolute inset-x-3 -bottom-px h-px bg-accent" />
                     )}
@@ -111,12 +115,12 @@ export function Header({ onAddBook }: { onAddBook?: () => void }) {
             <button
               type="button"
               onClick={onAddBook}
-              aria-label="Adaugă o carte"
-              title="Adaugă o carte"
+              aria-label={t("nav.addBook")}
+              title={t("nav.addBook")}
               className="flex size-9 items-center justify-center gap-1.5 rounded-lg border border-accent-quiet bg-accent-quiet/40 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet sm:size-auto sm:px-3.5 sm:py-2"
             >
               <PlusIcon />
-              <span className="max-sm:sr-only">Adaugă o carte</span>
+              <span className="max-sm:sr-only">{t("nav.addBook")}</span>
             </button>
           )}
           {user && <AccountMenu user={user} />}
@@ -144,6 +148,7 @@ export function Header({ onAddBook }: { onAddBook?: () => void }) {
  * inside it.
  */
 function NavDrawer({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const panelRef = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
 
@@ -214,7 +219,7 @@ function NavDrawer({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Închide meniul"
+            aria-label={t("nav.closeMenu")}
             className="-mr-2 grid size-9 place-items-center rounded-lg text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
             <CloseIcon />
@@ -229,7 +234,7 @@ function NavDrawer({ onClose }: { onClose: () => void }) {
                 aria-disabled
                 className="rounded-lg px-3 py-2.5 text-ink-3/60"
               >
-                {item.label}
+                {t(item.label)}
               </span>
             ) : (
               <NavLink
@@ -243,7 +248,7 @@ function NavDrawer({ onClose }: { onClose: () => void }) {
                     : "text-ink-2 hover:bg-surface-3 hover:text-ink")
                 }
               >
-                {item.label}
+                {t(item.label)}
               </NavLink>
             ),
           )}
@@ -255,6 +260,7 @@ function NavDrawer({ onClose }: { onClose: () => void }) {
 }
 
 function AccountMenu({ user }: { user: AuthUser }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const logout = useLogout();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -294,7 +300,7 @@ function AccountMenu({ user }: { user: AuthUser }) {
         className="block rounded-full transition-opacity duration-150 hover:opacity-85"
       >
         <Avatar user={user} />
-        <span className="sr-only">Contul meu</span>
+        <span className="sr-only">{t("account.mine")}</span>
       </button>
 
       {open && (
@@ -303,7 +309,7 @@ function AccountMenu({ user }: { user: AuthUser }) {
           className="absolute right-0 top-full z-30 mt-2 w-60 overflow-hidden rounded-xl border border-line bg-surface-3 shadow-lg shadow-black/40"
         >
           <div className="border-b border-line px-4 py-3">
-            <p className="truncate text-sm text-ink">{user.name ?? "Contul meu"}</p>
+            <p className="truncate text-sm text-ink">{user.name ?? t("account.mine")}</p>
             <p className="truncate text-xs text-ink-3">{user.email}</p>
           </div>
           {/* docs/MCP.md §9 step 6 — account-level security, next to logout
@@ -314,7 +320,7 @@ function AccountMenu({ user }: { user: AuthUser }) {
             onClick={() => setOpen(false)}
             className="block border-b border-line px-4 py-3 text-left text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
           >
-            Aplicații conectate
+            {t("account.connectors")}
           </Link>
           {/* §D37 — Google refuză consimțământul în browserul unui Kobo, deci
               împerecherea prin cod are nevoie de propriul ei loc, lângă
@@ -325,7 +331,7 @@ function AccountMenu({ user }: { user: AuthUser }) {
             onClick={() => setOpen(false)}
             className="block border-b border-line px-4 py-3 text-left text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
           >
-            Împerechere Kobo
+            {t("account.pairKobo")}
           </Link>
           {/* §D38 — vizibil doar pentru conturi admin; ruta e oricum
               protejată de `AdminGuard` pe backend. */}
@@ -336,9 +342,10 @@ function AccountMenu({ user }: { user: AuthUser }) {
               onClick={() => setOpen(false)}
               className="block border-b border-line px-4 py-3 text-left text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
             >
-              Impersonează utilizator
+              {t("account.impersonate")}
             </Link>
           )}
+          <LanguagePicker onPicked={() => setOpen(false)} />
           <button
             type="button"
             role="menuitem"
@@ -346,13 +353,74 @@ function AccountMenu({ user }: { user: AuthUser }) {
             onClick={() => logout.mutate()}
             className="w-full px-4 py-3 text-left text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-60"
           >
-            {logout.isPending ? "Se deloghează…" : "Delogare"}
+            {logout.isPending ? t("account.loggingOut") : t("account.logout")}
           </button>
         </div>
       )}
     </div>
   );
 }
+
+/**
+ * §D44 — the language switch, in the account menu rather than in a settings
+ * screen.
+ *
+ * Two reasons it belongs here. It is a property of the *account* (the column is
+ * on `User`, not in `Settings`), and it is the one setting a reader may need
+ * before they can read anything else — a user who has landed in the wrong
+ * language should not have to navigate a menu written in it to get out.
+ *
+ * Both languages are always named in their **own** language ("Română", not
+ * "Romanian"), which is the standard for language pickers: someone looking for
+ * their language recognises its own name, not its name in a language they do not
+ * read.
+ */
+function LanguagePicker({ onPicked }: { onPicked: () => void }) {
+  const { locale, setLocale, isSwitching, t } = useLocale();
+
+  return (
+    <div className="border-b border-line px-4 py-3">
+      <p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
+        {t("account.language")}
+      </p>
+      <div className="mt-2 flex gap-1.5">
+        {LOCALES.map((option) => {
+          const current = option === locale;
+
+          return (
+            <button
+              key={option}
+              type="button"
+              role="menuitemradio"
+              aria-checked={current}
+              disabled={isSwitching}
+              onClick={() => {
+                if (!current) {
+                  setLocale(option);
+                }
+                onPicked();
+              }}
+              className={
+                "rounded-lg border px-2.5 py-1 text-xs transition-colors duration-150 disabled:opacity-60 " +
+                (current
+                  ? "border-accent-quiet text-accent"
+                  : "border-line text-ink-2 hover:bg-surface-2 hover:text-ink")
+              }
+            >
+              {LOCALE_NAMES[option]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Each language in its own words — see `LanguagePicker`. */
+const LOCALE_NAMES: Record<Locale, string> = {
+  ro: "Română",
+  en: "English",
+};
 
 /**
  * Google's avatar URLs 403 when a referrer is sent, and a picture can vanish

@@ -22,6 +22,7 @@ const storedUser = {
   createdAt: new Date("2026-01-01T00:00:00Z"),
   tokenVersion: 0,
   isAdmin: false,
+  locale: "ro",
 };
 
 const adminUser = {
@@ -140,6 +141,7 @@ describe("auth routes", () => {
         name: "Cineva",
         avatarUrl: "https://example.com/a.png",
         isAdmin: false,
+        locale: "ro",
         impersonatedBy: null,
       });
       // googleId is a join key, not something the client ever needs.
@@ -471,6 +473,7 @@ describe("AuthService", () => {
       name: "Cineva",
       avatarUrl: "https://example.com/a.png",
       isAdmin: false,
+      locale: "ro",
       impersonatedBy: null,
     });
   });

@@ -231,6 +231,11 @@ Puntea o fac mape de traducere explicite (`STATUS_LABEL`, `GENRE_LABEL`), nu con
 și nici enum-uri cu valori românești. Avantajul practic: dacă apare vreodată o a doua limbă,
 mapele sunt singurul lucru care se dublează — restul codului nu se atinge.
 
+**Amendat de §D44.** A doua limbă a apărut, iar ultima frază s-a dovedit pe jumătate falsă: mapele
+chiar nu au cerut decât o coloană în plus, dar nu erau singura română din cod — mesajele de validare
+din `shared/` și vreo două sute de string-uri de JSX au trebuit extrase. Prima jumătate a deciziei —
+identificatori în engleză, peste tot — rămâne neatinsă.
+
 ### D22 — Structura de monorepo
 `frontend/` și `backend/` la rădăcină, nu `apps/web` și `apps/api`. Gestionar: npm workspaces,
 declarate în `package.json`-ul rădăcină.
@@ -863,6 +868,62 @@ Singurul lucru interceptat acolo e ruta de Open Library, ca verdele testului să
 terț care răspunde peste rețea — `retries: 0` există ca să nu absoarbă exact așa ceva.
 
 **Kobo nu primește scanare**: dispozitivul nu are cameră.
+
+---
+
+### D44 — Interfața vorbește română și engleză
+
+Contul ține limba, `User.locale`, iar restul decurge din asta.
+
+**Ordinea de rezolvare, aceeași pe ambele capete:**
+
+1. `User.locale`, dacă există sesiune. Cine a ales româna pe un laptop englezesc a ales româna —
+   header-ul nu e un al doilea vot.
+2. Altfel prima limbă din preferințele dispozitivului pe care o vorbim: `navigator.languages` în
+   browser, `Accept-Language` pe server (`matchLocale`, `shared/src/locale.ts`).
+3. Altfel engleză (`DEFAULT_LOCALE`).
+
+**Prima potrivire câștigă; nu se caută `ro` în toată lista.** Un dispozitiv setat pe engleză cu
+româna mai jos a exprimat o preferință, iar suprascrierea ei nu e negociere. Practic conteaza și
+pentru sincronizare: Safari scurtează `Accept-Language` din motive de fingerprinting, în timp ce
+`navigator.languages` rămâne întreg — o căutare pe toată lista ar fi găsit `ro` în browser și nu în
+header, deci o limbă pe ecran și alta în textul erorii, pe aceeași pagină.
+
+**`@default("ro")` pe coloană nu e limba implicită a aplicației.** Coloana păstrează ce văd
+conturile care existau înainte de §D44, toate românești. Conturile *noi* nu iau acest default:
+callback-ul Google le seamănă din `Accept-Language`, ca cineva venit pe un dispozitiv englezesc să
+înceapă în engleză.
+
+**Amendează §D21.** Predicția de acolo — că o a doua limbă costă doar mapele de etichete — s-a
+dovedit adevărată pentru `STATUS_LABEL`/`GENRE_LABEL` și falsă pentru tot restul: mesajele de
+validare din `shared/src/book.ts` erau românești, și încă vreo două sute de string-uri de JSX.
+Identificatorii rămân englezești, neamendat.
+
+**Schemele zod poartă chei, nu propoziții.** O schemă se construiește o dată, la încărcarea
+modulului, deci nu poate ține text ales pe cititor; `translateIssue` o transformă în cuvinte la
+afișare. Alternativa — scheme ca fabrici `(locale) => schema` — a fost respinsă pentru cât ar fi
+atins: `bookFormSchema` ajunge la `zodResolver` la nivel de modul.
+
+**Mesajele proprii zod** (constrângerile fără mesaj de-al nostru, `.max(255)`) vin din traducerile
+zod v4, date **per parse** și nu prin `z.config`: o setare globală pe un server care răspunde
+simultan unor cititori în limbi diferite e forma clasică a unui bug care apare doar sub încărcare.
+Asta repară și o eroare mai veche — româna vedea engleza zod pentru orice constrângere neetichetată.
+
+**Un `AppError` numește eșecul, filtrul îl formulează.** Serviciile nu au cititor, deci alegerea
+cuvintelor nu e a lor; `AppExceptionFilter` ține cererea și decide. Corpul construit în
+`DEFAULT_LOCALE` rămâne, pentru rutele cu filtru propriu (`OAuthFailureFilter`,
+`McpAuthErrorFilter`) — degradare la o limbă, nu la o cheie pe ecran.
+
+**Validarea e decorator de parametru, nu pipe.** Un pipe nu vede cererea, deci nu poate ști limba;
+`createParamDecorator` primește `ExecutionContext`. Capcana e notată în `common/validated.ts`:
+Nest decide „data sau pipe?" prin duck-typing pe `.transform`, iar schemele zod au un `.transform`.
+
+**Ce nu urmează limba.** Suma rămâne în lei în ambele limbi — limba nu e regiune, iar cărțile din
+bază au fost cumpărate în România (`shared/src/money.ts`). Uneltele MCP sunt în engleză, o dată,
+pentru că le citește un model; ecranul de consimțământ MCP e pentru un om și e bilingv.
+
+**`kobo-frontend/` rămâne în română deocamdată**, printr-o singură constantă (`KOBO_LOCALE`) — o
+decizie, nu o omisiune. Nimic din `shared/` nu trebuie schimbat când îi va veni rândul.
 
 ---
 

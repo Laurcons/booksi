@@ -1,4 +1,5 @@
-import { STATUS_LABEL, type Status } from "@bookcsi/shared";
+import { statusLabel, type Status } from "@bookcsi/shared";
+import { useLocale } from "../i18n/locale-context";
 import { STATUS_COLOR } from "../lib/status";
 
 /**
@@ -10,6 +11,7 @@ import { STATUS_COLOR } from "../lib/status";
  * handed a real book. Both now read the same enum, so there is one pill.
  */
 export function StatusPill({ status }: { status: Status }) {
+  const { locale } = useLocale();
   const color = STATUS_COLOR[status];
 
   return (
@@ -21,7 +23,7 @@ export function StatusPill({ status }: { status: Status }) {
       }}
     >
       <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} />
-      {STATUS_LABEL[status]}
+      {statusLabel(status, locale)}
     </span>
   );
 }

@@ -20,7 +20,7 @@ type ChallengeWithBooks = ChallengeRow & { books: { bookId: string }[] };
 
 /** `ownedOrNotFound`'s default message is book-flavoured (every caller before
  * this one was about a book) — this is the challenge equivalent. */
-const NOT_FOUND = "Provocarea asta nu există sau nu e a ta.";
+const NOT_FOUND = "error.challenge.notFound";
 
 @Injectable()
 export class ChallengesService {
@@ -143,7 +143,7 @@ export class ChallengesService {
     const owned = await this.books.countOwned(userId, [...new Set(bookIds)]);
 
     if (owned !== new Set(bookIds).size) {
-      throw AppError.notFound("Una sau mai multe cărți nu există sau nu sunt ale tale.");
+      throw AppError.notFound("error.books.notFound");
     }
   }
 

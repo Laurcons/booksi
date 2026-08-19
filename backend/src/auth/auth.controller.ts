@@ -1,19 +1,8 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Param,
-  Post,
-  Query,
-  Req,
-  Res,
-  UseFilters,
-  UseGuards,
-} from "@nestjs/common";
+import { Controller, Get, HttpCode, HttpStatus, Logger, Param, Post, Put, Query, Req, Res, UseFilters, UseGuards } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  ApiBadRequestResponse,
+  ApiBody,
   ApiCookieAuth,
   ApiForbiddenResponse,
   ApiFoundResponse,
@@ -26,7 +15,12 @@ import {
 import { Throttle, minutes } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import type { User } from "@prisma/client";
-import type { AdminUserSummary, AuthUser } from "@bookcsi/shared";
+import {
+  updateLocaleSchema,
+  type AdminUserSummary,
+  type AuthUser,
+  type UpdateLocaleInput,
+} from "@bookcsi/shared";
 import { AuditAction } from "../audit/audit-action.decorator";
 import { AuditMetadata, type SetAuditMetadata } from "../audit/audit-metadata.decorator";
 import { AppError } from "../common/app-error";
@@ -43,6 +37,7 @@ import {
 import { OAuthFailureFilter } from "./oauth-failure.filter";
 import { sessionCookieExtractor } from "./strategies/jwt.strategy";
 import { SESSION_COOKIE, sessionCookieOptions } from "./session";
+import { ValidatedBody } from "../common/validated";
 
 /**
  * Tighter than the global ceiling, and on the two routes that deserve it: they
@@ -152,6 +147,46 @@ export class AuthController {
   }
 
   /**
+   * §D44 — the language switch.
+   *
+   * On `/auth` rather than `/settings` because the column is on `User`: it is a
+   * fact about the account, like `email` and `isAdmin`, not about its budget.
+   * `/auth/me` is what carries it to the client, so this is where it is written.
+   *
+   * Answers with the whole refreshed `AuthUser` rather than with nothing, so the
+   * client can settle on the server's answer instead of keeping the optimistic
+   * one it rendered while the request was in flight.
+   */
+  @ApiOperation({
+    summary: "Schimbă limba interfeței",
+    description:
+      "§D44 — `ro` sau `en`. Se salvează pe cont, deci urmează utilizatorul " +
+      "pe orice dispozitiv, și are prioritate față de `Accept-Language`: " +
+      "cine a ales româna pe un laptop englezesc a ales româna.\n\n" +
+      "`PUT`, nu `PATCH`: cu un singur câmp, „trimite ce s-a schimbat” și " +
+      "„trimite tot” sunt aceeași cerere.\n\n" +
+      "Nu afectează moneda. Limba nu e regiune — sumele rămân în lei în " +
+      "ambele limbi.",
+  })
+  @ApiCookieAuth("session")
+  @ApiBody({ schema: ref("UpdateLocaleInput") })
+  @ApiOkResponse({ schema: ref("AuthUser") })
+  @ApiBadRequestResponse({
+    description: "O limbă pe care interfața nu o vorbește, sau un câmp în plus.",
+    schema: ref("HttpError"),
+  })
+  @AuditAction("auth.locale")
+  @Put("locale")
+  async setLocale(
+    @CurrentUser() user: AuthUser,
+    @ValidatedBody(updateLocaleSchema) input: UpdateLocaleInput,
+  ): Promise<AuthUser> {
+    const row = await this.authService.setLocale(user.id, input.locale);
+
+    return AuthService.toAuthUser(row, user.impersonatedBy);
+  }
+
+  /**
    * Explicit logout (S0.2). `clearCookie` has to repeat the attributes the
    * cookie was set with, otherwise the browser keeps the original.
    */
@@ -212,7 +247,7 @@ export class AuthController {
     @AuditMetadata() setAuditMetadata: SetAuditMetadata,
   ): Promise<void> {
     if (userId === admin.id) {
-      throw AppError.validation("Nu te poți impersona pe tine însuți.");
+      throw AppError.validation("error.impersonate.self");
     }
 
     const target = await this.authService.findById(userId);
@@ -252,7 +287,7 @@ export class AuthController {
     @AuditMetadata() setAuditMetadata: SetAuditMetadata,
   ): Promise<void> {
     if (!user.impersonatedBy) {
-      throw AppError.validation("Nu ești în modul impersonare.");
+      throw AppError.validation("error.impersonate.notActive");
     }
 
     const admin = await this.authService.findById(user.impersonatedBy.id);

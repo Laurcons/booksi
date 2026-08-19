@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { Book } from "@bookcsi/shared";
 import { makeBook, stubApi, type ApiCall } from "../test/helpers";
 import { LibraryPage } from "./LibraryPage";
+import { renderWithQuery } from "../test/helpers";
 
 /**
  * §D42 — the search box on the table, and the two things around it that are
@@ -47,7 +48,7 @@ function renderLibrary(answer: (q: string | null) => Book[]) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  render(
+  renderWithQuery(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={["/"]}>
         <LibraryPage />

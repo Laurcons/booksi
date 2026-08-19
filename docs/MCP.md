@@ -257,17 +257,29 @@ utilizatorului și separarea citire/scriere ar cere un al doilea flux de consim�
 câștig teoretic. Adăugarea unui scope `library:read` mai târziu e aditivă: o coloană deja
 existentă și o ramură la înregistrarea uneltelor.
 
-**Descrierile spun *când*, nu doar *ce*.** „Apelează când utilizatorul întreabă ce citește
-acum" e măsurabil mai bună decât „Listează cărți", fiindcă modelul alege unealta din descriere.
+**Descrierile spun *când*, nu doar *ce*.** „Call this when the user asks what they are reading
+now" e măsurabil mai bună decât „Lists books", fiindcă modelul alege unealta din descriere.
 Fiecare unealtă spune și ce **nu** face, ca să nu fie aleasă în locul vecinei. Răspunsurile
 conțin câmpurile necesare răspunsului, nu rândul întreg — fiecare câmp în plus e context
 consumat degeaba.
+
+**Descrierile sunt în engleză, deși interfața are două limbi** (§D44). Ele nu sunt citite de un
+om, ci de un model: sunt instrucțiuni de rutare, iar treaba lor e să fie potrivite cu o cerere
+formulată în orice limbă. Modelul le citește la fel de bine pe amândouă, deci traducerea lor ar
+dubla suprafața care trebuie ținută sincronizată — două copii ale aceleiași îndrumări, fiecare
+liberă să divergă — fără nimic în schimb. Ecranul de consimțământ, pe care îl aprobă un om, se
+traduce ca orice alt ecran.
 
 **`description` e cazul în care regula de mai sus chiar contează** (§D40). E proză, până la 5000
 de caractere, și e singurul câmp al cărții care poate fi mai lung decât tot restul rândului la un
 loc — deci `get_book` o întoarce, iar `search_library` n-o întoarce. Tot §D40: descrierea nu se
 aduce de nicăieri de către bookcsi. Modelul e sursa, `update_book` e drumul, iar descrierea acelei
 unelte îi spune explicit că poate căuta despre carte și în ce ton să scrie.
+
+Limba în care o scrie s-a schimbat însă la §D44: unealta cerea un rezumat **în română**, iar acum
+cere unul în limba în care utilizatorul îi scrie. Descrierea e datele lui, nu interfața noastră —
+un utilizator care citește aplicația în engleză nu are motiv să primească proză românească în
+propria bibliotecă. Descrierile deja salvate nu se ating.
 
 ---
 

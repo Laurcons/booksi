@@ -16,7 +16,6 @@ import type { AuthUser, McpConsentRequest } from "@bookcsi/shared";
 import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import {
   authorizeQuerySchema,
   revokeBodySchema,
@@ -28,6 +27,7 @@ import {
 } from "./oauth.dto";
 import { OAuthTokenErrorFilter } from "./oauth-token-error";
 import { OAuthService } from "./oauth.service";
+import { ValidatedBody, ValidatedQuery } from "../common/validated";
 
 /**
  * The hand-rolled OAuth 2.1 authorization server (docs/MCP.md §9 step 3).
@@ -50,7 +50,7 @@ export class OAuthController {
   @Public()
   @Get("authorize")
   authorize(
-    @Query(new ZodValidationPipe(authorizeQuerySchema)) query: AuthorizeQuery,
+    @ValidatedQuery(authorizeQuerySchema) query: AuthorizeQuery,
     @Res() res: Response,
   ): void {
     res.redirect(this.oauth.buildConsentRedirect(query));
@@ -82,7 +82,7 @@ export class OAuthController {
   @Post("token")
   @HttpCode(HttpStatus.OK)
   token(
-    @Body(new ZodValidationPipe(tokenBodySchema)) body: TokenBody,
+    @ValidatedBody(tokenBodySchema) body: TokenBody,
   ): Promise<TokenResponse> {
     return this.oauth.exchangeToken(body);
   }
@@ -92,7 +92,7 @@ export class OAuthController {
   @Post("revoke")
   @HttpCode(HttpStatus.OK)
   async revoke(
-    @Body(new ZodValidationPipe(revokeBodySchema)) body: RevokeBody,
+    @ValidatedBody(revokeBodySchema) body: RevokeBody,
   ): Promise<Record<string, never>> {
     await this.oauth.revoke(body);
     return {};

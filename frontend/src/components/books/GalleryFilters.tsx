@@ -1,7 +1,13 @@
-import { STATUS_LABEL, STATUS_VALUES, type ListBooksQuery, type Status } from "@bookcsi/shared";
+import {
+  statusLabel,
+  STATUS_VALUES,
+  type ListBooksQuery,
+  type Status,
+} from "@bookcsi/shared";
 import { isFiltered } from "../../lib/filters";
 import { BookSearch } from "./BookSearch";
 import { CategoryPicker } from "./CategoryPicker";
+import { useLocale } from "../../i18n/locale-context";
 
 /**
  * S5.3 — status (multi-select), genre and favourites, combined with AND.
@@ -31,6 +37,8 @@ export function GalleryFilters({
   search: string;
   onSearchChange: (search: string) => void;
 }) {
+  const { locale } = useLocale();
+
   const statuses = query.status ?? [];
   const filtering = isFiltered(query);
 
@@ -61,7 +69,7 @@ export function GalleryFilters({
             pressed={statuses.includes(status)}
             onClick={() => toggleStatus(status)}
           >
-            {STATUS_LABEL[status]}
+            {statusLabel(status, locale)}
           </Toggle>
         ))}
       </div>

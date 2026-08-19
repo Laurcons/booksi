@@ -90,6 +90,14 @@ export const httpErrorSchema = z.object({
 
 export type HttpErrorBody = z.infer<typeof httpErrorSchema>;
 
-/** The generic body, named once so both ends agree on what "no code" means. */
-export const INTERNAL_ERROR_MESSAGE =
-  "Ceva n-a mers bine pe server. Încearcă din nou peste puțin.";
+/**
+ * The generic body's message, which is the one sentence in this file that is
+ * *not* a constant any more (§D44): it goes to a reader, so it goes through
+ * `errorMessageFor(locale, "error.internal")` like every other one.
+ *
+ * Named here anyway, as a key rather than a string, because the reason it
+ * existed as a single definition has not changed — both ends have to agree on
+ * what "no code" says, and the exception filter is the only thing that may send
+ * it.
+ */
+export const INTERNAL_ERROR_KEY = "error.internal" as const;

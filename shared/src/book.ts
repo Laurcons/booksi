@@ -76,12 +76,12 @@ function isRealCalendarDay(value: string): boolean {
 
 export const calendarDateSchema = z
   .string()
-  .regex(CALENDAR_DATE_PATTERN, "Expected a calendar date as YYYY-MM-DD")
+  .regex(CALENDAR_DATE_PATTERN, "validation.date.shape")
   // Guarded by the pattern test so a malformed string reports the shape
   // problem alone, rather than that and "this day does not exist" together.
   .refine(
     (value) => !CALENDAR_DATE_PATTERN.test(value) || isRealCalendarDay(value),
-    "Ziua asta nu există în calendar",
+    "validation.date.notACalendarDay",
   )
   // Carried into the generated OpenAPI schema. Without it, tooling invents a
   // string that merely satisfies the pattern — "5843-15-01" and the like,
@@ -109,9 +109,9 @@ export const nullableText = (max: number) =>
  */
 export const moneySchema = z
   .number()
-  .nonnegative("Suma nu poate fi negativă")
-  .max(99_999_999.99, "Sumă prea mare")
-  .multipleOf(0.01, "Cel mult două zecimale");
+  .nonnegative("validation.money.negative")
+  .max(99_999_999.99, "validation.money.tooLarge")
+  .multipleOf(0.01, "validation.money.twoDecimals");
 
 export const bookSchema = z.object({
   id: z.string(),
@@ -172,7 +172,7 @@ export type Book = z.infer<typeof bookSchema>;
  * the idea that the flow is a constraint.
  */
 export const createBookSchema = z.strictObject({
-  title: z.string().trim().min(1, "Titlul e obligatoriu").max(255),
+  title: z.string().trim().min(1, "validation.title.required").max(255),
   author: nullableText(255).optional(),
   isbn: nullableText(20).optional(),
   totalPages: z.number().int().positive().max(100_000).nullable().optional(),
@@ -181,10 +181,10 @@ export const createBookSchema = z.strictObject({
   publicationYear: z
     .number()
     .int()
-    .min(1400, "An de apariție implauzibil")
+    .min(1400, "validation.year.implausible")
     .refine(
       (value) => value <= new Date().getFullYear() + 1,
-      "Anul de apariție nu poate fi în viitor",
+      "validation.year.future",
     )
     .nullable()
     .optional(),
@@ -250,7 +250,7 @@ export const createBookSchema = z.strictObject({
    * Not nullable, unlike its neighbours: the column is `Int @default(0)`, and
    * "I haven't started" is 0 pages, not an unknown.
    */
-  pagesRead: z.number().int().min(0, "Paginile citite nu pot fi negative").max(100_000).optional(),
+  pagesRead: z.number().int().min(0, "validation.pagesRead.negative").max(100_000).optional(),
 
   /**
    * S2.3 — whole stars, 1 to 5, no halves. Nullable because un-rating a book
@@ -262,9 +262,9 @@ export const createBookSchema = z.strictObject({
    */
   rating: z
     .number()
-    .int("Ratingul e în stele întregi")
-    .min(1, "Ratingul e între 1 și 5 stele")
-    .max(5, "Ratingul e între 1 și 5 stele")
+    .int("validation.rating.wholeStars")
+    .min(1, "validation.rating.range")
+    .max(5, "validation.rating.range")
     .nullable()
     .optional(),
 
@@ -482,7 +482,7 @@ export const isbnLookupSchema = z
   .trim()
   .refine(
     (value) => [10, 13].includes(normalizeIsbn(value).length),
-    "Un ISBN are 10 sau 13 cifre",
+    "validation.isbn.digits",
   )
   .meta({ examples: ["978-0-441-01359-3"] });
 

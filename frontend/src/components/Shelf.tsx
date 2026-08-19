@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { GENRE_LABEL, progressLabel, progressRatio, type Book } from "@bookcsi/shared";
+import { genreLabel, progressLabel, progressRatio, type Book } from "@bookcsi/shared";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
 import {
   ROW_WIDTH,
@@ -11,6 +11,7 @@ import {
   SPINE_TITLE_WIDTH,
 } from "../lib/shelf";
 import { StatusPill } from "./StatusPill";
+import { useLocale } from "../i18n/locale-context";
 
 /**
  * S8.2 — the shelf. docs/DESIGN.md §Raftul: the only light surface in the app,
@@ -180,6 +181,8 @@ function SpineCard({
   book: Book;
   anchor: React.RefObject<HTMLButtonElement | null>;
 }) {
+  const { locale } = useLocale();
+
   const ratio = progressRatio(book);
   const src = apiImageSrc(book.coverUrl);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -255,7 +258,7 @@ function SpineCard({
             <p className="mt-0.5 truncate text-xs text-ink-3">{book.author}</p>
           )}
           {book.genre !== null && (
-            <p className="mt-1.5 text-[11px] text-ink-3">{GENRE_LABEL[book.genre]}</p>
+            <p className="mt-1.5 text-[11px] text-ink-3">{genreLabel(book.genre, locale)}</p>
           )}
           <div className="mt-2">
             <StatusPill status={book.status} />

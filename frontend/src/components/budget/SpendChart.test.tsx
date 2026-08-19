@@ -1,7 +1,8 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { BudgetByMonth, BudgetMonth, MonthPurchase } from "@bookcsi/shared";
 import { SpendChart, SpendTooltip } from "./SpendChart";
+import { renderWithQuery } from "../../test/helpers";
 
 const NONE = { books: 0, total: 0 };
 
@@ -34,7 +35,7 @@ describe("SpendChart (S6.2)", () => {
       undated: NONE,
     };
 
-    render(<SpendChart data={data} />);
+    renderWithQuery(<SpendChart data={data} />);
 
     expect(rows()).toHaveLength(3);
     expect(rows()[0]).toHaveTextContent("ianuarie 2026");
@@ -52,14 +53,14 @@ describe("SpendChart (S6.2)", () => {
       undated: NONE,
     };
 
-    render(<SpendChart data={data} />);
+    renderWithQuery(<SpendChart data={data} />);
 
     expect(rows()[1]).toHaveTextContent("februarie 2026");
     expect(rows()[1]).toHaveTextContent("0.00");
   });
 
   it("says why there is no chart rather than drawing an empty one", () => {
-    render(<SpendChart data={{ months: [], undated: { books: 4, total: 200 } }} />);
+    renderWithQuery(<SpendChart data={{ months: [], undated: { books: 4, total: 200 } }} />);
 
     expect(screen.getByText(/Niciun grafic încă/)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -71,7 +72,7 @@ describe("SpendChart (S6.2)", () => {
       undated: { books: 2, total: 75 },
     };
 
-    render(<SpendChart data={data} />);
+    renderWithQuery(<SpendChart data={data} />);
 
     const note = screen.getByText(/nu apar în grafic/);
     expect(note).toHaveTextContent("2 cărți n-au");
@@ -81,7 +82,7 @@ describe("SpendChart (S6.2)", () => {
   it("says nothing about undated books when there are none", () => {
     // The total says every sum is dated; repeating it here would read as a
     // rendering bug rather than as a second warning.
-    render(
+    renderWithQuery(
       <SpendChart data={{ months: [month("2026-01", 12)], undated: NONE }} />,
     );
 
@@ -89,13 +90,13 @@ describe("SpendChart (S6.2)", () => {
   });
 
   it("still explains itself when the library has nothing at all", () => {
-    render(<SpendChart data={{ months: [], undated: NONE }} />);
+    renderWithQuery(<SpendChart data={{ months: [], undated: NONE }} />);
 
     expect(screen.getByText(/Niciun grafic încă/)).toBeInTheDocument();
   });
 
   it("names the unit once rather than on every tick", () => {
-    render(
+    renderWithQuery(
       <SpendChart data={{ months: [month("2026-01", 12)], undated: NONE }} />,
     );
 
@@ -112,7 +113,7 @@ describe("SpendChart (S6.2)", () => {
  */
 describe("SpendChart — the month tooltip", () => {
   const render1 = (entry: BudgetMonth) =>
-    render(
+    renderWithQuery(
       <SpendTooltip
         active
         label={entry.month}

@@ -8,11 +8,18 @@ import {
 } from "@nestjs/common";
 import { ThrottlerException } from "@nestjs/throttler";
 import type { Response } from "express";
-import { INTERNAL_ERROR_MESSAGE, type HttpErrorBody } from "@bookcsi/shared";
+import {
+  INTERNAL_ERROR_KEY,
+  errorMessageFor,
+  type HttpErrorBody,
+  type Locale,
+} from "@bookcsi/shared";
 import type { AuditableRequest } from "../../audit/audit-request";
 import { AuditService } from "../../audit/audit.service";
 import { resolveAction, resolveActor, resolveSource } from "../../audit/resolve-audit-context";
 import { AppError } from "../app-error";
+import { localeOf } from "../request-locale";
+import { SchemaValidationError } from "../validated";
 
 /**
  * §D27's second half, enforced rather than trusted.
@@ -38,7 +45,12 @@ export class AppExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const res = host.switchToHttp().getResponse<Response>();
-    const body = this.toBody(exception);
+    // §D44 — the same request the handler was given, so the same answer
+    // `localeOf` gave the validator moments ago. Resolved once here rather than
+    // per branch below, because a filter that worded two halves of one response
+    // differently would be a hard bug to see.
+    const locale = localeOf(host.switchToHttp().getRequest());
+    const body = this.toBody(exception, locale);
 
     this.maybeAudit(host, body.statusCode);
     res.status(body.statusCode).json(body);
@@ -74,9 +86,22 @@ export class AppExceptionFilter implements ExceptionFilter {
     });
   }
 
-  private toBody(exception: unknown): HttpErrorBody {
-    // Already in the contract's shape, because `AppError` builds it.
+  private toBody(exception: unknown, locale: Locale): HttpErrorBody {
+    // Already in the contract's shape, because `AppError` builds it — but built
+    // in `DEFAULT_LOCALE`, since a service throwing one has no reader. This is
+    // the point where there is one, so the sentence is chosen here (§D44).
     if (exception instanceof AppError) {
+      return {
+        ...(exception.getResponse() as HttpErrorBody),
+        message: exception.messageFor(locale),
+      };
+    }
+
+    // Already worded, and in the right language: `ValidatedBody` had the request
+    // in hand and parsed with it, so re-wording here would be undoing work that
+    // was done with more information than this branch has (one message per
+    // broken rule, each naming its field).
+    if (exception instanceof SchemaValidationError) {
       return exception.getResponse() as HttpErrorBody;
     }
 
@@ -87,12 +112,12 @@ export class AppExceptionFilter implements ExceptionFilter {
       return {
         statusCode: HttpStatus.TOO_MANY_REQUESTS,
         code: "RATE_LIMITED",
-        message: "Prea multe cereri într-un timp scurt. Așteaptă un moment.",
+        message: errorMessageFor(locale, "error.rateLimited"),
       };
     }
 
     if (exception instanceof HttpException) {
-      return this.fromHttpException(exception);
+      return this.fromHttpException(exception, locale);
     }
 
     // The case the convention is built around: a programming error, a driver
@@ -103,11 +128,14 @@ export class AppExceptionFilter implements ExceptionFilter {
 
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: INTERNAL_ERROR_MESSAGE,
+      message: errorMessageFor(locale, INTERNAL_ERROR_KEY),
     };
   }
 
-  private fromHttpException(exception: HttpException): HttpErrorBody {
+  private fromHttpException(
+    exception: HttpException,
+    locale: Locale,
+  ): HttpErrorBody {
     const statusCode = exception.getStatus();
 
     // Nest and passport raise these before any of our code runs, so they
@@ -117,7 +145,7 @@ export class AppExceptionFilter implements ExceptionFilter {
       return {
         statusCode,
         code: "UNAUTHENTICATED",
-        message: "Sesiunea a expirat. Autentifică-te din nou.",
+        message: errorMessageFor(locale, "error.unauthenticated"),
       };
     }
 
@@ -128,7 +156,10 @@ export class AppExceptionFilter implements ExceptionFilter {
         `Uncoded ${statusCode} suppressed: ${JSON.stringify(exception.getResponse())}`,
       );
 
-      return { statusCode, message: INTERNAL_ERROR_MESSAGE };
+      return {
+        statusCode,
+        message: errorMessageFor(locale, INTERNAL_ERROR_KEY),
+      };
     }
 
     // An uncoded 4xx — a route that does not exist, a method that is not

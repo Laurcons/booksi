@@ -16,9 +16,9 @@ import {
 } from "@bookcsi/shared";
 import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { ref } from "../docs/openapi";
 import { SettingsService } from "./settings.service";
+import { ValidatedBody } from "../common/validated";
 
 @ApiTags("settings")
 @ApiCookieAuth("session")
@@ -67,7 +67,7 @@ export class SettingsController {
   @Put()
   update(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(updateSettingsSchema)) input: UpdateSettingsInput,
+    @ValidatedBody(updateSettingsSchema) input: UpdateSettingsInput,
   ): Promise<Settings> {
     return this.settings.update(user.id, input);
   }

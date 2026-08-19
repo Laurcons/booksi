@@ -14,8 +14,8 @@ import { EmptyLibrary } from "../components/books/EmptyLibrary";
 import { NoMatches } from "../components/books/NoMatches";
 import { useOpenBook } from "../lib/book-origin";
 import { isFiltered } from "../lib/filters";
-import { plural } from "../lib/plural";
 import { useBookSearch } from "../lib/use-book-search";
+import { useT } from "../i18n/locale-context";
 
 /**
  * Sprint 1 — the library, for real. This page used to render a fixture, which
@@ -147,18 +147,21 @@ function Greeting({
   books: Book[] | undefined;
   searching: boolean;
 }) {
+  const t = useT();
   const reading = books?.filter((book) => book.status === "READING").length ?? 0;
   const waiting = books?.filter((book) => book.status === "PURCHASED").length ?? 0;
 
   return (
     <div>
       <h1 className="font-display text-4xl text-ink">
-        Biblioteca ta<span className="text-accent">.</span>
+        {t("library.title")}<span className="text-accent">.</span>
       </h1>
       {books && books.length > 0 && !searching && (
         <p className="mt-2 text-ink-2">
-          Ai {plural(reading, "carte începută", "cărți începute")} și{" "}
-          {plural(waiting, "carte care te așteaptă", "cărți care te așteaptă")}.
+          {t("library.summary", {
+            reading: t("library.summary.reading", { count: reading }),
+            waiting: t("library.summary.waiting", { count: waiting }),
+          })}
         </p>
       )}
     </div>

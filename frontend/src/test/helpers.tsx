@@ -3,7 +3,9 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { vi } from "vitest";
-import type { Book, ErrorCode } from "@bookcsi/shared";
+import type { AuthUser, Book, ErrorCode, Locale } from "@bookcsi/shared";
+import { CURRENT_USER_KEY } from "../api/auth";
+import { LocaleProvider } from "../i18n/LocaleProvider";
 
 /**
  * The components under test talk to the API through `api/books.ts`, and that is
@@ -111,7 +113,25 @@ export function lastWrite(calls: ApiCall[]): Record<string, unknown> | undefined
   return calls.filter((call) => call.method !== "GET").at(-1)?.body;
 }
 
-export function renderWithQuery(ui: ReactElement) {
+/**
+ * Renders inside the two providers the app itself supplies.
+ *
+ * ## Why the session is seeded (§D44)
+ *
+ * `LocaleProvider` reads the language off the signed-in account, so a component
+ * rendered with no session in the cache would fall back to the *device's*
+ * language — `navigator.languages` under jsdom, which is English. Every
+ * assertion in this suite is about what a Romanian reader sees, so the harness
+ * puts a Romanian session in the cache: that is what these tests were always
+ * implicitly about, and it is now explicit.
+ *
+ * Pass `locale: "en"` to render the same component for an English reader, which
+ * is how the switch itself is tested.
+ */
+export function renderWithQuery(
+  ui: ReactElement,
+  { locale = "ro" as Locale }: { locale?: Locale } = {},
+) {
   const queryClient = new QueryClient({
     defaultOptions: {
       // Retries turn an assertion failure into a timeout, which says nothing
@@ -121,9 +141,23 @@ export function renderWithQuery(ui: ReactElement) {
     },
   });
 
+  queryClient.setQueryData(CURRENT_USER_KEY, {
+    id: "test-user",
+    email: "cineva@example.com",
+    name: "Cineva",
+    avatarUrl: null,
+    isAdmin: false,
+    locale,
+    impersonatedBy: null,
+  } satisfies AuthUser);
+
   return {
     user: userEvent.setup(),
-    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <LocaleProvider>{ui}</LocaleProvider>
+      </QueryClientProvider>,
+    ),
   };
 }
 

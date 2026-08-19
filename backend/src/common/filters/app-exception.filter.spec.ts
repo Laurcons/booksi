@@ -28,7 +28,7 @@ import { AppExceptionFilter } from "./app-exception.filter";
 class BoomController {
   @Get("app-error")
   appError(): never {
-    throw AppError.validation(["title: Titlul e obligatoriu"]);
+    throw AppError.validation("error.rating.wrongStatus", "rating");
   }
 
   @Get("plain")
@@ -87,7 +87,16 @@ describe("AppExceptionFilter (§D27)", () => {
     await app.close();
   });
 
-  const get = (path: string) => request(app.getHttpServer()).get(`/boom/${path}`);
+  /**
+   * §D44 — `BoomController` is unauthenticated, so there is no stored preference
+   * and the header decides. Asking for Romanian explicitly is what keeps the
+   * assertions below about *wording* rather than about which language a request
+   * with no opinion happens to get.
+   */
+  const get = (path: string) =>
+    request(app.getHttpServer())
+      .get(`/boom/${path}`)
+      .set("Accept-Language", "ro-RO,ro;q=0.9");
 
   it("passes an AppError through with its code and its words", async () => {
     const res = await get("app-error").expect(400);
@@ -95,8 +104,38 @@ describe("AppExceptionFilter (§D27)", () => {
     expect(res.body).toEqual({
       statusCode: 400,
       code: "VALIDATION_FAILED",
-      message: ["title: Titlul e obligatoriu"],
+      // Field-prefixed and in an array — the shape a schema failure has, because
+      // to the client this is the same kind of error (§D44).
+      message: ["rating: Ratingul se poate da doar cărților terminate sau abandonate"],
     });
+  });
+
+  it("words an error in the language the request asked for (§D44)", async () => {
+    // The same route, the same failure, two readers. Nothing here is
+    // authenticated, so `Accept-Language` is the whole of the decision.
+    const ro = await request(app.getHttpServer())
+      .get("/boom/app-error")
+      .set("Accept-Language", "ro")
+      .expect(400);
+    const en = await request(app.getHttpServer())
+      .get("/boom/app-error")
+      .set("Accept-Language", "en")
+      .expect(400);
+
+    expect(String(ro.body.message)).toContain("Ratingul se poate da");
+    expect(String(en.body.message)).toContain("Only a book you have finished");
+    // The code is the client's contract and does not move with the wording.
+    expect(ro.body.code).toBe(en.body.code);
+  });
+
+  it("falls back to English when the request expresses no preference", async () => {
+    // No session and no header: `DEFAULT_LOCALE`. Romanian accounts never reach
+    // this path — they carry `locale` on the row.
+    const res = await request(app.getHttpServer())
+      .get("/boom/app-error")
+      .expect(400);
+
+    expect(String(res.body.message)).toContain("Only a book you have finished");
   });
 
   it("turns a plain Error into a bare 500", async () => {

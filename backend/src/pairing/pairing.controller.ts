@@ -21,9 +21,9 @@ import {
 import { AuditAction } from "../audit/audit-action.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Public } from "../common/decorators/public.decorator";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { ref } from "../docs/openapi";
 import { PairingService } from "./pairing.service";
+import { ValidatedBody } from "../common/validated";
 
 /**
  * The same reasoning as the login routes in `auth.controller.ts`: `create`
@@ -100,7 +100,7 @@ export class PairingController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async approve(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(approvePairingSchema)) input: ApprovePairingInput,
+    @ValidatedBody(approvePairingSchema) input: ApprovePairingInput,
   ): Promise<void> {
     await this.pairing.approve(input.code, user.id);
   }

@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import type { BudgetByMonth, BudgetSummary } from "@bookcsi/shared";
 import { failWith, lastWrite, stubApi, type ApiCall } from "../test/helpers";
 import { BudgetPage } from "./BudgetPage";
+import { renderWithQuery } from "../test/helpers";
 
 const SUMMARY: BudgetSummary = {
   total: 340.5,
@@ -39,7 +40,7 @@ function renderBudget({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  render(
+  renderWithQuery(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={["/budget"]}>
         <BudgetPage />

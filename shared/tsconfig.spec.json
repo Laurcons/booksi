@@ -1,0 +1,11 @@
+{
+  // The build config excludes the specs so they stay out of `dist/` — this one
+  // exists purely for `npm run typecheck`, exactly as in `kobo-frontend/`.
+  // Specs that compile in no configuration are specs nothing verifies.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

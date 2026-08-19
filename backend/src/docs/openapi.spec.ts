@@ -99,6 +99,7 @@ describe("OpenAPI document", () => {
       "POST /auth/stop-impersonating",
       "POST /books",
       "POST /books/{id}/purchase",
+      "PUT /auth/locale",
       "PUT /books/{id}/cover",
     ]);
   });

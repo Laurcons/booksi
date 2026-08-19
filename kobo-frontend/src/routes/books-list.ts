@@ -3,7 +3,7 @@ import {
   CURRENCY,
   formatCount,
   formatMoney,
-  GENRE_LABEL,
+  genreLabel,
   progressLabel,
   showsProgressBar,
   type Book,
@@ -30,6 +30,7 @@ import {
   ruleWidth,
 } from "../lib/tokens";
 import { webPx } from "../lib/units";
+import { KOBO_LOCALE } from "../lib/locale";
 
 /**
  * S1.2 as fișe, not a table (§Componente/Lista de cărți). S8.1's dashboard
@@ -175,9 +176,9 @@ const EXTRA_STYLE = `
 
 function dashboard(stats: StatsOverview, budget: BudgetSummary): Html {
   const figures: [string, string][] = [
-    [formatCount(stats.booksFinished), "Cărți citite"],
-    [formatCount(stats.booksReading), "În curs"],
-    [formatCount(stats.pagesRead), "Pagini citite"],
+    [formatCount(stats.booksFinished, KOBO_LOCALE), "Cărți citite"],
+    [formatCount(stats.booksReading, KOBO_LOCALE), "În curs"],
+    [formatCount(stats.pagesRead, KOBO_LOCALE), "Pagini citite"],
     [`${formatMoney(budget.month.spent)} ${CURRENCY}`, "Cheltuit luna asta"],
   ];
 
@@ -209,7 +210,7 @@ function bookExtras(book: Book): Html[] {
   const extras: Html[] = [];
 
   if (book.genre !== null) {
-    extras.push(html`<span class="book-extra">${GENRE_LABEL[book.genre]}</span>`);
+    extras.push(html`<span class="book-extra">${genreLabel(book.genre, KOBO_LOCALE)}</span>`);
   }
 
   const price = book.status === "WISHLIST" ? book.estimatedPrice : book.paidPrice;
@@ -221,7 +222,7 @@ function bookExtras(book: Book): Html[] {
   if (showsProgressBar(book)) {
     extras.push(html`<span class="book-progress">${progressLabel(book)}</span>`);
   } else if (book.totalPages !== null) {
-    extras.push(html`<span class="book-extra">${formatCount(book.totalPages)} pagini</span>`);
+    extras.push(html`<span class="book-extra">${formatCount(book.totalPages, KOBO_LOCALE)} pagini</span>`);
   }
 
   return extras;

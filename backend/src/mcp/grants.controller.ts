@@ -58,7 +58,7 @@ export class McpGrantsController {
 
     if (count === 0) {
       // S0.3: absent and "someone else's" get the same answer.
-      throw AppError.notFound("Conectorul ăsta nu există sau nu e al tău.");
+      throw AppError.notFound("error.mcp.grantNotFound");
     }
   }
 }

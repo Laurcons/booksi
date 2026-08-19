@@ -2,12 +2,15 @@ import { useState } from "react";
 import {
   CURRENCY,
   formatMoney,
-  updateSettingsSchema,
+  translateIssue,
   type BudgetSummary,
+  updateSettingsSchema,
+  zodErrorMap,
 } from "@bookcsi/shared";
 import { useUpdateSettings } from "../../api/budget";
 import { errorMessage } from "../../lib/api";
 import { monthLabel } from "../../lib/month";
+import { useLocale } from "../../i18n/locale-context";
 
 /**
  * S6.3 — this month against this month's budget, and the form that sets it.
@@ -22,6 +25,7 @@ import { monthLabel } from "../../lib/month";
  *   reading, so the block shows it and offers the field rather than nagging.
  */
 export function MonthBudget({ month }: { month: BudgetSummary["month"] }) {
+  const { t } = useLocale();
   const over = month.remaining !== null && month.remaining < 0;
 
   return (
@@ -37,7 +41,7 @@ export function MonthBudget({ month }: { month: BudgetSummary["month"] }) {
       }
     >
       <p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        {monthLabel(month.month)}
+        {monthLabel(month.month, t)}
       </p>
 
       <p className="mt-2 font-display text-4xl text-ink tabular">
@@ -98,6 +102,7 @@ function Remaining({ budget, remaining }: { budget: number; remaining: number })
 const FIELD_ID = "monthly-budget";
 
 function BudgetField({ budget }: { budget: number | null }) {
+  const { locale, t } = useLocale();
   const [value, setValue] = useState(budget === null ? "" : formatMoney(budget));
   const [problem, setProblem] = useState<string | null>(null);
   const save = useUpdateSettings();
@@ -110,14 +115,21 @@ function BudgetField({ budget }: { budget: number | null }) {
     const amount = value.trim() === "" ? null : Number(value);
 
     if (amount !== null && Number.isNaN(amount)) {
-      setProblem("Scrie o sumă, sau lasă gol ca să renunți la buget.");
+      setProblem(t("budget.notANumber"));
       return;
     }
 
-    const parsed = updateSettingsSchema.safeParse({ monthlyBudget: amount });
+    // §D44 — the same two mechanisms as the server and the book form: the parse
+    // is given zod's own translations, and the keys our schema attached are
+    // worded by `translateIssue`. Checked here rather than only on the server so
+    // the field can object before a request is made.
+    const parsed = updateSettingsSchema.safeParse(
+      { monthlyBudget: amount },
+      { error: zodErrorMap(locale) },
+    );
 
     if (!parsed.success) {
-      setProblem(parsed.error.issues[0].message);
+      setProblem(translateIssue(locale, parsed.error.issues[0].message));
       return;
     }
 

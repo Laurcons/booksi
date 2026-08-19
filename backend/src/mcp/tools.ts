@@ -61,7 +61,7 @@ function errorText(error: unknown): string {
     const { message } = error.getResponse() as HttpErrorBody;
     return Array.isArray(message) ? message.join("; ") : message;
   }
-  return error instanceof Error ? error.message : "A apărut o eroare neașteptată.";
+  return error instanceof Error ? error.message : "Something went wrong.";
 }
 
 /**
@@ -94,42 +94,62 @@ function logToolAudit(
   });
 }
 
-/** docs/MCP.md §9 steps 4–5 — one `library` scope, no branching. */
+/**
+ * docs/MCP.md §9 steps 4–5 — one `library` scope, no branching.
+ *
+ * ## Everything a tool says is in English (§D44)
+ *
+ * The interface has two languages; this file has one, and deliberately not the
+ * user's. Titles, descriptions, parameter docs and error text here are read by a
+ * **model**, not by a person: they are routing instructions ("call this when…",
+ * "this does NOT search the library, use X"), and their whole job is to be
+ * matched against a request in whatever language the user happens to be typing.
+ * A model reads both of ours equally well, so translating them would double the
+ * surface that has to stay in step — two copies of the same steering, each able
+ * to drift — and buy nothing.
+ *
+ * The one place the user's language *does* reach in is `update_book`, which asks
+ * for a book's description to be written in the language the user is writing in.
+ * That is data going into their library, not instructions coming out of ours.
+ *
+ * The consent screen a person approves is a different matter and is translated
+ * like any other screen — see `frontend/src/pages/McpConsentPage.tsx`.
+ */
 export function registerTools(server: McpServer, ctx: ToolContext): void {
   const { userId, books, stats, budget, openLibrary, challenges } = ctx;
 
   server.registerTool(
     "search_library",
     {
-      title: "Caută în bibliotecă",
+      title: "Search the library",
       description:
-        "Apelează când utilizatorul întreabă ce cărți are, în ce stadiu e o carte, sau vrea o listă " +
-        "filtrată după status, categorie sau favorite — de exemplu „ce citesc acum” sau „ce am pe wishlist”. " +
-        "Cu `q` caută text liber în titlu, autor, editură, ISBN și descriere — „am ceva de Eco?”. " +
-        "Preferă `q` în locul listării întregii biblioteci când întrebarea e despre o carte anume: " +
-        "răspunsul e mai scurt și mai ușor de citit.\n\n" +
-        "NU caută cărți din afara bibliotecii personale — pentru asta există search_open_library.",
+        "Call this when the user asks what books they own, what state a book is in, or wants a list " +
+        "filtered by status, category or favourites — \"what am I reading now\", \"what is on my wishlist\". " +
+        "With `q` it searches free text across title, author, publisher, ISBN and description — " +
+        "\"do I have anything by Eco?\". Prefer `q` over listing the whole library when the question is " +
+        "about one particular book: the answer is shorter and easier to read.\n\n" +
+        "It does NOT find books outside the user's own library — use search_open_library for that.",
       inputSchema: {
         q: z
           .string()
           .optional()
           .describe(
-            "Text liber, căutat în titlu, autor, editură, ISBN și descriere. Mai multe cuvinte se " +
-              "caută separat, fiecare putând să apară în alt câmp („herbert dune”), și toate trebuie " +
-              "să apară. Nu contează majusculele sau diacriticele: „sarpe” găsește „Șarpe”. " +
-              "Se combină cu filtrele de mai jos.",
+            "Free text, matched against title, author, publisher, ISBN and description. Several " +
+              "words are matched separately, each free to hit a different field (\"herbert dune\"), " +
+              "and every word must appear somewhere. Case and diacritics are ignored: \"sarpe\" " +
+              "finds \"Șarpe\". Combines with the filters below.",
           ),
         status: statusSchema
           .array()
           .min(1)
           .optional()
-          .describe("Unul sau mai multe statusuri. Absent înseamnă toată biblioteca."),
+          .describe("One or more statuses. Absent means the whole library."),
         genre: genreSchema
           .optional()
-          .describe("O singură valoare — o carte are o singură categorie."),
-        favorite: z.boolean().optional().describe("true pentru doar cărțile marcate favorite."),
-        sort: bookSortSchema.optional().describe("Implicit createdAt."),
-        order: z.enum(["asc", "desc"]).optional().describe("Implicit desc."),
+          .describe("A single value — a book has exactly one category."),
+        favorite: z.boolean().optional().describe("true for only the books marked as favourites."),
+        sort: bookSortSchema.optional().describe("Defaults to createdAt."),
+        order: z.enum(["asc", "desc"]).optional().describe("Defaults to desc."),
       },
     },
     async (args) => {
@@ -154,8 +174,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       //
       // `description` is the field that makes this rule bite rather than merely
       // tidy (§D40): it is prose, up to 5000 characters of it, and a library
-      // that answered "ce cărți am" with one per book would spend more context
-      // on synopses nobody asked for than on the answer.
+      // that answered "what books do I have" with one per book would spend more
+      // context on synopses nobody asked for than on the answer.
       return textResult(
         results.map((book) => ({
           id: book.id,
@@ -173,14 +193,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "get_book",
     {
-      title: "Detaliile unei cărți",
+      title: "One book in full",
       description:
-        "Apelează când utilizatorul întreabă despre o carte anume și îi știi deja id-ul — de obicei " +
-        "din răspunsul lui search_library. Întoarce toate câmpurile, inclusiv descrierea, dacă are " +
-        "una. NU e o unealtă de căutare: cu un titlu sau un ISBN, dar fără id, folosește " +
-        "search_library mai întâi.",
+        "Call this when the user asks about one particular book and you already know its id — " +
+        "usually from search_library's answer. Returns every field, including the description if it " +
+        "has one. This is NOT a search tool: given a title or an ISBN but no id, call search_library " +
+        "first.",
       inputSchema: {
-        id: z.string().min(1).describe("Id-ul cărții, așa cum apare în search_library."),
+        id: z.string().min(1).describe("The book's id, as returned by search_library."),
       },
     },
     async (args) => {
@@ -195,12 +215,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "add_book",
     {
-      title: "Adaugă o carte",
+      title: "Add a book",
       description:
-        "Apelează când utilizatorul cere explicit să adauge o carte în bibliotecă — doar titlul e " +
-        "obligatoriu, dar poți completa și description (un rezumat scris de tine) dacă ți se cere. " +
-        "NU o folosi doar pentru că a fost menționată o carte în conversație; adaugă numai la o " +
-        "cerere clară de tipul „adaugă X” sau „pune X pe wishlist”.",
+        "Call this when the user explicitly asks to add a book to the library — only the title is " +
+        "required, but you may also fill in description (a summary you write yourself) if asked. " +
+        "Do NOT call it merely because a book came up in conversation; add only on a clear request " +
+        "such as \"add X\" or \"put X on my wishlist\".",
       inputSchema: createBookSchema,
     },
     async (args) => {
@@ -218,16 +238,16 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "update_book",
     {
-      title: "Modifică o carte",
+      title: "Change a book",
       description:
-        "Apelează pentru orice schimbare pe o carte existentă, inclusiv statusul și progresul de " +
-        "citire (pagesRead) — nu există o unealtă separată pentru „am mai citit din ea” sau „am " +
-        "terminat-o”, e tot update_book. Tot aici se scrie și descrierea cărții (description): " +
-        "dacă utilizatorul îți cere să-i completezi descrierea, caută despre ce e cartea și scrie " +
-        "un rezumat în română, la persoana a treia, fără spoilere — bookcsi nu aduce singur " +
-        "descrieri de nicăieri, tu ești sursa. Trimite doar câmpurile care se schimbă; restul rămân " +
-        "neatinse. Ai nevoie de id, din search_library sau get_book.",
-      inputSchema: { id: z.string().min(1).describe("Id-ul cărții."), ...updateBookSchema.shape },
+        "Call this for any change to an existing book, including its status and reading progress " +
+        "(pagesRead) — there is no separate tool for \"I read some more of it\" or \"I finished it\", " +
+        "it is all update_book. The book's description is written here too: if the user asks you to " +
+        "fill it in, find out what the book is about and write a summary in **the language the user " +
+        "is writing to you in**, in the third person, with no spoilers — bookcsi fetches " +
+        "descriptions from nowhere, you are the source. Send only the fields that change; the rest " +
+        "are left untouched. You need the id, from search_library or get_book.",
+      inputSchema: { id: z.string().min(1).describe("The book's id."), ...updateBookSchema.shape },
     },
     async (args) => {
       const { id, ...input } = args;
@@ -245,12 +265,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "delete_book",
     {
-      title: "Șterge o carte",
+      title: "Delete a book",
       description:
-        "Apelează doar la o cerere explicită și fără ambiguitate de ștergere — este ireversibil, " +
-        "fără coș de gunoi. Dacă utilizatorul pare nesigur, confirmă mai întâi ce carte anume, prin " +
-        "search_library sau get_book, înainte să ștergi.",
-      inputSchema: { id: z.string().min(1).describe("Id-ul cărții de șters.") },
+        "Call this only on an explicit and unambiguous request to delete — it is irreversible, " +
+        "there is no wastebasket. If the user seems unsure, confirm which book is meant first, via " +
+        "search_library or get_book, before deleting.",
+      inputSchema: { id: z.string().min(1).describe("The id of the book to delete.") },
     },
     async (args) => {
       try {
@@ -267,11 +287,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "get_reading_stats",
     {
-      title: "Statistici de citit",
+      title: "Reading statistics",
       description:
-        "Apelează când utilizatorul întreabă câte cărți a citit, câte pagini, sau care e nota medie — " +
-        "de exemplu „câte cărți am citit anul ăsta” sau „ce notă medie dau cărților”. NU calculează " +
-        "cheltuieli — pentru bani există get_budget.",
+        "Call this when the user asks how many books they have read, how many pages, or what their " +
+        "average rating is — \"how many books have I read this year\", \"what do I rate books on " +
+        "average\". It does NOT work out spending — use get_budget for money.",
     },
     async () => {
       try {
@@ -285,11 +305,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "get_budget",
     {
-      title: "Buget și cheltuieli",
+      title: "Budget and spending",
       description:
-        "Apelează când utilizatorul întreabă cât a cheltuit pe cărți, cât a mai rămas din buget luna " +
-        "asta, sau vrea situația financiară a bibliotecii. NU calculează statistici de citit — pentru " +
-        "asta există get_reading_stats.",
+        "Call this when the user asks how much they have spent on books, how much of this month's " +
+        "budget is left, or wants the library's financial picture. It does NOT work out reading " +
+        "statistics — use get_reading_stats for that.",
     },
     async () => {
       try {
@@ -303,12 +323,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "search_open_library",
     {
-      title: "Caută pe Open Library",
+      title: "Search Open Library",
       description:
-        "Apelează când utilizatorul vrea să găsească o carte care NU e încă în biblioteca sa — " +
-        "titlu, autor, o carte nouă de adăugat. NU caută în biblioteca personală — pentru asta există " +
-        "search_library. Rezultatul poate fi trimis mai departe la add_book (câmpul olEditionKey aduce " +
-        "și coperta).",
+        "Call this when the user wants to find a book that is NOT in their library yet — a title, " +
+        "an author, something new to add. It does NOT search the personal library — use " +
+        "search_library for that. A result can be passed straight on to add_book (the olEditionKey " +
+        "field brings the cover with it).",
       inputSchema: openLibrarySearchQuerySchema,
     },
     async (args) => {
@@ -323,12 +343,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "list_challenges",
     {
-      title: "Listează provocările",
+      title: "List the challenges",
       description:
-        "Apelează când utilizatorul întreabă ce provocări de citit are, sau cât mai are din una " +
-        "anume — de exemplu „ce provocări am” sau „cât mai am de citit din provocarea de vară”. " +
-        "Întoarce un rezumat (titlu, termen, câte cărți, câte terminate), nu cărțile complete — " +
-        "pentru acelea există get_challenge.",
+        "Call this when the user asks what reading challenges they have, or how much of one is " +
+        "left — \"what challenges do I have\", \"how much is left of the summer challenge\". Returns " +
+        "a summary (title, deadline, how many books, how many finished), not the books themselves — " +
+        "use get_challenge for those.",
     },
     async () => {
       try {
@@ -342,13 +362,13 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "get_challenge",
     {
-      title: "Detaliile unei provocări",
+      title: "One challenge in full",
       description:
-        "Apelează când utilizatorul întreabă despre o provocare anume și îi știi deja id-ul — de " +
-        "obicei din răspunsul lui list_challenges. Întoarce și cărțile ei, cu statusul curent al " +
-        "fiecăreia, nu doar id-uri.",
+        "Call this when the user asks about one particular challenge and you already know its id — " +
+        "usually from list_challenges' answer. Returns its books too, each with its current status, " +
+        "not just ids.",
       inputSchema: {
-        id: z.string().min(1).describe("Id-ul provocării, așa cum apare în list_challenges."),
+        id: z.string().min(1).describe("The challenge's id, as returned by list_challenges."),
       },
     },
     async (args) => {
@@ -363,12 +383,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "create_challenge",
     {
-      title: "Creează o provocare",
+      title: "Create a challenge",
       description:
-        "Apelează când utilizatorul cere explicit să creeze o provocare de citit — un titlu și un " +
-        "termen (deadline) sunt obligatorii. Cărțile se pot da direct prin bookIds (id-uri din " +
-        "search_library) sau adăugate ulterior cu add_book_to_challenge. NU crea o provocare doar " +
-        "fiindcă a fost menționat un termen în conversație — numai la o cerere clară.",
+        "Call this when the user explicitly asks to create a reading challenge — a title and a " +
+        "deadline are required. Books can be given straight away through bookIds (ids from " +
+        "search_library) or added later with add_book_to_challenge. Do NOT create a challenge " +
+        "merely because a deadline came up in conversation — only on a clear request.",
       inputSchema: createChallengeSchema,
     },
     async (args) => {
@@ -389,15 +409,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "update_challenge",
     {
-      title: "Modifică o provocare",
+      title: "Change a challenge",
       description:
-        "Apelează pentru orice schimbare pe titlul, descrierea sau termenul unei provocări " +
-        "existente — de exemplu „mută termenul provocării de vară la 15 septembrie”. Apartenența " +
-        "cărților nu e aici: pentru asta există add_book_to_challenge și " +
-        "remove_book_from_challenge. Trimite doar câmpurile care se schimbă. Ai nevoie de id, din " +
-        "list_challenges.",
+        "Call this for any change to an existing challenge's title, description or deadline — " +
+        "\"move the summer challenge's deadline to 15 September\". Which books belong to it is not " +
+        "here: use add_book_to_challenge and remove_book_from_challenge for that. Send only the " +
+        "fields that change. You need the id, from list_challenges.",
       inputSchema: {
-        id: z.string().min(1).describe("Id-ul provocării."),
+        id: z.string().min(1).describe("The challenge's id."),
         ...updateChallengeSchema.shape,
       },
     },
@@ -420,13 +439,13 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "delete_challenge",
     {
-      title: "Șterge o provocare",
+      title: "Delete a challenge",
       description:
-        "Apelează doar la o cerere explicită și fără ambiguitate de ștergere a unei provocări — " +
-        "ireversibil, fără coș de gunoi. Cărțile din ea NU se șterg din bibliotecă, doar " +
-        "provocarea însăși. Dacă utilizatorul pare nesigur, confirmă mai întâi ce provocare anume, " +
-        "prin list_challenges.",
-      inputSchema: { id: z.string().min(1).describe("Id-ul provocării de șters.") },
+        "Call this only on an explicit and unambiguous request to delete a challenge — " +
+        "irreversible, no wastebasket. The books in it are NOT removed from the library, only the " +
+        "challenge itself. If the user seems unsure, confirm which challenge is meant first, via " +
+        "list_challenges.",
+      inputSchema: { id: z.string().min(1).describe("The id of the challenge to delete.") },
     },
     async (args) => {
       try {
@@ -443,16 +462,15 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "add_book_to_challenge",
     {
-      title: "Adaugă o carte la o provocare",
+      title: "Add a book to a challenge",
       description:
-        "Apelează pentru a adăuga o carte deja existentă în bibliotecă la o provocare — de " +
-        "exemplu „pune Dune în provocarea de vară”. Ai nevoie de id-ul cărții (din search_library " +
-        "sau get_book) și de id-ul provocării (din list_challenges). NU creează cartea — dacă nu " +
-        "există încă în bibliotecă, folosește întâi add_book. Idempotentă: dacă e deja acolo, nu e " +
-        "o eroare.",
+        "Call this to add a book that already exists in the library to a challenge — \"put Dune in " +
+        "the summer challenge\". You need the book's id (from search_library or get_book) and the " +
+        "challenge's id (from list_challenges). It does NOT create the book — if it is not in the " +
+        "library yet, call add_book first. Idempotent: a book already there is not an error.",
       inputSchema: {
-        challengeId: z.string().min(1).describe("Id-ul provocării."),
-        bookId: z.string().min(1).describe("Id-ul cărții de adăugat."),
+        challengeId: z.string().min(1).describe("The challenge's id."),
+        bookId: z.string().min(1).describe("The id of the book to add."),
       },
     },
     async (args) => {
@@ -476,14 +494,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "remove_book_from_challenge",
     {
-      title: "Scoate o carte dintr-o provocare",
+      title: "Take a book out of a challenge",
       description:
-        "Apelează pentru a scoate o carte dintr-o provocare, fără s-o ștergi din bibliotecă — " +
-        "pentru asta există delete_book, o unealtă separată și distructivă. Idempotentă la fel ca " +
-        "add_book_to_challenge: o carte care nu e pe listă lasă provocarea neschimbată.",
+        "Call this to take a book out of a challenge without deleting it from the library — " +
+        "delete_book is the separate, destructive tool for that. Idempotent, like " +
+        "add_book_to_challenge: a book that is not on the list leaves the challenge unchanged.",
       inputSchema: {
-        challengeId: z.string().min(1).describe("Id-ul provocării."),
-        bookId: z.string().min(1).describe("Id-ul cărții de scos."),
+        challengeId: z.string().min(1).describe("The challenge's id."),
+        bookId: z.string().min(1).describe("The id of the book to take out."),
       },
     },
     async (args) => {

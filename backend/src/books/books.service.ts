@@ -335,13 +335,13 @@ export class BooksService {
   }
 
   /**
-   * S2.3. A 400 shaped like anything `ZodValidationPipe` produces, because to
+   * S2.3. A 400 shaped like anything `ValidatedBody` produces, because to
    * the client it is the same kind of error — this rule just needs the stored
    * row to decide, so it cannot live in the schema.
    */
   private checkRating(rating: number | null | undefined, status: Status): void {
     if (!ratingAccepted(rating, status)) {
-      throw AppError.validation([`rating: ${RATING_STATUS_MESSAGE}`]);
+      throw AppError.validation("error.rating.wrongStatus", "rating");
     }
   }
 

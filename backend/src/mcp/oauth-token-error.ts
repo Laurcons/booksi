@@ -41,7 +41,7 @@ export class OAuthTokenErrorFilter implements ExceptionFilter {
       return;
     }
 
-    // `ZodValidationPipe` throws this for a malformed body — the OAuth
+    // `ValidatedBody` throws this for a malformed body — the OAuth
     // equivalent is `invalid_request`, not a 500. `.message` on the exception
     // itself is not this: Nest's `HttpException` only mirrors it there when
     // the response's `message` is a string, and `AppError.validation` sends

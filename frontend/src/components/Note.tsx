@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useT } from "../i18n/locale-context";
 
 /**
  * The quiet one-line strip a page shows while it is loading or when it could
@@ -15,7 +16,7 @@ export function Note({ children }: { children: ReactNode }) {
 
 /**
  * A failed load, with the way out of it. The message is shown rather than
- * swallowed: "nu am putut încărca" alone leaves nothing to act on, and a 401
+ * swallowed: `common.loadFailed` alone leaves nothing to act on, and a 401
  * has already been turned into a redirect long before this renders.
  */
 export function LoadFailure({
@@ -23,20 +24,23 @@ export function LoadFailure({
   error,
   onRetry,
 }: {
+  /** Already translated by the caller — the name of the thing that failed. */
   what: string;
   error: Error;
   onRetry: () => void;
 }) {
+  const t = useT();
+
   return (
     <Note>
-      <span className="text-ink-2">Nu am putut încărca {what}.</span>{" "}
+      <span className="text-ink-2">{t("common.loadFailed", { what })}</span>{" "}
       <span className="text-ink-3">{error.message}</span>{" "}
       <button
         type="button"
         onClick={onRetry}
         className="text-accent underline-offset-4 hover:underline"
       >
-        Încearcă din nou
+        {t("common.retry")}
       </button>
     </Note>
   );

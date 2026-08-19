@@ -1,14 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Shelf } from "./Shelf";
 import { makeBook } from "../test/helpers";
+import { renderWithQuery } from "../test/helpers";
 
 describe("Shelf (S8.2)", () => {
   it("makes every spine a real control, reachable and named", () => {
     // The prototype drew a `div` with `cursor-pointer`: no tab stop, no click
     // handler, and a hover card no touch screen could ever summon.
-    render(
+    renderWithQuery(
       <Shelf
         books={[makeBook({ id: "a", title: "Dune", author: "Frank Herbert" })]}
         onOpen={() => {}}
@@ -24,7 +25,7 @@ describe("Shelf (S8.2)", () => {
     const onOpen = vi.fn();
     const book = makeBook({ id: "a", title: "Dune" });
 
-    render(<Shelf books={[book]} onOpen={onOpen} />);
+    renderWithQuery(<Shelf books={[book]} onOpen={onOpen} />);
     await userEvent.click(screen.getByRole("button", { name: /Dune/ }));
 
     expect(onOpen).toHaveBeenCalledWith(book);
@@ -33,7 +34,7 @@ describe("Shelf (S8.2)", () => {
   it("opens it from the keyboard too", async () => {
     const onOpen = vi.fn();
 
-    render(<Shelf books={[makeBook({ title: "Dune" })]} onOpen={onOpen} />);
+    renderWithQuery(<Shelf books={[makeBook({ title: "Dune" })]} onOpen={onOpen} />);
     await userEvent.tab();
     await userEvent.keyboard("{Enter}");
 
@@ -41,7 +42,7 @@ describe("Shelf (S8.2)", () => {
   });
 
   it("names a book with no author by its title alone", () => {
-    render(
+    renderWithQuery(
       <Shelf books={[makeBook({ title: "Anonim", author: null })]} onOpen={() => {}} />,
     );
 
@@ -49,7 +50,7 @@ describe("Shelf (S8.2)", () => {
   });
 
   it("writes the title on a thick spine and leaves a thin one bare (§D33)", () => {
-    render(
+    renderWithQuery(
       <Shelf
         books={[
           makeBook({ id: "thick", title: "Cartea groasă", totalPages: 900 }),
@@ -71,7 +72,7 @@ describe("Shelf (S8.2)", () => {
       makeBook({ id: `book-${index}`, title: `Cartea ${index}` }),
     );
 
-    render(<Shelf books={books} onOpen={() => {}} />);
+    renderWithQuery(<Shelf books={books} onOpen={() => {}} />);
 
     expect(screen.getAllByRole("button")).toHaveLength(60);
   });

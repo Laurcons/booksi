@@ -1,4 +1,5 @@
 import { formatCount, type StatsOverview } from "@bookcsi/shared";
+import { useLocale } from "../../i18n/locale-context";
 import { StatsBar } from "../StatsBar";
 
 /**
@@ -9,12 +10,23 @@ import { StatsBar } from "../StatsBar";
  * has been read rather than what is open on the nightstand.
  */
 export function ReadingStats({ stats }: { stats: StatsOverview }) {
+  const { locale, t } = useLocale();
+
   return (
     <StatsBar
       figures={[
-        { value: formatCount(stats.booksFinished), label: "Cărți citite" },
-        { value: formatCount(stats.pagesRead), label: "Pagini citite" },
-        { value: formatRating(stats.averageRating), label: "Rating mediu" },
+        {
+          value: formatCount(stats.booksFinished, locale),
+          label: t("stats.booksFinished"),
+        },
+        {
+          value: formatCount(stats.pagesRead, locale),
+          label: t("stats.pagesRead"),
+        },
+        {
+          value: formatRating(stats.averageRating),
+          label: t("stats.averageRating"),
+        },
       ]}
     />
   );

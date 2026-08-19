@@ -1,6 +1,6 @@
 import { INestApplication } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
@@ -9,6 +9,7 @@ import { AuthService } from "../auth/auth.service";
 import { SESSION_COOKIE } from "../auth/session";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { AuditModule } from "../audit/audit.module";
+import { AppExceptionFilter } from "../common/filters/app-exception.filter";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { OpenLibraryModule } from "./open-library.module";
@@ -21,6 +22,9 @@ const storedUser = {
   avatarUrl: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   tokenVersion: 0,
+  // §D44 — a real row always has one; the column is NOT NULL with a
+  // default, and every account predating §D44 is Romanian.
+  locale: "ro",
 };
 
 /** A real PNG header, so the sniffing under test has something to sniff. */
@@ -68,7 +72,15 @@ describe("Open Library routes (Sprint 4)", () => {
         AuthModule,
         OpenLibraryModule,
       ],
-      providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+      providers: [
+        { provide: APP_GUARD, useClass: JwtAuthGuard },
+        // §D44 — without the filter these routes answer with `AppError`'s
+        // own body, which is built in `DEFAULT_LOCALE` for the bypass case.
+        // Production always has it, and it is what puts the message in the
+        // reader's language, so a test without it is asserting a shape
+        // nobody receives.
+        { provide: APP_FILTER, useClass: AppExceptionFilter },
+      ],
     })
       .overrideProvider(PrismaService)
       .useValue(prisma)

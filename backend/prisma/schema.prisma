@@ -31,6 +31,19 @@ model User {
   /// Gates the impersonation routes on `AuthController` and nothing else.
   isAdmin Boolean @default(false)
 
+  /// Which language this account reads the interface in (§D44). One of the
+  /// values in `LOCALES`; not an enum column, because the set is a property of
+  /// the interface rather than of the data, and adding a third language should
+  /// not need a migration.
+  ///
+  /// `@default("ro")` is for the rows that already exist: every account
+  /// predating §D44 is Romanian, and a default of "en" would have silently
+  /// switched all of them. New accounts do **not** take this default — the
+  /// Google callback seeds them from the request's `Accept-Language`, so
+  /// someone arriving on an English device starts in English rather than
+  /// having to go and find the switch.
+  locale String @default("ro")
+
   books          Book[]
   settings       Settings?
   mcpGrants      McpGrant[]

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FocusEventHandler, type Ref } from "react";
-import { GENRE_LABEL, GENRE_VALUES, type Genre } from "@bookcsi/shared";
+import { genreLabel, GENRE_VALUES, type Genre } from "@bookcsi/shared";
+import { useLocale } from "../../i18n/locale-context";
 
 /**
  * The category field (form) and filter (gallery), searchable rather than a
@@ -18,7 +19,7 @@ import { GENRE_LABEL, GENRE_VALUES, type Genre } from "@bookcsi/shared";
  * treats a registered ref as a source of truth it may read straight from the
  * DOM — hand it the label-displaying input instead and a re-render elsewhere
  * in the form reads back "Ghiduri și hărți turistice, atlase" as the field's
- * value, which isn't a key in `GENRE_LABEL` and crashes the next render.
+ * value, which isn't a valid `Genre` and crashes the next render.
  */
 export function CategoryPicker({
   name,
@@ -40,7 +41,9 @@ export function CategoryPicker({
   onBlur?: FocusEventHandler<HTMLInputElement>;
   inputRef?: Ref<HTMLInputElement>;
 }) {
-  const selectedLabel = value === "" ? "" : GENRE_LABEL[value];
+  const { locale } = useLocale();
+
+  const selectedLabel = value === "" ? "" : genreLabel(value, locale);
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(selectedLabel);
@@ -54,8 +57,14 @@ export function CategoryPicker({
 
   const search = query.trim().toLowerCase();
   const matches = useMemo(
-    () => GENRE_VALUES.filter((genre) => GENRE_LABEL[genre].toLowerCase().includes(search)),
-    [search],
+    () =>
+      GENRE_VALUES.filter((genre) =>
+        genreLabel(genre, locale).toLowerCase().includes(search),
+      ),
+    // `locale` is load-bearing, not ceremony: the labels being filtered are the
+    // translated ones, so a language change has to re-filter or the box goes on
+    // matching against words no longer on screen.
+    [search, locale],
   );
 
   const choose = (genre: Genre | "") => {
@@ -108,7 +117,7 @@ export function CategoryPicker({
                 onClick={() => choose(genre)}
                 className="block w-full px-3 py-2 text-left text-sm text-ink transition-colors duration-150 hover:bg-surface-3"
               >
-                {GENRE_LABEL[genre]}
+                {genreLabel(genre, locale)}
               </button>
             </li>
           ))}

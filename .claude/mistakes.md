@@ -117,3 +117,75 @@ work, ready to be committed as if it were part of it.
 whether the lockfile moved, and `git checkout -- package-lock.json` if the
 change is not yours. A lockfile edit belongs to a dependency change, never to a
 feature.
+
+### Nest decides "data or pipe?" by duck-typing `.transform` — and zod schemas have one
+
+Replaced `@Body(new ZodValidationPipe(schema))` with a `createParamDecorator`
+so validation could see the request (and therefore the reader's locale).
+Typechecked clean. Then every route with a validated body or query 500'd:
+
+    TypeError: Cannot read properties of undefined (reading 'safeParse')
+
+**Root cause** is in Nest's own `createParamDecorator`:
+
+    const isPipe = (pipe) => pipe && (
+      (isFunction(pipe) && pipe.prototype && isFunction(pipe.prototype.transform))
+      || isFunction(pipe.transform)
+    );
+    const hasParamData = isNil(data) || !isPipe(data);
+
+A zod schema satisfies the second branch, because `.transform()` is how zod
+spells a mapping step. So `@ValidatedBody(createBookSchema)` handed Nest
+something it classified as a **pipe**: the factory got `undefined` as its data,
+and the schema was registered as a pipe for Nest to call `.transform(value)` on.
+
+**Fix:** wrap it — `RawValidatedBody({ schema })`. A plain object with one key
+has no `.transform`, so it reads as data. The wrapping lives inside a thin
+exported function so the 14 call sites still read `@ValidatedBody(schema)`.
+
+**Lessons.**
+
+1. The error points at the *validator* ("no safeParse") while the bug is in the
+   *registration*, one layer up and one phase earlier — decoration time, not
+   request time. When a value arrives `undefined` at a framework boundary,
+   suspect how the framework classified it before suspecting how you passed it.
+2. Duck-typing on a method name is a collision waiting for a library that
+   happens to use the name. `.transform` is Nest's word for a pipe and zod's
+   word for a mapping — nothing warns you, and the type system cannot, because
+   `data` is typed `unknown`.
+3. It was caught only because 172 existing tests exercised those routes. A
+   decorator swap "verified" by typecheck alone would have shipped.
+
+### Extracting copy loses the language rules the *code* was encoding
+
+Replaced `lib/plural.ts` with catalog messages selected by `Intl.PluralRules`.
+The platform reproduces Romanian's `few`/`other` split exactly (1 · 2–19 · 20+,
+and back to `few` at 101), so the swap looked purely mechanical, and the whole
+frontend typechecked.
+
+Two tests failed: `SpendTotal` wanted "o carte fără dată", `ReadingChart` wanted
+"o carte terminată n-are". I had written the singulars as `"{count} carte"`,
+which renders "1 carte".
+
+**Root cause:** the deleted helper's one-line body was
+`if (count === 1) return \`o ${one}\`` — it *always* substituted the indefinite
+article for the digit in the singular. That is correct Romanian (a reader says
+"o carte", not "1 carte") and it is a rule English does not share, so it cannot
+live in shared code and has to be written into each Romanian singular. I read
+that line, moved the plural *categories* it computed, and dropped the article
+substitution sitting next to them — the part that wasn't about categories at
+all.
+
+**Lesson:** when replacing hand-rolled language handling with a standard
+library, the library covers the part you went looking for and says nothing about
+the rest. Inventory what the old code did *besides* the thing being replaced —
+here, one conditional doing article substitution — before deleting it. The
+give-away is a helper whose signature is language-shaped (`plural(count, one,
+few)` names Romanian's categories); such a helper is usually carrying more
+locale knowledge than its name admits.
+
+**Also:** the same pass silently dropped `locale` from a `useMemo` dependency
+list in `CategoryPicker`, so the category filter would have gone on matching
+against the previous language's labels after a switch. Typecheck was clean;
+`oxlint`'s `exhaustive-deps` caught it. Worth running lint, not just tests,
+after a mechanical sweep that adds a new reactive value to many components.
