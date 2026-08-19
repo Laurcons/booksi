@@ -93,7 +93,11 @@ export function BookTable({
           ? "desc"
           : "asc";
 
-    onQueryChange({ sort, order });
+    // Spread, not a fresh object: the query carries the filters and the search
+    // (§D29, §D42) as well as the sort, and rebuilding it from two fields
+    // would drop them. Only the wishlist was safe from that before search
+    // existed, and only because it re-adds its status outside this callback.
+    onQueryChange({ ...query, sort, order });
   };
 
   if (narrow) {
@@ -371,7 +375,7 @@ function SortStrip({
         id="book-sort"
         value={sort}
         onChange={(event) =>
-          onQueryChange({ sort: event.target.value as BookSort, order })
+          onQueryChange({ ...query, sort: event.target.value as BookSort, order })
         }
         className="flex-1 rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 focus:border-accent"
       >
@@ -384,7 +388,9 @@ function SortStrip({
 
       <button
         type="button"
-        onClick={() => onQueryChange({ sort, order: order === "asc" ? "desc" : "asc" })}
+        onClick={() =>
+          onQueryChange({ ...query, sort, order: order === "asc" ? "desc" : "asc" })
+        }
         aria-label={order === "asc" ? "Crescător" : "Descrescător"}
         title={order === "asc" ? "Crescător" : "Descrescător"}
         className="grid size-9 shrink-0 place-items-center rounded-lg border border-line text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"

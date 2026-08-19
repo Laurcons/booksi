@@ -445,6 +445,38 @@ bibliotecă, ca să n-o scriu eu pentru fiecare carte.
 
 ---
 
+## Sprint 10 — Căutare
+
+**Tot din afara planului inițial.** Al doilea story cerut după livrare, și primul care nu adaugă
+un ecran: căutarea intră în ecranele care există deja.
+
+### S10.1 — Caut o carte în biblioteca mea
+Ca utilizator, vreau să caut o carte în biblioteca mea după orice mi-o amintesc despre ea, ca să
+n-o caut cu ochii într-un tabel de câteva sute de rânduri.
+
+- **Caută în cinci câmpuri:** titlu, autor, editură, ISBN și descriere. Nu e căutare fuzzy: se
+  caută subșirul tastat, nu ceva asemănător cu el.
+- **Mai multe cuvinte** se caută fiecare separat, în oricare dintre cele cinci câmpuri: „herbert
+  dune" găsește cartea al cărei autor e unul și al cărei titlu e celălalt. Fiecare cuvânt trebuie
+  să apară undeva, deci un cuvânt în plus restrânge lista, niciodată invers.
+- **Nu contează majusculele și nici diacriticele.** „sarpe" găsește „Șarpe", „STANGA" găsește
+  „stângă". Vine din colația bazei de date, nu din cod (§D42).
+- Se aplică **în SQL, pe aceeași rută de listare** ca filtrele din S5.3, și se combină cu ele prin
+  `AND`: o căutare restrânge lista filtrată, n-o înlocuiește (§D29, §D42).
+- **Unde apare:** tabelul din bibliotecă (S1.2), galeria (S5.3), wishlist-ul (S3.1) și selectorul
+  de cărți al provocărilor. Nu pe raft — un raft cu două cărți pe el nu mai e un raft (§D42).
+- Sortarea nu pierde căutarea: un click pe un cap de coloană re-sortează rezultatele, nu revine la
+  toată biblioteca.
+- Când căutarea nu potrivește nimic, mesajul e despre căutare și o poate șterge dintr-un click —
+  nu „încă n-ai nicio carte", care ar fi fals cu biblioteca plină (aceeași regulă ca S5.3).
+- **Totalul wishlist-ului rămâne global** și spune asta explicit când se caută: e suma întregului
+  wishlist, nu a rezultatelor (S3.3, §D42).
+- Prin MCP, `search_library` primește același parametru, ca „am ceva de Eco?" să nu însemne
+  listarea întregii biblioteci în context.
+- **Interfața pentru Kobo nu primește căutare** în acest story (§D42).
+
+---
+
 ## Backlog opțional (neprogramat)
 
 Story-uri utile, dar care nu blochează niciun sprint. De prioritizat când e cazul.

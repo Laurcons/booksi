@@ -819,6 +819,91 @@ describe("books routes (Sprints 1–3)", () => {
     });
   });
 
+  describe("GET /books search (§D42)", () => {
+    /** The `where` a search ended up producing. */
+    const whereFor = async (queryString: string) => {
+      prisma.book.findMany.mockResolvedValue([]);
+      await as("get", `/books?${queryString}`).expect(200);
+      return prisma.book.findMany.mock.calls[0][0].where;
+    };
+
+    it("looks for one word in all five fields", async () => {
+      expect(await whereFor("q=dune")).toEqual({
+        userId: "user-1",
+        AND: [
+          {
+            OR: [
+              { title: { contains: "dune" } },
+              { author: { contains: "dune" } },
+              { publisher: { contains: "dune" } },
+              { isbn: { contains: "dune" } },
+              { description: { contains: "dune" } },
+            ],
+          },
+        ],
+      });
+    });
+
+    it("requires every word of a multi-word query to match something", async () => {
+      const where = await whereFor("q=herbert%20dune");
+
+      // Two AND entries, not one OR over both words: a second word narrows.
+      expect(where.AND).toHaveLength(2);
+      expect(where.AND[0].OR).toContainEqual({ author: { contains: "herbert" } });
+      expect(where.AND[1].OR).toContainEqual({ title: { contains: "dune" } });
+    });
+
+    it("combines the search with the filters, never replacing them", async () => {
+      expect(await whereFor("status=WISHLIST&genre=FICTION&q=lem")).toMatchObject({
+        userId: "user-1",
+        status: { in: ["WISHLIST"] },
+        genre: "FICTION",
+      });
+    });
+
+    it("keeps the user scope whatever is typed in the box", async () => {
+      // S0.3 is not something a search term may widen.
+      expect(await whereFor("q=dune")).toMatchObject({ userId: "user-1" });
+    });
+
+    it("treats an empty q as no search at all", async () => {
+      // `?q=` arrives from a hand-written URL or a cleared box. As a term it
+      // would be the substring every row contains — a clause that says
+      // "search" and filters nothing.
+      expect(await whereFor("q=")).toEqual({ userId: "user-1" });
+    });
+
+    it("treats a whitespace-only q the same way", async () => {
+      expect(await whereFor("q=%20%20")).toEqual({ userId: "user-1" });
+    });
+
+    it("trims the term rather than searching for the spaces around it", async () => {
+      const where = await whereFor("q=%20dune%20");
+
+      expect(where.AND).toHaveLength(1);
+      expect(where.AND[0].OR).toContainEqual({ title: { contains: "dune" } });
+    });
+
+    it("never asks for Prisma's insensitive mode", async () => {
+      // Postgres-only, and unnecessary: `utf8mb4_unicode_ci` folds case and
+      // diacritics in the database.
+      expect(JSON.stringify(await whereFor("q=dune"))).not.toContain("mode");
+    });
+
+    it("still sorts and still returns the shaped row", async () => {
+      prisma.book.findMany.mockResolvedValue([storedBook]);
+
+      const res = await as("get", "/books?q=dune&sort=title&order=asc").expect(200);
+
+      expect(prisma.book.findMany.mock.calls[0][0].orderBy).toEqual([
+        { title: "asc" },
+        { id: "asc" },
+      ]);
+      expect(res.body[0].title).toBe("Dune");
+      expect(res.body[0].userId).toBeUndefined();
+    });
+  });
+
   describe("favorite (S5.2)", () => {
     beforeEach(() => {
       prisma.book.findFirst.mockResolvedValue(storedBook);

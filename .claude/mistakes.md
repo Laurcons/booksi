@@ -89,3 +89,31 @@ against one assertion is far cheaper than against ten. When a verification
 pass will run long regardless, say so before starting it rather than going
 quiet: "code's green, now driving it in a browser, ~5 min" costs one line and
 buys the user the choice to skip it.
+
+### A port health check that passes against somebody else's server
+
+Started the API, then polled `curl http://localhost:3000/books` until it
+answered and declared it up. It answered immediately — with an HTML page from
+an unrelated Next.js app that already owned :3000 on this machine. The bookcsi
+API had never bound at all. The first real signal was a
+`SyntaxError: Unexpected token '<'` from a JSON parse, three commands later,
+which reads as a broken endpoint rather than as the wrong process.
+
+**Lesson:** "something is listening" is not "my service is listening". Check
+for a response only *your* service can produce — an authenticated route
+answering `401`, a known JSON shape, `/docs-json` — not merely a non-zero
+status code. And on a shared dev machine, check the port is free (`lsof
+-nP -iTCP:<port> -sTCP:LISTEN`) before assuming the default is yours; here the
+fix was moving the API to :3100 and pointing `VITE_API_URL` at it.
+
+### `npm install` quietly rewrote package-lock.json into the diff
+
+A fresh clone needed `npm install` before anything could run. The local npm
+(10.8.2) rewrote `package-lock.json` on the way — dropping 108 lines and adding
+`license` fields — and that churn then sat in `git status` alongside the feature
+work, ready to be committed as if it were part of it.
+
+**Lesson:** after running `npm install` in a repo you did not set up, check
+whether the lockfile moved, and `git checkout -- package-lock.json` if the
+change is not yours. A lockfile edit belongs to a dependency change, never to a
+feature.

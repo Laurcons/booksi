@@ -73,6 +73,13 @@ export function listParams(query: ListBooksQuery): URLSearchParams {
     params.set("favorite", String(query.favorite));
   }
 
+  // §D42. Same rule as the filters: absent, not empty. `q=` would reach the
+  // API as a search for the substring every row contains — harmless in its
+  // result, but it would put a search in the URL that the user never typed.
+  if (query.q !== undefined && query.q !== "") {
+    params.set("q", query.q);
+  }
+
   return params;
 }
 

@@ -105,8 +105,20 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       description:
         "Apelează când utilizatorul întreabă ce cărți are, în ce stadiu e o carte, sau vrea o listă " +
         "filtrată după status, categorie sau favorite — de exemplu „ce citesc acum” sau „ce am pe wishlist”. " +
+        "Cu `q` caută text liber în titlu, autor, editură, ISBN și descriere — „am ceva de Eco?”. " +
+        "Preferă `q` în locul listării întregii biblioteci când întrebarea e despre o carte anume: " +
+        "răspunsul e mai scurt și mai ușor de citit.\n\n" +
         "NU caută cărți din afara bibliotecii personale — pentru asta există search_open_library.",
       inputSchema: {
+        q: z
+          .string()
+          .optional()
+          .describe(
+            "Text liber, căutat în titlu, autor, editură, ISBN și descriere. Mai multe cuvinte se " +
+              "caută separat, fiecare putând să apară în alt câmp („herbert dune”), și toate trebuie " +
+              "să apară. Nu contează majusculele sau diacriticele: „sarpe” găsește „Șarpe”. " +
+              "Se combină cu filtrele de mai jos.",
+          ),
         status: statusSchema
           .array()
           .min(1)
@@ -127,6 +139,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         status: args.status,
         genre: args.genre,
         favorite: args.favorite,
+        // Trimmed here rather than trusted: over MCP the value comes from a
+        // model, and `q: " "` would otherwise reach `searchWhere` as a term
+        // that matches every row — a search that silently stops narrowing.
+        // The HTTP route gets the same treatment from the schema itself.
+        q: args.q?.trim() === "" ? undefined : args.q?.trim(),
       };
 
       const results = await books.findAll(userId, query);

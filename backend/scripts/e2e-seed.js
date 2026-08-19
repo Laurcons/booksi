@@ -69,7 +69,21 @@ const BOOKS = [
   { title: "Gödel, Escher, Bach", author: "Douglas Hofstadter", genre: "EXACT_SCIENCES_MATH", status: "WISHLIST", estimatedPrice: "208.50", totalPages: 777 },
   // Unpriced: counted by the coverage line, absent from the sum.
   { title: "Cartea șoaptelor", author: "Varujan Vosganian", genre: "HISTORY", status: "WISHLIST" },
-  { title: "Maitreyi", author: "Mircea Eliade", genre: "FICTION", status: "WISHLIST" },
+  // The only row carrying a publisher, an ISBN and a description, and it
+  // carries them for §D42: those three are searchable but appear in no column,
+  // so a browser test that a search finds this book by its *publisher* is the
+  // only place that behaviour is visible end to end. None of the three touches
+  // the total above — this is still the unpriced wishlist book the S3.2 and
+  // S3.3 specs use it as.
+  {
+    title: "Maitreyi",
+    author: "Mircea Eliade",
+    genre: "FICTION",
+    status: "WISHLIST",
+    publisher: "Humanitas",
+    isbn: "978-973-50-4471-1",
+    description: "Calcutta, un inginer român și o iubire care nu încape în două culturi.",
+  },
   // Not wishes. The second one carries an estimate *and* a paid price, so a
   // total that ignored the status filter would come out 65.00 too high.
   { title: "Dune", author: "Frank Herbert", genre: "FICTION", status: "READING", pagesRead: 143, totalPages: 620, paidPrice: "59.90", estimatedPrice: "65.00", purchasedOn: new Date("2026-07-01"), startedOn: new Date("2026-07-20") },

@@ -728,6 +728,74 @@ Starea e **parsată, nu presupusă**. E scriabilă din consolă și poate suprav
 scris-o, iar o cale absolută în spatele unui buton scris „înapoi" e un open redirect cu o vorbă
 prietenoasă pe el — aceeași regulă pe care `return-to.ts` o aplică deja căii de după login.
 
+### D42 — Căutarea e un parametru pe ruta de listare, nu o rută și nu un `filter()` în client
+
+S10.1 cere căutare în bibliotecă. Există deja un drum pentru asta: §D29 a stabilit, pentru
+filtrele galeriei, că o listă se restrânge **în SQL, pe ruta care o listează**. Căutarea e încă un
+predicat pe același `where`.
+
+**Decizie: `?q=` pe `GET /books`.** Fără rută proprie, fără endpoint de „search", fără index
+full-text. Consecința e că orice ecran care listează cărți poate căuta fără cod de server nou —
+tabelul, galeria, wishlist-ul și selectorul provocărilor o fac deja, iar `search_library` prin MCP
+primește exact același parametru.
+
+**Cinci câmpuri: titlu, autor, editură, ISBN, descriere.** Primele patru sunt felul în care
+recunoști o carte. `description` e inclusă la cerere explicită, și e singura care lărgește *ce
+înseamnă* o potrivire: e proză (până la 5000 de caractere, §D40), deci o căutare de „tehnologie"
+întoarce și cartea al cărei sinopsis spune că **nu** e despre tehnologie, fără ca rândul să arate
+de ce s-a potrivit. E un compromis acceptat, scris aici ca să nu fie redescoperit ca bug.
+
+**Mai multe cuvinte: `AND` de `OR`-uri.** Fiecare cuvânt trebuie să apară în *vreunul* din cele
+cinci câmpuri, nu toate în același: așa „herbert dune" găsește cartea cu un cuvânt în autor și
+celălalt în titlu. Cuibărirea inversă (`OR` de `AND`-uri) ar face lista să *crească* pe măsură ce
+utilizatorul tastează mai mult din ce caută — exact opusul a ceea ce înseamnă să cauți.
+
+**Majusculele și diacriticele nu se tratează în cod.** Baza rulează pe `utf8mb4_unicode_ci`
+(fixat în `docker-compose.yml` pentru altă problemă, cu ani înainte de acest story), care pliază
+ambele: `'ă' = 'a'` și `'Ș' = 's'` sunt adevărate în SQL. Deci `contains` e de la sine
+insensibil la ambele, fără coloană normalizată. **`mode: "insensitive"` nu se adaugă:** e o
+facilitate Postgres, nesuportată pe MySQL/MariaDB — colația face deja treaba.
+
+**`%` și `_` rămân neescapate**, prin decizie. Prisma parametrizează valoarea, deci nu e o
+injecție, doar un utilizator care tastează un wildcard și primește un wildcard.
+
+**ISBN-ul se caută așa cum e stocat.** Coloana păstrează punctuația tastată (§D13 normalizează
+doar pentru verificarea de duplicate), deci „978-606" găsește rândurile cu cratime și „978606" pe
+cele fără. A le uni ar cere `REPLACE()` în SQL brut, neindexat, pentru un câmp pe care oricum
+puțini îl caută.
+
+**Fără index, și fără regrete.** `LIKE '%…%'` e scanare de tabel, iar tabelul e biblioteca *unui*
+utilizator — sute de rânduri, poate mii. Un index full-text ar schimba și semantica (potrivire pe
+prefix de cuvânt, nu pe subșir), adică ar strica „caută în timp ce tastez".
+
+**Ce a atras căutarea după ea, în cod:**
+
+- **Sortarea nu mai reconstruiește interogarea din două câmpuri.** `BookTable` trimitea
+  `{ sort, order }`, aruncând restul. Nu se vedea, fiindcă singurul ecran cu filtre (galeria) nu
+  are control de sortare; cu o casetă de căutare peste tabel, un click pe „Titlu" ar fi șters ce
+  tastase utilizatorul. Acum trimite `{ ...query, sort, order }`.
+- **Golul are două înțelesuri.** O bibliotecă goală vrea o primă carte; o căutare fără rezultate
+  vrea cuvintele înapoi. `isFiltered` numără și căutarea, iar mesajul „nicio carte nu se
+  potrivește" (mutat din `GalleryPage` în `NoMatches`) e acum pe toate trei ecranele.
+- **Fraza de sub titlul bibliotecii tace cât se caută.** Număra rândurile de pe ecran, care sub o
+  căutare sunt rezultatele, nu biblioteca — „ai o carte începută" ar fi devenit un fapt despre
+  altă mulțime.
+- **Selectorul de cărți al provocărilor a trecut pe server.** Făcea `title || author` cu
+  `toLowerCase()`, care pliază majuscule dar **nu** diacritice: ar fi rămas singurul loc din
+  aplicație care nu găsește „Șarpe" după „sarpe".
+
+**Totalul wishlist-ului rămâne global**, la cerere: e suma întregului wishlist, nu a rezultatelor.
+Asta e exact dezacordul de care §D29 se ferea, așa că ecranul îl **spune** — sub total apare un
+rând care precizează că e pentru tot wishlist-ul, dar numai cât timp se caută.
+
+**Kobo nu primește căutare acum.** Interfața aceea e HTML server-side fără JS de filtrare, deci ar
+cere un `<form method="get">`, un parametru dus prin rută și paginare resetată — dar mai ales ar
+cheltui din bugetul de rânduri pe care `pagination.ts` îl ține ca pagina să încapă fără scroll pe
+un e-reader. Rămâne un story separat.
+
+**Raftul nu primește căutare** deloc: e o metaforă fizică (§D33), iar un raft filtrat la două
+cărți arată ca o eroare de randare, nu ca un rezultat.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

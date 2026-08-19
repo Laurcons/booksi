@@ -378,6 +378,29 @@ export const listBooksQuerySchema = z.strictObject({
    * which is cheaper than a special case that rejects half of a boolean.
    */
   favorite: queryBoolean.optional(),
+
+  /**
+   * §D42 — free text, matched against the five fields a book is
+   * recognised by. In SQL on this same route, for exactly the reason §D29
+   * gives for the three filters above it: a list narrowed by one rule under a
+   * total computed by another is how the two quietly stop agreeing.
+   *
+   * **Trimmed, and empty means absent.** The client drops the parameter while
+   * the box is empty, but `?q=` can still arrive from a hand-written URL or a
+   * bookmarked link, and it has to mean "no search" rather than "the substring
+   * every row contains". The transform runs before the schema is read, so
+   * nothing downstream has to remember the distinction.
+   *
+   * Whitespace inside is significant: `searchTerms` on the server splits on it
+   * and requires every word to match *something*, which is what makes
+   * "tolkien inel" find a book whose title holds one word and whose author
+   * holds the other.
+   */
+  q: z
+    .string()
+    .trim()
+    .transform((value) => (value === "" ? undefined : value))
+    .optional(),
 });
 
 /**

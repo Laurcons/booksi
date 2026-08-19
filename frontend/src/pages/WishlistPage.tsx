@@ -4,10 +4,14 @@ import { useBooks, useWishlistSummary } from "../api/books";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { BookFormDialog } from "../components/books/BookFormDialog";
+import { BookSearch } from "../components/books/BookSearch";
 import { BookTable } from "../components/books/BookTable";
 import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
+import { NoMatches } from "../components/books/NoMatches";
 import { WishlistTotal } from "../components/books/WishlistTotal";
 import { useOpenBook } from "../lib/book-origin";
+import { isSearched } from "../lib/filters";
+import { useBookSearch } from "../lib/use-book-search";
 
 /**
  * Sprint 3 — the wishlist.
@@ -32,6 +36,7 @@ export function WishlistPage() {
     sort: "createdAt",
     order: "desc",
   });
+  const { search, setSearch, q } = useBookSearch();
   const [dialog, setDialog] = useState<Dialog>(null);
   const openBook = useOpenBook("wishlist");
 
@@ -39,9 +44,14 @@ export function WishlistPage() {
   // a header click must not be able to drop it. A one-element list since S5.3
   // made the parameter multi-valued (§D29) — the wire still accepts the bare
   // string, but the parsed query is an array on both sides of it.
-  const query: ListBooksQuery = { ...sort, status: ["WISHLIST"] };
+  const query: ListBooksQuery = { ...sort, status: ["WISHLIST"], q };
+  const searching = isSearched(query);
 
   const books = useBooks(query);
+  // Deliberately not given the search: the total is about the whole wishlist,
+  // and it is the one number on this screen that stays put while the list
+  // narrows. The line under it says so, because a total that does not follow
+  // the list has to admit it (S3.3, §D42).
   const summary = useWishlistSummary();
 
   return (
@@ -62,8 +72,23 @@ export function WishlistPage() {
             in and out. A failure to load it is not worth an error strip of its
             own either: the wishlist itself is still perfectly usable. */}
         {summary.data && summary.data.count > 0 && (
-          <WishlistTotal summary={summary.data} />
+          <div className="space-y-2">
+            <WishlistTotal summary={summary.data} />
+            {searching && (
+              <p className="text-sm text-ink-3">
+                Totalul e pentru tot wishlist-ul, nu doar pentru rezultatele
+                căutării.
+              </p>
+            )}
+          </div>
         )}
+
+        <BookSearch
+          value={search}
+          onChange={setSearch}
+          placeholder="Caută în wishlist…"
+          className="w-full sm:max-w-md"
+        />
 
         {books.isPending && <Note>Se încarcă wishlist-ul…</Note>}
 
@@ -77,7 +102,13 @@ export function WishlistPage() {
 
         {books.data &&
           (books.data.length === 0 ? (
-            <EmptyWishlist onAdd={() => setDialog({ kind: "add" })} />
+            // An empty wishlist wants its first book; a search that found
+            // nothing wants its words back (§D29).
+            searching ? (
+              <NoMatches searching onClear={() => setSearch("")} />
+            ) : (
+              <EmptyWishlist onAdd={() => setDialog({ kind: "add" })} />
+            )
           ) : (
             <BookTable
               books={books.data}

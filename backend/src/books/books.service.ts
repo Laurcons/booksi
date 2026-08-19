@@ -22,6 +22,7 @@ import { CoversService } from "../covers/covers.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "./calendar-date";
 import { RATING_STATUS_MESSAGE, ratingAccepted } from "./rating";
+import { searchWhere } from "./search";
 import { autoDatedField } from "./status-dates";
 
 /**
@@ -137,8 +138,8 @@ export class BooksService {
   }
 
   /**
-   * S1.2; with the status filter, the wishlist view of S3.1; and with all
-   * three, the gallery of S5.3.
+   * S1.2; with the status filter, the wishlist view of S3.1; with all
+   * three, the gallery of S5.3; and with `q`, any of them searched (§D42).
    */
   async findAll(userId: string, query: ListBooksQuery): Promise<Book[]> {
     const rows = await this.prisma.book.findMany({
@@ -368,6 +369,11 @@ function listWhere(userId: string, query: ListBooksQuery): Prisma.BookWhereInput
     ...(query.status === undefined ? {} : { status: { in: query.status } }),
     ...(query.genre === undefined ? {} : { genre: query.genre }),
     ...(query.favorite === undefined ? {} : { favorite: query.favorite }),
+    // §D42 — one `AND` entry per word of the search, each an `OR` across the
+    // five searchable fields. Absent, and the key is not there at all: an
+    // empty `AND: []` would be harmless but would still read as "there is a
+    // search here", which is the thing this list is scanned to find out.
+    ...(query.q === undefined ? {} : { AND: searchWhere(query.q) }),
   };
 }
 

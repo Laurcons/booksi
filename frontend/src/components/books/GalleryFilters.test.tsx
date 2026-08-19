@@ -6,11 +6,19 @@ import { GalleryFilters } from "./GalleryFilters";
 
 const BASE: ListBooksQuery = { sort: "createdAt", order: "desc" };
 
-function renderFilters(query: ListBooksQuery = BASE) {
+function renderFilters(query: ListBooksQuery = BASE, search = "") {
   const onChange = vi.fn();
-  render(<GalleryFilters query={query} onChange={onChange} />);
+  const onSearchChange = vi.fn();
+  render(
+    <GalleryFilters
+      query={query}
+      onChange={onChange}
+      search={search}
+      onSearchChange={onSearchChange}
+    />,
+  );
 
-  return { user: userEvent.setup(), onChange };
+  return { user: userEvent.setup(), onChange, onSearchChange };
 }
 
 /** The query the component last asked for. */
@@ -146,5 +154,54 @@ describe("GalleryFilters — clearing", () => {
     await user.click(screen.getByRole("button", { name: "Șterge filtrele" }));
 
     expect(asked(onChange)).toEqual({ ...BASE });
+  });
+});
+
+describe("GalleryFilters — search (§D42)", () => {
+  it("shows the text it is given rather than keeping its own", () => {
+    // The page owns the text, so that "Șterge filtrele" can empty the box.
+    renderFilters(BASE, "dune");
+
+    expect(screen.getByLabelText("Caută în bibliotecă")).toHaveValue("dune");
+  });
+
+  it("reports every keystroke — the debounce lives with the page", async () => {
+    const { user, onSearchChange } = renderFilters();
+
+    await user.type(screen.getByLabelText("Caută în bibliotecă"), "du");
+
+    expect(onSearchChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers the reset once a search is the only thing narrowing the list", () => {
+    // `isFiltered` counts the search, so the button appears for it too — the
+    // gallery would otherwise show "nothing matches" with nothing to undo.
+    renderFilters({ ...BASE, q: "dune" });
+
+    expect(
+      screen.getByRole("button", { name: "Șterge filtrele" }),
+    ).toBeInTheDocument();
+  });
+
+  it("clears the search along with the filters", async () => {
+    const { user, onChange, onSearchChange } = renderFilters(
+      { ...BASE, q: "dune", favorite: true },
+      "dune",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Șterge filtrele" }));
+
+    // Both halves: the query the API is asked for, and the text on screen.
+    expect(asked(onChange).q).toBeUndefined();
+    expect(asked(onChange).favorite).toBeUndefined();
+    expect(onSearchChange).toHaveBeenCalledWith("");
+  });
+
+  it("keeps the search when a filter is toggled", async () => {
+    const { user, onChange } = renderFilters({ ...BASE, q: "dune" }, "dune");
+
+    await user.click(screen.getByRole("button", { name: "Citesc" }));
+
+    expect(asked(onChange).q).toBe("dune");
   });
 });

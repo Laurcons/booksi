@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Book, ListBooksQuery } from "@bookcsi/shared";
 import { lastWrite, makeBook, renderWithQuery, stubApi } from "../../test/helpers";
 import { BookTable } from "./BookTable";
@@ -9,13 +9,18 @@ const QUERY: ListBooksQuery = { sort: "createdAt", order: "desc" };
 function renderTable(
   books: Book[],
   price?: "paid" | "estimated",
-  handlers: { onOpen?: () => void; onEdit?: () => void } = {},
+  handlers: {
+    onOpen?: () => void;
+    onEdit?: () => void;
+    onQueryChange?: (query: ListBooksQuery) => void;
+    query?: ListBooksQuery;
+  } = {},
 ) {
   return renderWithQuery(
     <BookTable
       books={books}
-      query={QUERY}
-      onQueryChange={vi.fn()}
+      query={handlers.query ?? QUERY}
+      onQueryChange={handlers.onQueryChange ?? vi.fn()}
       onOpen={handlers.onOpen ?? vi.fn()}
       onEdit={handlers.onEdit ?? vi.fn()}
       onDelete={vi.fn()}
@@ -269,5 +274,91 @@ describe("BookTable — the title and the pencil (§D41)", () => {
 
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe("BookTable — sorting keeps the rest of the query (§D42)", () => {
+  it("carries the search and the filters through a header click", async () => {
+    // The header used to rebuild the query from `{ sort, order }` alone, which
+    // silently dropped everything else on it. Nothing could see that while the
+    // only screen with filters had no sort control; with a search box on the
+    // table, a click on "Titlu" would have wiped what the user typed.
+    const onQueryChange = vi.fn();
+    const { user } = renderTable([makeBook()], undefined, {
+      query: { sort: "createdAt", order: "desc", q: "dune", status: ["READING"] },
+      onQueryChange,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Titlu/ }));
+
+    expect(onQueryChange).toHaveBeenCalledWith({
+      sort: "title",
+      order: "asc",
+      q: "dune",
+      status: ["READING"],
+    });
+  });
+});
+
+/**
+ * The same fix, on the layout the header row does not exist in.
+ *
+ * Under `xl` the table is a list of cards and the sort control is a `<select>`
+ * plus a direction button (§D34) — two more call sites that rebuilt the query
+ * from `{ sort, order }` alone. jsdom has no `matchMedia`, and `useMediaQuery`
+ * is written so that its absence means the *wide* layout, so reaching the cards
+ * at all means stubbing it.
+ */
+describe("BookTable — the phone sort strip keeps the query too (§D42)", () => {
+  const SEARCHED: ListBooksQuery = {
+    sort: "createdAt",
+    order: "desc",
+    q: "dune",
+    status: ["READING"],
+  };
+
+  beforeEach(() => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("carries the search through the sort dropdown", async () => {
+    const onQueryChange = vi.fn();
+    const { user } = renderTable([makeBook()], undefined, {
+      query: SEARCHED,
+      onQueryChange,
+    });
+
+    await user.selectOptions(screen.getByLabelText("Sortează după"), "title");
+
+    expect(onQueryChange).toHaveBeenCalledWith({
+      ...SEARCHED,
+      sort: "title",
+      order: "desc",
+    });
+  });
+
+  it("carries it through the direction button as well", async () => {
+    const onQueryChange = vi.fn();
+    const { user } = renderTable([makeBook()], undefined, {
+      query: SEARCHED,
+      onQueryChange,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Descrescător" }));
+
+    expect(onQueryChange).toHaveBeenCalledWith({
+      ...SEARCHED,
+      sort: "createdAt",
+      order: "asc",
+    });
   });
 });

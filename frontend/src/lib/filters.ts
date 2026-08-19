@@ -18,6 +18,26 @@ export function isFiltered(query: ListBooksQuery): boolean {
   return (
     (query.status !== undefined && query.status.length > 0) ||
     query.genre !== undefined ||
-    query.favorite !== undefined
+    query.favorite !== undefined ||
+    // §D42 — a search narrows the list exactly like a filter does, so the
+    // empty state has to read the same way. Without this, searching for
+    // something the library does not have answers "you have no books yet",
+    // which is false and whose button does not bring them back.
+    isSearched(query)
   );
+}
+
+/**
+ * Whether a search in particular is narrowing the list.
+ *
+ * Separate from `isFiltered` because two screens need to say something
+ * different about the two: the wishlist's total is deliberately computed over
+ * the whole wishlist (never over the search), so the line under it is about
+ * `q` alone and must not appear merely because a status filter is on.
+ *
+ * An empty string counts as no search, matching what the pages send — the
+ * parameter is dropped while the box is empty.
+ */
+export function isSearched(query: ListBooksQuery): boolean {
+  return query.q !== undefined && query.q !== "";
 }

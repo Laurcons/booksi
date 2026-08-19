@@ -7,11 +7,15 @@ import { DashboardStats } from "../components/DashboardStats";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { BookFormDialog } from "../components/books/BookFormDialog";
+import { BookSearch } from "../components/books/BookSearch";
 import { BookTable } from "../components/books/BookTable";
 import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
 import { EmptyLibrary } from "../components/books/EmptyLibrary";
+import { NoMatches } from "../components/books/NoMatches";
 import { useOpenBook } from "../lib/book-origin";
+import { isFiltered } from "../lib/filters";
 import { plural } from "../lib/plural";
+import { useBookSearch } from "../lib/use-book-search";
 
 /**
  * Sprint 1 — the library, for real. This page used to render a fixture, which
@@ -34,12 +38,19 @@ type Dialog =
   | null;
 
 export function LibraryPage() {
-  const [query, setQuery] = useState<ListBooksQuery>({
+  const [sort, setSort] = useState<ListBooksQuery>({
     sort: "createdAt",
     order: "desc",
   });
+  const { search, setSearch, q } = useBookSearch();
   const [dialog, setDialog] = useState<Dialog>(null);
   const openBook = useOpenBook("bibliotecă");
+
+  // The search is not part of the sort state, and the two are joined only
+  // here: a header click re-sorts what is on screen, which includes whatever
+  // is being searched for, and neither may drop the other.
+  const query: ListBooksQuery = { ...sort, q };
+  const searching = isFiltered(query);
 
   const { data: books, isPending, isError, error, refetch } = useBooks(query);
 
@@ -48,12 +59,17 @@ export function LibraryPage() {
       <Header onAddBook={() => setDialog({ kind: "add" })} />
 
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
-        <Greeting books={books} />
+        <Greeting books={books} searching={searching} />
 
         {/* S8.1 — the dashboard, at the top of the screen the app opens on
             (§D32). Above the table rather than instead of it: §D28 keeps S1.2's
             table on `/`, and a summary belongs over the thing it summarises. */}
         <Dashboard />
+
+        {/* Under the dashboard and over the table — it belongs to the list it
+            narrows, and the figures above it are about the whole library
+            whatever is typed here. */}
+        <BookSearch value={search} onChange={setSearch} className="w-full sm:max-w-md" />
 
         {isPending && <Note>Se încarcă biblioteca…</Note>}
 
@@ -67,12 +83,18 @@ export function LibraryPage() {
 
         {books &&
           (books.length === 0 ? (
-            <EmptyLibrary onAdd={() => setDialog({ kind: "add" })} />
+            // Two different absences (§D29): an empty library needs a first
+            // book, an empty *search* needs its words back.
+            searching ? (
+              <NoMatches searching onClear={() => setSearch("")} />
+            ) : (
+              <EmptyLibrary onAdd={() => setDialog({ kind: "add" })} />
+            )
           ) : (
             <BookTable
               books={books}
               query={query}
-              onQueryChange={setQuery}
+              onQueryChange={({ sort: next, order }) => setSort({ sort: next, order })}
               onOpen={openBook}
               onEdit={(book) => setDialog({ kind: "edit", book })}
               onDelete={(book) => setDialog({ kind: "delete", book })}
@@ -111,7 +133,20 @@ function Dashboard() {
   return <DashboardStats stats={stats.data} month={budget.data.month} />;
 }
 
-function Greeting({ books }: { books: Book[] | undefined }) {
+/**
+ * The two counts are about the *library*, and `books` stops being the library
+ * the moment something is typed in the search box — "ai 1 carte începută"
+ * under a search for "dune" would be a fact about the search, dressed as a
+ * fact about the shelf. So the sentence steps aside while a search is on
+ * rather than quietly recounting the results; the heading stays.
+ */
+function Greeting({
+  books,
+  searching,
+}: {
+  books: Book[] | undefined;
+  searching: boolean;
+}) {
   const reading = books?.filter((book) => book.status === "READING").length ?? 0;
   const waiting = books?.filter((book) => book.status === "PURCHASED").length ?? 0;
 
@@ -120,7 +155,7 @@ function Greeting({ books }: { books: Book[] | undefined }) {
       <h1 className="font-display text-4xl text-ink">
         Biblioteca ta<span className="text-accent">.</span>
       </h1>
-      {books && books.length > 0 && (
+      {books && books.length > 0 && !searching && (
         <p className="mt-2 text-ink-2">
           Ai {plural(reading, "carte începută", "cărți începute")} și{" "}
           {plural(waiting, "carte care te așteaptă", "cărți care te așteaptă")}.

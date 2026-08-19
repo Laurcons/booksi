@@ -74,7 +74,10 @@ export class BooksController {
       "`GET /books/wishlist-summary`.\n\n" +
       "**Galeria (S5.3)** e tot aceeași rută: filtrele de status, gen și " +
       "favorite se combină cu `AND` și se aplică în SQL (§D29). Un filtru " +
-      "nebifat nu trimite parametrul.",
+      "nebifat nu trimite parametrul.\n\n" +
+      "**Căutarea (§D42)** e parametrul `q`, tot aici și tot în SQL, din " +
+      "același motiv ca filtrele. Orice ecran care listează cărți o poate " +
+      "folosi, fără rută proprie.",
   })
   @ApiQuery({
     name: "status",
@@ -101,6 +104,26 @@ export class BooksController {
     description:
       "S5.3 — `true` pentru doar favoritele, `false` pentru restul. Absent: " +
       "fără filtru.",
+  })
+  @ApiQuery({
+    name: "q",
+    required: false,
+    type: String,
+    description:
+      "§D42 — căutare liberă în titlu, autor, editură, ISBN și descriere. Se " +
+      "combină cu `AND` cu filtrele de mai sus: o căutare restrânge lista " +
+      "filtrată, nu o înlocuiește.\n\n" +
+      "**Mai multe cuvinte** se caută separat, fiecare în oricare dintre cele " +
+      "cinci câmpuri: `q=herbert dune` găsește cartea al cărei autor e unul și " +
+      "al cărei titlu e celălalt. Fiecare cuvânt trebuie să apară undeva, deci " +
+      "un cuvânt în plus poate doar să scoată rezultate, niciodată să adauge.\n\n" +
+      "Nu ține cont de majuscule și **nici de diacritice** — `sarpe` găsește " +
+      "„Șarpe”. Vine din colația bazei (`utf8mb4_unicode_ci`), nu din cod.\n\n" +
+      "ISBN-ul se caută **așa cum e stocat**: `978-606` găsește rândurile " +
+      "scrise cu cratime, `978606` pe cele fără, și niciunul pe celelalte. " +
+      "Normalizarea din §D13 e doar pentru verificarea de duplicate.\n\n" +
+      "Absent sau gol: fără căutare. `%` și `_` se caută literal ca wildcard-uri " +
+      "LIKE, prin decizie.",
   })
   @ApiQuery({
     name: "sort",

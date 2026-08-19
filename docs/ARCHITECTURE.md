@@ -321,8 +321,9 @@ aceeași listare ca tabelul, cu filtrele din S5.3 aplicate în SQL (§D29).
 | `status` | unul sau mai mulți, ca parametru repetat: `?status=READING&status=FINISHED` | S3.1 (unul), S5.3 (mai mulți) |
 | `genre` | o singură valoare — o carte are o singură categorie (§D17, §D39) | S5.3 |
 | `favorite` | `true` / `false` | S5.3 |
+| `q` | text liber, căutat în titlu, autor, editură, ISBN, descriere (§D42) | S10.1 |
 
-Absent = fără filtru, pentru toate trei. Combinarea lor e un `AND`: „SF" + „favorite" +
+Absent = fără filtru, pentru toate patru. Combinarea lor e un `AND`: „SF" + „favorite" +
 „status ∈ {Terminat}" e o singură clauză `where`.
 
 Două capcane, ambele în parsarea unui query string:
@@ -335,6 +336,25 @@ Două capcane, ambele în parsarea unui query string:
 
 `favorite` devine în același sprint câmp scriptibil pe `POST /books` și `PATCH /books/:id`
 (§D30), fără rută dedicată.
+
+---
+
+## Căutarea (Sprint 10)
+
+Tot fără rută nouă: `q` e al patrulea parametru al aceleiași listări, iar toate ecranele care
+listează cărți îl folosesc — tabelul, galeria, wishlist-ul, selectorul provocărilor și
+`search_library` prin MCP (§D42).
+
+Trei lucruri de reținut, fiecare cu o capcană în spate:
+
+- **Cuvintele se caută separat: `AND` de `OR`-uri.** Fiecare cuvânt trebuie să apară în vreunul
+  din cele cinci câmpuri, nu toate în același. Cuibărirea inversă ar face lista să crească pe
+  măsură ce se tastează.
+- **Majusculele și diacriticele nu se tratează în cod.** `utf8mb4_unicode_ci` pliază ambele în
+  SQL (`'ă' = 'a'`), deci `contains` e insensibil la ele de la sine. `mode: "insensitive"` e
+  Postgres-only și nu se adaugă.
+- **Gol înseamnă absent.** Schema transformă `?q=` și `?q=%20` în `undefined` înainte de orice
+  altceva: `contains: ""` s-ar potrivi cu fiecare rând, adică o căutare care nu restrânge nimic.
 
 ---
 

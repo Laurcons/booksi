@@ -1,5 +1,6 @@
 import { STATUS_LABEL, STATUS_VALUES, type ListBooksQuery, type Status } from "@bookcsi/shared";
 import { isFiltered } from "../../lib/filters";
+import { BookSearch } from "./BookSearch";
 import { CategoryPicker } from "./CategoryPicker";
 
 /**
@@ -17,9 +18,18 @@ import { CategoryPicker } from "./CategoryPicker";
 export function GalleryFilters({
   query,
   onChange,
+  search,
+  onSearchChange,
 }: {
   query: ListBooksQuery;
   onChange: (query: ListBooksQuery) => void;
+  /**
+   * §D42 — the text as typed, which the panel shows but does not own. The
+   * query below carries the *debounced* value, and "Șterge filtrele" has to
+   * empty the box as well as the search, so both live with the page.
+   */
+  search: string;
+  onSearchChange: (search: string) => void;
 }) {
   const statuses = query.status ?? [];
   const filtering = isFiltered(query);
@@ -34,6 +44,14 @@ export function GalleryFilters({
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface-1 px-5 py-4">
+      {/* First in the strip: search is the widest net, and the toggles below
+          narrow whatever it returns. */}
+      <BookSearch
+        value={search}
+        onChange={onSearchChange}
+        className="w-full sm:max-w-md"
+      />
+
       <div className="flex flex-wrap items-center gap-2">
         <FilterLabel>Status</FilterLabel>
 
@@ -76,14 +94,18 @@ export function GalleryFilters({
         {filtering && (
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
               onChange({
                 ...query,
                 status: undefined,
                 genre: undefined,
                 favorite: undefined,
-              })
-            }
+                q: undefined,
+              });
+              // The box too, not just the query: clearing one and leaving the
+              // other shows a search that is no longer being applied.
+              onSearchChange("");
+            }}
             className="ml-auto text-sm text-ink-3 underline-offset-4 transition-colors duration-150 hover:text-ink-2 hover:underline"
           >
             Șterge filtrele

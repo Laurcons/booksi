@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Book } from "@bookcsi/shared";
-import { makeBook, renderWithQuery, stubApi } from "../../test/helpers";
+import { makeBook, renderWithQuery, stubApi, type ApiCall } from "../../test/helpers";
 import { BookSelector } from "./BookSelector";
 
 const LIBRARY: Book[] = [
@@ -11,14 +11,45 @@ const LIBRARY: Book[] = [
   makeBook({ id: "book-3", title: "Circe", author: "Madeline Miller" }),
 ];
 
+/**
+ * §D42 — the search is the API's now, so the stub has to answer like the API:
+ * it reads `q` off the URL and narrows. A stub that returned the whole library
+ * whatever was asked would let a component that dropped the parameter pass.
+ *
+ * The matching here is deliberately cruder than the server's (title and author,
+ * one term) — it only has to prove the parameter arrives and its answer is
+ * what gets drawn.
+ */
+function respond(call: ApiCall): Book[] | null {
+  if (!call.url.includes("/books?")) {
+    return null;
+  }
+
+  const q = new URL(call.url, "http://localhost").searchParams.get("q");
+  if (q === null) {
+    return LIBRARY;
+  }
+
+  const needle = q.toLowerCase();
+  return LIBRARY.filter(
+    (book) =>
+      book.title.toLowerCase().includes(needle) ||
+      (book.author ?? "").toLowerCase().includes(needle),
+  );
+}
+
 function renderSelector(selectedIds: ReadonlySet<string> = new Set()) {
-  stubApi((call) => (call.url.includes("/books?") ? LIBRARY : null));
+  const calls = stubApi(respond);
   const onToggle = vi.fn();
 
   renderWithQuery(<BookSelector selectedIds={selectedIds} onToggle={onToggle} />);
 
-  return { user: userEvent.setup(), onToggle };
+  return { user: userEvent.setup(), onToggle, calls };
 }
+
+/** The last library request the selector made. */
+const lastListUrl = (calls: ApiCall[]): string =>
+  calls.filter((call) => call.url.includes("/books?")).at(-1)?.url ?? "";
 
 describe("BookSelector", () => {
   it("lists every book in the library, unchecked by default", async () => {
@@ -53,8 +84,8 @@ describe("BookSelector", () => {
     expect(onToggle).toHaveBeenCalledWith(LIBRARY[0]);
   });
 
-  it("filters by title or author as you type", async () => {
-    const { user } = renderSelector();
+  it("asks the API to search rather than filtering the loaded list (§D42)", async () => {
+    const { user, calls } = renderSelector();
     await screen.findByText("Dune");
 
     // "Lem" only matches Solaris's author.
@@ -65,6 +96,30 @@ describe("BookSelector", () => {
       expect(screen.queryByText("Circe")).not.toBeInTheDocument();
     });
     expect(screen.getByText("Solaris")).toBeInTheDocument();
+    // The parameter, not a client-side pass: this is what buys the publisher,
+    // the ISBN, the description and diacritic folding, none of which
+    // `toLowerCase().includes()` could do.
+    expect(lastListUrl(calls)).toContain("q=lem");
+  });
+
+  it("asks for the whole library while the box is empty", async () => {
+    const { calls } = renderSelector();
+    await screen.findByText("Dune");
+
+    expect(lastListUrl(calls)).not.toContain("q=");
+  });
+
+  it("sends one request per pause, not one per keystroke", async () => {
+    const { user, calls } = renderSelector();
+    await screen.findByText("Dune");
+
+    const before = calls.filter((call) => call.url.includes("/books?")).length;
+    await user.type(screen.getByLabelText("Caută cărți"), "lem");
+    await waitFor(() => expect(lastListUrl(calls)).toContain("q=lem"));
+
+    // Three letters typed; the debounce must not have bought three round trips.
+    const after = calls.filter((call) => call.url.includes("/books?")).length;
+    expect(after - before).toBeLessThan(3);
   });
 
   it("switches to the gallery view without losing the selection", async () => {

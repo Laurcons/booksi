@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Book } from "@bookcsi/shared";
 import { useBooks } from "../../api/books";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../../lib/media";
+import { useBookSearch } from "../../lib/use-book-search";
 import { StatusPill } from "../StatusPill";
 import { CoverPlaceholder } from "./CoverPlaceholder";
 import { CoverThumb } from "./CoverThumb";
@@ -29,10 +30,25 @@ export function BookSelector({
   onToggle: (book: Book) => void;
 }) {
   const [view, setView] = useState<View>("table");
-  const [search, setSearch] = useState("");
+  const { search, setSearch, q } = useBookSearch();
 
-  const { data: books, isPending, isError } = useBooks({ sort: "title", order: "asc" });
-  const filtered = (books ?? []).filter((book) => matches(book, search));
+  /**
+   * §D42 — the same search the rest of the app runs, rather than the
+   * `title || author` pass this component used to do over the loaded list.
+   *
+   * The old one was cheap and instant, and it was also quietly *different*:
+   * `toLowerCase()` folds case but not diacritics, so once the API started
+   * matching "sarpe" against "Șarpe" this box would have been the one place
+   * that did not. It also could not see the publisher, the ISBN or the
+   * description. One rule, one place — and the debounce plus the query cache
+   * keep it to one request per pause.
+   */
+  const { data: books, isPending, isError } = useBooks({
+    sort: "title",
+    order: "asc",
+    q,
+  });
+  const found = books ?? [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -41,7 +57,7 @@ export function BookSelector({
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Caută după titlu sau autor…"
+          placeholder="Caută după titlu, autor, editură, ISBN…"
           aria-label="Caută cărți"
           className="min-w-0 flex-1 rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 focus:border-accent"
         />
@@ -53,33 +69,22 @@ export function BookSelector({
         <p className="text-sm text-status-abandoned">Nu am putut încărca biblioteca.</p>
       )}
 
-      {!isPending && !isError && filtered.length === 0 && (
+      {!isPending && !isError && found.length === 0 && (
         <p className="rounded-lg border border-line px-3 py-6 text-center text-sm text-ink-3">
           {search.trim() === "" ? "Nicio carte în bibliotecă." : `Nimic pentru „${search.trim()}”.`}
         </p>
       )}
 
-      {!isPending && filtered.length > 0 && (
+      {!isPending && found.length > 0 && (
         <div className="max-h-96 overflow-y-auto rounded-lg border border-line">
           {view === "table" ? (
-            <TableView books={filtered} selectedIds={selectedIds} onToggle={onToggle} />
+            <TableView books={found} selectedIds={selectedIds} onToggle={onToggle} />
           ) : (
-            <GalleryView books={filtered} selectedIds={selectedIds} onToggle={onToggle} />
+            <GalleryView books={found} selectedIds={selectedIds} onToggle={onToggle} />
           )}
         </div>
       )}
     </div>
-  );
-}
-
-function matches(book: Book, search: string): boolean {
-  const q = search.trim().toLowerCase();
-  if (q === "") {
-    return true;
-  }
-  return (
-    book.title.toLowerCase().includes(q) ||
-    (book.author !== null && book.author.toLowerCase().includes(q))
   );
 }
 
