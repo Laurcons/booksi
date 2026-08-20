@@ -321,6 +321,26 @@ export class OAuthService {
       }
     });
 
+    // Lazy sweep (§D47): a grant only accumulates tokens when it is used —
+    // every access-token refresh mints a new pair and never removes the old —
+    // so cleaning this grant's *expired* rows on each issue keeps it bounded
+    // without a scheduled job, in the same spirit as `DevicePairing`'s
+    // read-time expiry. Only expired rows go: a rotated-but-still-valid refresh
+    // token is kept so the reuse-detection above (`replacedById` → revoke the
+    // grant) still fires; once expired, a replay fails on expiry anyway, so
+    // there is nothing left to detect. Best-effort and un-awaited: stale rows
+    // are cheap to leave behind, and a failed sweep must never touch the tokens
+    // just issued. Expired/used auth codes (60s, single-use) go the same way.
+    const cutoff = new Date(now);
+    void this.prisma.mcpToken
+      .deleteMany({ where: { grantId, expiresAt: { lt: cutoff } } })
+      .catch(() => undefined);
+    void this.prisma.mcpAuthCode
+      .deleteMany({
+        where: { grantId, OR: [{ expiresAt: { lt: cutoff } }, { usedAt: { not: null } }] },
+      })
+      .catch(() => undefined);
+
     return {
       access_token: rawAccess,
       token_type: "Bearer",

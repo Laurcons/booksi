@@ -106,6 +106,18 @@ class FakePrisma {
       Object.assign(code, data);
       return { ...code };
     },
+    // §D47 lazy sweep — matches `{ grantId, OR: [{expiresAt:{lt}}, {usedAt:{not:null}}] }`.
+    deleteMany: async ({ where }: any) => {
+      let count = 0;
+      for (const [id, c] of this.authCodes) {
+        if (c.grantId !== where.grantId) continue;
+        if (c.expiresAt < where.OR[0].expiresAt.lt || c.usedAt != null) {
+          this.authCodes.delete(id);
+          count += 1;
+        }
+      }
+      return { count };
+    },
   };
 
   mcpToken = {
@@ -130,6 +142,17 @@ class FakePrisma {
       if (!token) throw new Error("token not found");
       Object.assign(token, data);
       return { ...token };
+    },
+    // §D47 lazy sweep — matches `{ grantId, expiresAt: { lt } }`.
+    deleteMany: async ({ where }: any) => {
+      let count = 0;
+      for (const [id, t] of this.tokens) {
+        if (t.grantId === where.grantId && t.expiresAt < where.expiresAt.lt) {
+          this.tokens.delete(id);
+          count += 1;
+        }
+      }
+      return { count };
     },
   };
 
