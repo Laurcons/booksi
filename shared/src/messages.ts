@@ -145,6 +145,8 @@ const errorRo = {
   "error.rating.wrongStatus":
     "Ratingul se poate da doar cărților terminate sau abandonate",
 
+  "error.category.unknown": "Una sau mai multe categorii nu există: {codes}",
+
   "error.cover.formatUnsupported": "Fișierul nu e o imagine JPEG, PNG sau WebP.",
   "error.cover.rawBodyRequired":
     "Trimite imaginea ca body brut, cu Content-Type image/jpeg, image/png sau image/webp.",
@@ -187,6 +189,8 @@ const errorEn: Catalog<ErrorKey> = {
   "error.challenge.notFound": "That challenge does not exist, or is not yours.",
   "error.rating.wrongStatus":
     "Only a book you have finished or abandoned can be rated",
+
+  "error.category.unknown": "One or more categories do not exist: {codes}",
 
   "error.cover.formatUnsupported": "That file is not a JPEG, PNG or WebP image.",
   "error.cover.rawBodyRequired":

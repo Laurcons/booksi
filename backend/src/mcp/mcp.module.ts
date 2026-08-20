@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { BooksModule } from "../books/books.module";
 import { BudgetModule } from "../budget/budget.module";
+import { CategoriesModule } from "../categories/categories.module";
 import { ChallengesModule } from "../challenges/challenges.module";
 import type { Env } from "../config/env";
 import { OpenLibraryModule } from "../openlibrary/open-library.module";
@@ -21,6 +22,7 @@ import { WellKnownController } from "./well-known.controller";
   imports: [
     BooksModule,
     BudgetModule,
+    CategoriesModule,
     StatsModule,
     OpenLibraryModule,
     ChallengesModule,

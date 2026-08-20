@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
-  genreLabel,
   progressLabel,
   progressRatio,
   showsProgressBar,
   type Book,
 } from "@bookcsi/shared";
 import { useBook, useUpdateBook } from "../api/books";
+import { useCategoryLookup } from "../api/categories";
+import { bookCategoryLabels } from "../lib/book-categories";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { StatusPill } from "../components/StatusPill";
@@ -146,6 +147,8 @@ function Cover({ book }: { book: Book }) {
 
 function Identity({ book }: { book: Book }) {
   const { locale } = useLocale();
+  const { index } = useCategoryLookup();
+  const categoryLabels = bookCategoryLabels(book.categories, index, locale);
   return (
     <div>
       <h1 className="font-display text-4xl text-ink">{book.title}</h1>
@@ -157,9 +160,14 @@ function Identity({ book }: { book: Book }) {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <StatusPill status={book.status} />
         <StarRating rating={book.rating} />
-        {book.genre !== null && (
-          <span className="text-sm text-ink-3">{genreLabel(book.genre, locale)}</span>
-        )}
+        {categoryLabels.map((label) => (
+          <span
+            key={label}
+            className="rounded-full bg-surface-3 px-2.5 py-1 text-xs text-ink-2"
+          >
+            {label}
+          </span>
+        ))}
       </div>
 
       {/* S2.2 — same rule as everywhere else: the bar belongs to a book being

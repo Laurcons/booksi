@@ -8,7 +8,7 @@ export function makeBook(overrides: Partial<Book> = {}): Book {
     author: "Frank Herbert",
     isbn: "978-606-4-00000-0",
     totalPages: 620,
-    genre: "FICTION",
+    categories: ["FICTION__GENERAL"],
     publisher: null,
     publicationYear: null,
     volume: null,

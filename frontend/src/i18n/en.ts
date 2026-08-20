@@ -217,6 +217,8 @@ export const en: Catalog<MessageKey> = {
   "search.openLibrary": "Search Open Library",
   "search.byTitleOrAuthor": "by title or author",
   "search.noCategoryMatches": "No category matches.",
+  "category.searchPlaceholder": "Search categories…",
+  "category.remove": "Remove {label}",
 
   "field.title": "Title",
   "field.author": "Author",

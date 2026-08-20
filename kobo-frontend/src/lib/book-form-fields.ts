@@ -13,7 +13,7 @@ export interface BookFormValues {
   author: string;
   isbn: string;
   totalPages: string;
-  genre: string;
+  categories: string[];
   publisher: string;
   publicationYear: string;
   volume: string;
@@ -28,12 +28,13 @@ export interface BookFormValues {
   finishedOn: string;
 }
 
-const FIELD_NAMES: readonly (keyof BookFormValues)[] = [
+// §D45 — every field except `categories`, which is an array and is read
+// separately below. Typed to exclude it so the string-assigning loop stays sound.
+const FIELD_NAMES: readonly Exclude<keyof BookFormValues, "categories">[] = [
   "title",
   "author",
   "isbn",
   "totalPages",
-  "genre",
   "publisher",
   "publicationYear",
   "volume",
@@ -58,6 +59,15 @@ export function readFormValues(body: unknown): BookFormValues {
     values[name] = typeof value === "string" ? value : "";
   }
 
+  // §D45 — a repeated urlencoded field arrives as an array (one value as a
+  // string, none as absent). The `<select multiple>` posts codes this way.
+  const raw = record["categories"];
+  values.categories = Array.isArray(raw)
+    ? raw.filter((v): v is string => typeof v === "string")
+    : typeof raw === "string"
+      ? [raw]
+      : [];
+
   return values;
 }
 
@@ -68,7 +78,7 @@ export function valuesFromBook(book: Book): BookFormValues {
     author: book.author ?? "",
     isbn: book.isbn ?? "",
     totalPages: book.totalPages === null ? "" : String(book.totalPages),
-    genre: book.genre ?? "",
+    categories: book.categories,
     publisher: book.publisher ?? "",
     publicationYear: book.publicationYear === null ? "" : String(book.publicationYear),
     volume: book.volume === null ? "" : String(book.volume),
@@ -89,7 +99,7 @@ export const EMPTY_FORM_VALUES: BookFormValues = {
   author: "",
   isbn: "",
   totalPages: "",
-  genre: "",
+  categories: [],
   publisher: "",
   publicationYear: "",
   volume: "",
@@ -149,7 +159,7 @@ export function buildBookPayload(values: BookFormValues): Record<string, unknown
     author: coerceNullableText(values.author),
     isbn: coerceNullableText(values.isbn),
     totalPages: coerceNullableNumber(values.totalPages),
-    genre: coerceNullableText(values.genre),
+    categories: values.categories,
     publisher: coerceNullableText(values.publisher),
     publicationYear: coerceNullableNumber(values.publicationYear),
     volume: coerceNullableNumber(values.volume),
@@ -191,12 +201,32 @@ export function buildUpdatePayload(
   const originalRecord = original as unknown as Record<string, unknown>;
 
   for (const [key, value] of Object.entries(candidate)) {
+    // §D45 — categories is a set: a plain `!==` on the two arrays is always
+    // true (different references), which would resend the whole set on every
+    // save. Compare membership instead, order-independent.
+    if (key === "categories") {
+      if (!sameCategorySet(value as string[], original.categories)) {
+        changed[key] = value;
+      }
+      continue;
+    }
+
     if (value !== originalRecord[key]) {
       changed[key] = value;
     }
   }
 
   return changed;
+}
+
+/** Whether two category-code sets hold the same codes, order aside. */
+function sameCategorySet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  const set = new Set(b);
+  return a.every((code) => set.has(code));
 }
 
 /**

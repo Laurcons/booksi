@@ -88,6 +88,7 @@ describe("OpenAPI document", () => {
       "GET /books/isbn-duplicates",
       "GET /books/wishlist-summary",
       "GET /books/{id}",
+      "GET /categories",
       "GET /covers/{bookId}",
       "GET /openlibrary/covers/{editionKey}",
       "GET /openlibrary/editions/{editionKey}",
@@ -146,6 +147,9 @@ describe("OpenAPI document", () => {
     it("accepts the fields Sprints 1 to 5 own", () => {
       expect(Object.keys(schema().properties ?? {}).sort()).toEqual([
         "author",
+        // §D45 — the shelves a book sits on, a set of category codes (was the
+        // single-value `genre` before the taxonomy moved into the database).
+        "categories",
         // §D40 — writable like any other field, and writable by *anyone* who
         // holds the route: the MCP assistant that fills it in is an ordinary
         // client of this schema, not a special case with a route of its own.
@@ -156,7 +160,6 @@ describe("OpenAPI document", () => {
         "favorite",
         "finishedOn",
         "format",
-        "genre",
         "isbn",
         // S4.1 — the edition to fetch a cover for (§D8). Writable, unlike the
         // `coverUrl` it eventually produces.

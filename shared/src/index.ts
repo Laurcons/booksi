@@ -13,6 +13,7 @@
 
 export * from "./book.js";
 export * from "./budget.js";
+export * from "./category.js";
 export * from "./challenge.js";
 export * from "./count.js";
 export * from "./cover.js";

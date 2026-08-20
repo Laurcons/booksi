@@ -25,15 +25,15 @@ describe("listParams (S3.1, S5.3)", () => {
     expect(params.getAll("status")).toEqual(["READING", "FINISHED"]);
   });
 
-  it("sends the gallery's other two filters", () => {
+  it("sends the gallery's other filters — category repeated, matched with OR (§D45)", () => {
     const params = listParams({
       sort: "createdAt",
       order: "desc",
-      genre: "FICTION",
+      category: ["FICTION__SF", "FICTION__FANTASY"],
       favorite: true,
     });
 
-    expect(params.get("genre")).toBe("FICTION");
+    expect(params.getAll("category")).toEqual(["FICTION__SF", "FICTION__FANTASY"]);
     expect(params.get("favorite")).toBe("true");
   });
 

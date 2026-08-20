@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { genreSchema, statusSchema, type Status } from "./enums.js";
+import { categoryCodeSchema } from "./category.js";
+import { statusSchema, type Status } from "./enums.js";
 import { olEditionKeySchema } from "./openlibrary.js";
 
 /**
@@ -120,7 +121,14 @@ export const bookSchema = z.object({
   author: z.string().nullable(),
   isbn: z.string().nullable(),
   totalPages: z.number().int().nullable(),
-  genre: genreSchema.nullable(),
+  /**
+   * §D45 — the shelves this book sits on, as category codes. A set, not one
+   * value (reversing §D17), and possibly empty. Always present as an array on
+   * read, in the taxonomy's own display order. Labels are not carried here: the
+   * client resolves each code against the tree from `GET /categories`, which is
+   * what keeps a book response small and its labels in one place.
+   */
+  categories: z.array(categoryCodeSchema),
   publisher: z.string().nullable(),
   publicationYear: z.number().int().nullable(),
   volume: z.number().int().nullable(),
@@ -176,7 +184,13 @@ export const createBookSchema = z.strictObject({
   author: nullableText(255).optional(),
   isbn: nullableText(20).optional(),
   totalPages: z.number().int().positive().max(100_000).nullable().optional(),
-  genre: genreSchema.nullable().optional(),
+  /**
+   * §D45 — the shelves to file this book under, as category codes. Absent
+   * leaves them untouched (Prisma's convention, honoured by the service);
+   * an explicit `[]` clears them. Each code's *existence* is checked
+   * server-side against the taxonomy, since the valid set is data (§D45).
+   */
+  categories: z.array(categoryCodeSchema).optional(),
   publisher: nullableText(255).optional(),
   publicationYear: z
     .number()
@@ -366,11 +380,19 @@ export const listBooksQuerySchema = z.strictObject({
     .optional(),
 
   /**
-   * S5.3 — one value, not a set, because a book has exactly one genre (§D17).
-   * A multi-valued filter here would advertise a data model that does not
-   * exist.
+   * §D45 — filter by category, now multi-valued (reversing §D17). Accepts one
+   * code or several as a repeated parameter (`?category=FICTION__SF&category=…`),
+   * normalised to an array like `status` above. A book matches if it sits on
+   * **any** of the selected shelves (OR), which then combines with `AND`
+   * against the other filters — the same shape the status filter has.
+   *
+   * Only leaves are accepted: a group is not selectable (§D45), so "all of
+   * Medicine" is expressed by ticking its shelves, not the heading.
    */
-  genre: genreSchema.optional(),
+  category: z
+    .union([categoryCodeSchema, categoryCodeSchema.array().min(1)])
+    .transform((value) => (Array.isArray(value) ? value : [value]))
+    .optional(),
 
   /**
    * S5.3 — filters on the flag's value. The gallery only ever sends `true`

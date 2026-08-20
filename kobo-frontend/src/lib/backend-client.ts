@@ -1,6 +1,7 @@
 import type {
   Book,
   BudgetSummary,
+  CategoryTree,
   ConsumePairingResponse,
   CreatePairingResponse,
   PairingStatusResponse,
@@ -155,6 +156,15 @@ export function getBook(
   id: string,
 ): Promise<Book> {
   return call(`${env.API_URL}/books/${encodeURIComponent(id)}`, {}, sessionCookie, userAgent);
+}
+
+/** §D45 — the category taxonomy, for the form's multi-select and the list's labels. */
+export function listCategories(
+  env: Env,
+  userAgent: string | undefined,
+  sessionCookie: string,
+): Promise<CategoryTree> {
+  return call(`${env.API_URL}/categories`, {}, sessionCookie, userAgent);
 }
 
 export function createBook(

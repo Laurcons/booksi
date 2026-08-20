@@ -41,14 +41,19 @@ describe("spineWidth (S8.2, §D33)", () => {
   });
 });
 
-describe("spineColor (§D17, §D19, §D39)", () => {
+describe("spineColor (§D45)", () => {
   it("has a colour for a book filed under nothing", () => {
     expect(spineColor(null)).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it("covers every category in the enum, not the eight the mock had", () => {
-    expect(spineColor("POETRY_THEATRE")).toMatch(/^#[0-9a-f]{6}$/);
-    expect(spineColor("EDUCATIONAL_SOFTWARE")).toMatch(/^#[0-9a-f]{6}$/);
+  it("derives a stable pastel from any group code — no map to fall out of", () => {
+    expect(spineColor("POETRY_THEATRE")).toMatch(/^hsl\(\d+, 42%, 79%\)$/);
+    // A group added by a future migration is coloured for free.
+    expect(spineColor("A_GROUP_THAT_DID_NOT_EXIST_YET")).toMatch(/^hsl\(\d+, 42%, 79%\)$/);
+  });
+
+  it("gives the same group the same colour every time", () => {
+    expect(spineColor("FICTION")).toBe(spineColor("FICTION"));
   });
 });
 

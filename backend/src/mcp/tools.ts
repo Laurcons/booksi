@@ -4,9 +4,9 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
   bookSortSchema,
+  categoryCodeSchema,
   createBookSchema,
   createChallengeSchema,
-  genreSchema,
   openLibrarySearchQuerySchema,
   statusSchema,
   updateBookSchema,
@@ -16,6 +16,7 @@ import {
 } from "@bookcsi/shared";
 import type { BooksService } from "../books/books.service";
 import type { BudgetService } from "../budget/budget.service";
+import type { CategoriesService } from "../categories/categories.service";
 import type { ChallengesService } from "../challenges/challenges.service";
 import { AppError } from "../common/app-error";
 import type { AuditService } from "../audit/audit.service";
@@ -33,6 +34,7 @@ export interface ToolContext {
   books: BooksService;
   stats: StatsService;
   budget: BudgetService;
+  categories: CategoriesService;
   openLibrary: OpenLibraryService;
   challenges: ChallengesService;
   audit: AuditService;
@@ -116,7 +118,35 @@ function logToolAudit(
  * like any other screen — see `frontend/src/pages/McpConsentPage.tsx`.
  */
 export function registerTools(server: McpServer, ctx: ToolContext): void {
-  const { userId, books, stats, budget, openLibrary, challenges } = ctx;
+  const { userId, books, stats, budget, categories, openLibrary, challenges } = ctx;
+
+  server.registerTool(
+    "list_categories",
+    {
+      title: "List the categories",
+      description:
+        "Call this to discover the category codes the library files books under, before using " +
+        "`category` in search_library or `categories` in add_book / update_book. Returns the shelving " +
+        "scheme as groups (headings, not selectable) each holding their categories (the shelves, the " +
+        "selectable leaves). Labels are English; codes are what the other tools take. This is a small, " +
+        "near-static list — fetch it once per conversation, not before every call.",
+      inputSchema: {},
+    },
+    async () => {
+      const tree = await categories.tree();
+      // English labels only — a model reads this (§D44), so the ro/en split the
+      // frontends need is spent context here. Flattened to (group, code, label).
+      return textResult(
+        tree.map((group) => ({
+          group: group.labelEn,
+          categories: group.categories.map((category) => ({
+            code: category.code,
+            label: category.labelEn,
+          })),
+        })),
+      );
+    },
+  );
 
   server.registerTool(
     "search_library",
@@ -144,9 +174,14 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           .min(1)
           .optional()
           .describe("One or more statuses. Absent means the whole library."),
-        genre: genreSchema
+        category: categoryCodeSchema
+          .array()
+          .min(1)
           .optional()
-          .describe("A single value — a book has exactly one category."),
+          .describe(
+            "One or more category codes (from list_categories). A book matches if it sits on any " +
+              "of them. Absent means every category.",
+          ),
         favorite: z.boolean().optional().describe("true for only the books marked as favourites."),
         sort: bookSortSchema.optional().describe("Defaults to createdAt."),
         order: z.enum(["asc", "desc"]).optional().describe("Defaults to desc."),
@@ -157,7 +192,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         sort: args.sort ?? "createdAt",
         order: args.order ?? "desc",
         status: args.status,
-        genre: args.genre,
+        category: args.category,
         favorite: args.favorite,
         // Trimmed here rather than trusted: over MCP the value comes from a
         // model, and `q: " "` would otherwise reach `searchWhere` as a term
@@ -182,7 +217,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           title: book.title,
           author: book.author,
           status: book.status,
-          genre: book.genre,
+          categories: book.categories,
           favorite: book.favorite,
           rating: book.rating,
         })),

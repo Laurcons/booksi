@@ -79,18 +79,18 @@ export function GalleryFilters({
       <div className="flex flex-wrap items-center gap-3">
         <FilterLabel>{t("field.category")}</FilterLabel>
 
-        {/* One value, not a set: a book has exactly one category (§D17), and
-            a multi-select here would advertise a data model that does not
-            exist. */}
-        <CategoryPicker
-          ariaLabel="Categorie"
-          value={query.genre ?? ""}
-          clearLabel={t("filters.allCategories")}
-          className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet"
-          onChange={(genre) =>
-            onChange({ ...query, genre: genre === "" ? undefined : genre })
-          }
-        />
+        {/* §D45 — a set now, matched with OR: ticking two shelves shows books on
+            either. An empty set drops the parameter (§D29), like status. */}
+        <div className="min-w-56 flex-1">
+          <CategoryPicker
+            ariaLabel={t("field.category")}
+            value={query.category ?? []}
+            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet"
+            onChange={(category) =>
+              onChange({ ...query, category: category.length === 0 ? undefined : category })
+            }
+          />
+        </div>
 
         <Toggle
           pressed={query.favorite === true}
@@ -108,7 +108,7 @@ export function GalleryFilters({
               onChange({
                 ...query,
                 status: undefined,
-                genre: undefined,
+                category: undefined,
                 favorite: undefined,
                 q: undefined,
               });

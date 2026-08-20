@@ -3,9 +3,37 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { vi } from "vitest";
-import type { AuthUser, Book, ErrorCode, Locale } from "@bookcsi/shared";
+import type { AuthUser, Book, CategoryTree, ErrorCode, Locale } from "@bookcsi/shared";
 import { CURRENT_USER_KEY } from "../api/auth";
+import { CATEGORIES_KEY } from "../api/categories";
 import { LocaleProvider } from "../i18n/LocaleProvider";
+
+/**
+ * §D45 — a small taxonomy every test can rely on, seeded into the query cache
+ * by `renderWithQuery` so the `CategoryPicker` and the shelf never have to hit
+ * the network for it. Enough shape for the filters and the labels the suites
+ * assert on; both languages, since a switch must not refetch.
+ */
+export const CATEGORY_TREE: CategoryTree = [
+  {
+    code: "FICTION",
+    labelRo: "Ficțiune",
+    labelEn: "Fiction",
+    categories: [
+      { code: "FICTION__GENERAL", labelRo: "Generalități", labelEn: "General" },
+      { code: "FICTION__SF", labelRo: "SF", labelEn: "Science fiction" },
+      { code: "FICTION__FANTASY", labelRo: "Fantasy", labelEn: "Fantasy" },
+    ],
+  },
+  {
+    code: "HISTORY",
+    labelRo: "Istorie",
+    labelEn: "History",
+    categories: [
+      { code: "HISTORY__GENERAL", labelRo: "Istorie generală", labelEn: "General history" },
+    ],
+  },
+];
 
 /**
  * The components under test talk to the API through `api/books.ts`, and that is
@@ -151,6 +179,9 @@ export function renderWithQuery(
     impersonatedBy: null,
   } satisfies AuthUser);
 
+  // §D45 — the taxonomy, so category-aware components render without a fetch.
+  queryClient.setQueryData(CATEGORIES_KEY, CATEGORY_TREE);
+
   return {
     user: userEvent.setup(),
     ...render(
@@ -169,7 +200,7 @@ export function makeBook(overrides: Partial<Book> = {}): Book {
     author: "Frank Herbert",
     isbn: "978-606-4-00000-0",
     totalPages: 620,
-    genre: "FICTION",
+    categories: ["FICTION__GENERAL"],
     publisher: null,
     publicationYear: null,
     volume: null,

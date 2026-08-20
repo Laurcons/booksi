@@ -65,8 +65,11 @@ export function listParams(query: ListBooksQuery): URLSearchParams {
     params.append("status", status);
   }
 
-  if (query.genre !== undefined) {
-    params.set("genre", query.genre);
+  // §D45 — category is multi-valued now, so `append` per code (repeated
+  // parameter), the same shape as `status` above. The API reads them as a set
+  // and matches a book on any of them.
+  for (const category of query.category ?? []) {
+    params.append("category", category);
   }
 
   if (query.favorite !== undefined) {

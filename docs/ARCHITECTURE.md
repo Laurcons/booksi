@@ -113,39 +113,38 @@ enum Status {
   ABANDONED
 }
 
-// §D39 — 29 topic categories, replacing the original 17-value literary-genre
-// list. Still `genre`/`Genre` in code; see §D39 for why the identifier didn't
-// move with the UI rename to "categorie".
-enum Genre {
-  AUDIOBOOKS
-  CULINARY
-  ART_ARCHITECTURE
-  ENCYCLOPEDIAS
-  BIOGRAPHIES
-  LINGUISTICS_DICTIONARIES
-  ROMANIAN_MAGAZINES
-  FOREIGN_LANGUAGES
-  POETRY_THEATRE
-  FICTION
-  COMICS
-  TRAVEL_GUIDES
-  HISTORY
-  RELIGION
-  PHILOSOPHY
-  PSYCHOLOGY
-  SOCIAL_SCIENCES_POLITICS
-  MARKETING_COMMUNICATION
-  BUSINESS_ECONOMY
-  LAW
-  MEDICINE
-  EXACT_SCIENCES_MATH
-  NATURE_ENVIRONMENT
-  TECHNOLOGY
-  COMPUTERS_INTERNET
-  HEALTH_SELF_DEVELOPMENT
-  LIFESTYLE_SPORT_LEISURE
-  ROMANIA
-  EDUCATIONAL_SOFTWARE
+// §D45 — the §D39 `Genre` enum became a two-level, database-backed taxonomy:
+// `CategoryGroup` (headings, never attached to a book) → `Category` (the
+// shelves, the only selectable leaves), joined to `Book` many-to-many through
+// `BookCategory`. A book sits on several shelves at once (reversing §D17). The
+// full tree lives in `backend/prisma/categories.data.ts`; labels are two
+// NOT NULL columns per row (ro/en), the successor to the old compile-time
+// `GENRE_LABELS` completeness guarantee.
+model CategoryGroup {
+  code       String     @id
+  labelRo    String
+  labelEn    String
+  sortOrder  Int
+  categories Category[]
+}
+
+model Category {
+  code      String        @id
+  groupCode String
+  group     CategoryGroup @relation(fields: [groupCode], references: [code], onDelete: Cascade)
+  labelRo   String
+  labelEn   String
+  sortOrder Int
+  books     BookCategory[]
+}
+
+model BookCategory {
+  bookId       String
+  book         Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  categoryCode String
+  category     Category @relation(fields: [categoryCode], references: [code], onDelete: Cascade)
+
+  @@id([bookId, categoryCode])
 }
 
 model Book {
@@ -158,7 +157,7 @@ model Book {
   author          String?
   isbn            String? // NOT unique — see D13
   totalPages      Int?    // frequently absent — see D4
-  genre           Genre?
+  categories      BookCategory[] // §D45 — was the single-value `genre Genre?`
   publisher       String?
   publicationYear Int?
   volume          Int?
@@ -325,7 +324,7 @@ aceeași listare ca tabelul, cu filtrele din S5.3 aplicate în SQL (§D29).
 | `sort` | `title \| author \| status \| createdAt`, implicit `createdAt` | S1.2 |
 | `order` | `asc \| desc`, implicit `desc` | S1.2 |
 | `status` | unul sau mai mulți, ca parametru repetat: `?status=READING&status=FINISHED` | S3.1 (unul), S5.3 (mai mulți) |
-| `genre` | o singură valoare — o carte are o singură categorie (§D17, §D39) | S5.3 |
+| `category` | unul sau mai mulți coduri de categorie, ca parametru repetat (§D45); o carte se potrivește dacă e pe **oricare** dintre rafturi (OR) | S5.3 |
 | `favorite` | `true` / `false` | S5.3 |
 | `q` | text liber, căutat în titlu, autor, editură, ISBN, descriere (§D42) | S10.1 |
 

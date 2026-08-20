@@ -925,6 +925,50 @@ pentru că le citește un model; ecranul de consimțământ MCP e pentru un om �
 **`kobo-frontend/` rămâne în română deocamdată**, printr-o singură constantă (`KOBO_LOCALE`) — o
 decizie, nu o omisiune. Nimic din `shared/` nu trebuie schimbat când îi va veni rândul.
 
+### D45 — Categoriile devin o taxonomie pe două niveluri, în bază, multi-valoare
+
+§D39 a înlocuit lista de 17 genuri literare cu 29 de categorii-subiect, dar tot ca o listă plată
+de valori într-un `enum`, o singură valoare per carte. Cererea de a distinge **grupuri de
+categorii** (titlurile-raft) de **categorii** (rafturile propriu-zise), și de a lăsa o carte să
+stea pe mai multe rafturi deodată, i-a depășit forma.
+
+**Decizie: taxonomia devine date, nu tip.** Trei tabele — `CategoryGroup` (titlu, neselectabil),
+`Category` (raftul, singura frunză atașabilă unei cărți) și join-ul `BookCategory`. Sursa de
+adevăr a arborelui e `backend/prisma/categories.data.ts`, din care s-a generat migrarea de seed;
+la runtime, arborele trăiește în cele două tabele și se servește o dată prin `GET /categories`,
+memorat agresiv de ambele frontend-uri.
+
+**Un grup nu e niciodată o valoare.** Fiecare grup are cel puțin o frunză; cele cinci rafturi
+reale fără subcategorii (Audiobooks, Culinare, Enciclopedii, Biografii, România) trăiesc ca frunze
+sub grupul-coș `ALTELE`, ca invariantul să rămână absolut. Migrarea nu poate atașa un cod de grup
+unei cărți nici măcar din greșeală: `CategoriesService.assertExist` respinge orice cod care nu e
+rând de `Category`, deci un titlu ca `FICTION` e „inexistent".
+
+**O carte are acum mai multe categorii (se anulează §D17).** Filtrarea devine și ea multi-valoare,
+combinată cu OR (o carte se potrivește dacă e pe *oricare* raft cerut), exact forma pe care o are
+deja filtrul de status. Doar frunze — „toată Medicina" se exprimă bifând rafturile, nu titlul.
+
+**Redenumirea `genre` → `category` s-a făcut acum**, spre deosebire de §D39 care o refuzase.
+Atunci nu cumpăra nimic fiindcă valorile enum-ului nu se schimbau; aici ștergem coloana și tipul
+cu totul (`enum` → relație) și rescriem oricum fiecare referință, deci motivul de atunci a dispărut.
+
+**Bilingvitatea se mută din tipuri în bază.** Garanția §D44 — o etichetă lipsă e eroare de
+compilare — devine două coloane `NOT NULL` (`labelRo`/`labelEn`) plus un test de integritate a
+seed-ului. Fiecare nod poartă ambele etichete pe sârmă, ca schimbarea de limbă să rămână un
+re-render, nu o reîncărcare. `MANGA` e grupul netradus prin decizie (sursa e engleză): aceeași
+valoare în ambele coloane, ca leii care rămân lei în ambele limbi (§D44). Uneltele MCP primesc un
+`list_categories` care întoarce doar `labelEn` — un model citește, la fel ca restul uneltelor.
+
+**Datele vechi se mapează, nu se golesc** (ca la §D39). Vechea valoare era mereu un *grup*, deci
+fiecare carte se mută pe frunza `general` a grupului ei (`LEGACY_GENRE_MAP`) — onest și fără
+pierdere: afirmăm grupul pe care-l știam și lăsăm raftul exact nesetat. Migrarea lărgește, scrie
+join-ul din vechea coloană, apoi șterge coloana — aceeași secvență în trei pași ca §D39.
+
+**Culoarea cotorului pe raft** nu mai e o mapă de 29 de hexuri păstrată completă de tip, ci un hash
+stabil al codului de *grup* într-o bandă pastel (frontend/src/lib/shelf.ts): cărțile din același
+grup rămân înrudite vizual, fără mapă de întreținut, iar un grup adăugat de o migrare viitoare e
+colorat gratis. Decorativ, deci „prima categorie a cărții" e suficient (docs/DESIGN.md §Raftul).
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

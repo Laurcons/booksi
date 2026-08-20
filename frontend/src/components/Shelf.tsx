@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { genreLabel, progressLabel, progressRatio, type Book } from "@bookcsi/shared";
+import { progressLabel, progressRatio, type Book } from "@bookcsi/shared";
+import { useCategoryLookup } from "../api/categories";
+import { bookCategoryLabels, bookGroupCode } from "../lib/book-categories";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
 import {
   ROW_WIDTH,
@@ -80,9 +82,11 @@ function ShelfRow({
 }
 
 function Spine({ book, onOpen }: { book: Book; onOpen: () => void }) {
+  const { index } = useCategoryLookup();
   const width = spineWidth(book.totalPages);
   const height = spineHeight(book);
-  const base = spineColor(book.genre);
+  // §D45 — coloured by the book's first category's group; unclassified if none.
+  const base = spineColor(bookGroupCode(book.categories, index));
 
   // The card used to be a sibling `div` shown by `group-hover`, which cannot
   // work here any more: it is portalled out of the shelf's scroll container
@@ -182,6 +186,8 @@ function SpineCard({
   anchor: React.RefObject<HTMLButtonElement | null>;
 }) {
   const { locale } = useLocale();
+  const { index } = useCategoryLookup();
+  const categoryLabels = bookCategoryLabels(book.categories, index, locale);
 
   const ratio = progressRatio(book);
   const src = apiImageSrc(book.coverUrl);
@@ -257,8 +263,8 @@ function SpineCard({
           {book.author !== null && (
             <p className="mt-0.5 truncate text-xs text-ink-3">{book.author}</p>
           )}
-          {book.genre !== null && (
-            <p className="mt-1.5 text-[11px] text-ink-3">{genreLabel(book.genre, locale)}</p>
+          {categoryLabels.length > 0 && (
+            <p className="mt-1.5 text-[11px] text-ink-3">{categoryLabels.join(" · ")}</p>
           )}
           <div className="mt-2">
             <StatusPill status={book.status} />

@@ -1,16 +1,17 @@
 import { Router } from "express";
 import {
-  genreLabel,
-  GENRE_VALUES,
+  categoryLabel,
   statusLabel,
   STATUS_VALUES,
   type Book,
+  type CategoryTree,
 } from "@bookcsi/shared";
 import type { Env } from "../config/env";
 import {
   BackendRequestError,
   createBook,
   getBook,
+  listCategories,
   purchaseBook,
   updateBook,
 } from "../lib/backend-client";
@@ -76,11 +77,6 @@ const EXTRA_STYLE = `
   .wizard-step { display: inline-block; margin: 0 ${touchGap}px; font-size: ${fontSize.body}px; }
 `;
 
-const GENRE_OPTIONS: [string, string][] = [
-  ["", "— fără categorie —"],
-  ...GENRE_VALUES.map((g): [string, string] => [g, genreLabel(g, KOBO_LOCALE)]),
-];
-
 const STATUS_OPTIONS: [string, string][] = STATUS_VALUES.map(
   (s): [string, string] => [s, statusLabel(s, KOBO_LOCALE)],
 );
@@ -134,6 +130,41 @@ function selectField(
 }
 
 /**
+ * §D45 — the category field: a native grouped multi-select. `<optgroup>`
+ * headings are non-selectable by the browser itself, which is exactly the "a
+ * group is not a value" rule, and a native `<select multiple>` needs no JS —
+ * the constraint this whole surface is built under. Posts a repeated
+ * `categories` field, which `readFormValues` reads back as an array.
+ */
+function categoryField(
+  tree: CategoryTree,
+  values: BookFormValues,
+  errors: Record<string, string[]>,
+): Html {
+  const selected = new Set(values.categories);
+
+  return html`<p>
+    ${(errors["categories"] ?? []).map((msg) => html`<span class="field-error">${msg}</span>`)}
+    <label
+      >Categorii
+      <select name="categories" multiple size="8">
+        ${tree.map(
+          (group) =>
+            html`<optgroup label="${categoryLabel(group, KOBO_LOCALE)}">
+              ${group.categories.map(
+                (category) =>
+                  html`<option value="${category.code}" ${
+                    selected.has(category.code) ? raw("selected") : null
+                  }>${categoryLabel(category, KOBO_LOCALE)}</option>`,
+              )}
+            </optgroup>`,
+        )}
+      </select></label
+    >
+  </p>`;
+}
+
+/**
  * Three `.wizard-section` groups — enough to make the tap-through worth
  * having, not so many that the last one is a single field. Without
  * `book-form-script.ts` these are just three `<div>`s in normal flow: every
@@ -141,14 +172,18 @@ function selectField(
  * script existed. The submit button lives in the last one on purpose — it
  * is the only field this page truly needs sectioning to gate.
  */
-function formFields(values: BookFormValues, errors: Record<string, string[]>): Html {
+function formFields(
+  values: BookFormValues,
+  errors: Record<string, string[]>,
+  tree: CategoryTree,
+): Html {
   return html`${(errors[""] ?? []).map((msg) => html`<p class="field-error">${msg}</p>`)}
     <div class="wizard-section">
       ${textField("title", "Titlu", values, errors)}
       ${textField("author", "Autor", values, errors)}
       ${textField("isbn", "ISBN", values, errors)}
       ${textField("totalPages", "Număr de pagini", values, errors, true)}
-      ${selectField("genre", "Categorie", GENRE_OPTIONS, values, errors)}
+      ${categoryField(tree, values, errors)}
       ${textField("publisher", "Editura", values, errors)}
       ${textField("publicationYear", "Anul apariției", values, errors, true)}
       ${textField("volume", "Volum", values, errors, true)}
@@ -169,13 +204,17 @@ function formFields(values: BookFormValues, errors: Record<string, string[]>): H
     </div>`;
 }
 
-function renderAddPage(values: BookFormValues, errors: Record<string, string[]>): string {
+function renderAddPage(
+  values: BookFormValues,
+  errors: Record<string, string[]>,
+  tree: CategoryTree,
+): string {
   return renderPage({
     title: "Bookcsi — carte nouă",
     activeNav: "Cărți",
     extraStyle: EXTRA_STYLE,
     body: html`<h1>Carte nouă</h1>
-      <form method="post" action="/books/new">${formFields(values, errors)}</form>
+      <form method="post" action="/books/new">${formFields(values, errors, tree)}</form>
       <p><a href="/books">‹ Înapoi la listă</a></p>
       <script>
         ${raw(BOOK_FORM_SCRIPT)}
@@ -187,13 +226,14 @@ function renderEditPage(
   book: Book,
   values: BookFormValues,
   errors: Record<string, string[]>,
+  tree: CategoryTree,
 ): string {
   return renderPage({
     title: `Bookcsi — ${book.title}`,
     activeNav: "Cărți",
     extraStyle: EXTRA_STYLE,
     body: html`<h1>${book.title}</h1>
-      <form method="post" action="/books/${book.id}">${formFields(values, errors)}</form>
+      <form method="post" action="/books/${book.id}">${formFields(values, errors, tree)}</form>
       <!-- book-form-script.ts queries .wizard-section document-wide, not
            scoped to the form above — so this section is picked up as a
            fourth step and gated behind the same Next/Back nav as the other
@@ -225,12 +265,33 @@ function genericErrorPage(): string {
   });
 }
 
+/**
+ * §D45 — the taxonomy for the form's multi-select. A failure to fetch it
+ * degrades to an empty tree rather than blocking the whole form: the reader can
+ * still edit every other field, and category is the one that can wait. Never
+ * throws, so the handlers stay linear.
+ */
+async function loadTree(
+  env: Env,
+  userAgent: string | undefined,
+  session: string,
+): Promise<CategoryTree> {
+  try {
+    const tree = await listCategories(env, userAgent, session);
+    return Array.isArray(tree) ? tree : [];
+  } catch {
+    return [];
+  }
+}
+
 export function createBookFormRouter(env: Env): Router {
   const router = Router();
   router.use(requireSession);
 
-  router.get("/books/new", (_req, res) => {
-    res.type("html").send(renderAddPage(EMPTY_FORM_VALUES, {}));
+  router.get("/books/new", async (req, res) => {
+    const session = sessionCookieFrom(req)!;
+    const tree = await loadTree(env, req.headers["user-agent"], session);
+    res.type("html").send(renderAddPage(EMPTY_FORM_VALUES, {}, tree));
   });
 
   router.post("/books/new", async (req, res) => {
@@ -245,7 +306,8 @@ export function createBookFormRouter(env: Env): Router {
         return;
       }
       if (error instanceof BackendRequestError) {
-        res.type("html").send(renderAddPage(values, groupErrorsByField(error.messages)));
+        const tree = await loadTree(env, req.headers["user-agent"], session);
+        res.type("html").send(renderAddPage(values, groupErrorsByField(error.messages), tree));
         return;
       }
       res.type("html").send(genericErrorPage());
@@ -259,7 +321,8 @@ export function createBookFormRouter(env: Env): Router {
 
     try {
       const book = await getBook(env, req.headers["user-agent"], session, req.params["id"]!);
-      res.type("html").send(renderEditPage(book, valuesFromBook(book), {}));
+      const tree = await loadTree(env, req.headers["user-agent"], session);
+      res.type("html").send(renderEditPage(book, valuesFromBook(book), {}, tree));
     } catch (error) {
       if (handleBackendError(error, res)) {
         return;
@@ -294,9 +357,10 @@ export function createBookFormRouter(env: Env): Router {
         return;
       }
       if (error instanceof BackendRequestError) {
+        const tree = await loadTree(env, userAgent, session);
         res
           .type("html")
-          .send(renderEditPage(original, values, groupErrorsByField(error.messages)));
+          .send(renderEditPage(original, values, groupErrorsByField(error.messages), tree));
         return;
       }
       res.type("html").send(genericErrorPage());

@@ -7,6 +7,7 @@ import type { Request, Response } from "express";
 import { AuditService } from "../audit/audit.service";
 import { BooksService } from "../books/books.service";
 import { BudgetService } from "../budget/budget.service";
+import { CategoriesService } from "../categories/categories.service";
 import { ChallengesService } from "../challenges/challenges.service";
 import { Public } from "../common/decorators/public.decorator";
 import type { Env } from "../config/env";
@@ -31,6 +32,7 @@ export class McpController {
     private readonly books: BooksService,
     private readonly stats: StatsService,
     private readonly budget: BudgetService,
+    private readonly categories: CategoriesService,
     private readonly openLibrary: OpenLibraryService,
     private readonly challenges: ChallengesService,
     private readonly config: ConfigService<Env, true>,
@@ -64,6 +66,7 @@ export class McpController {
       books: this.books,
       stats: this.stats,
       budget: this.budget,
+      categories: this.categories,
       openLibrary: this.openLibrary,
       challenges: this.challenges,
       audit: this.audit,

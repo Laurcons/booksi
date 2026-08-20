@@ -263,6 +263,8 @@ export const ro = {
   "search.openLibrary": "Caută în Open Library",
   "search.byTitleOrAuthor": "după titlu sau autor",
   "search.noCategoryMatches": "Nicio categorie nu se potrivește.",
+  "category.searchPlaceholder": "Caută categorii…",
+  "category.remove": "Elimină {label}",
 
   "field.title": "Titlu",
   "field.author": "Autor",

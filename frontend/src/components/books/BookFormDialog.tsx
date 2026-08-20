@@ -6,7 +6,6 @@ import {
   CURRENCY,
   STATUS_VALUES,
   createBookSchema,
-  genreSchema,
   isRatable,
   normalizeIsbn,
   statusLabel,
@@ -51,7 +50,7 @@ const bookFormSchema = z
     author: z.string(),
     isbn: z.string(),
     totalPages: z.string(),
-    genre: z.union([genreSchema, z.literal("")]),
+    categories: z.array(z.string()),
     publisher: z.string(),
     publicationYear: z.string(),
     volume: z.string(),
@@ -73,7 +72,7 @@ const bookFormSchema = z
     author: values.author,
     isbn: values.isbn,
     totalPages: values.totalPages.trim() === "" ? null : Number(values.totalPages),
-    genre: values.genre === "" ? null : values.genre,
+    categories: values.categories,
     publisher: values.publisher,
     publicationYear:
       values.publicationYear.trim() === "" ? null : Number(values.publicationYear),
@@ -149,7 +148,7 @@ const EMPTY: BookFormValues = {
   author: "",
   isbn: "",
   totalPages: "",
-  genre: "",
+  categories: [],
   publisher: "",
   publicationYear: "",
   volume: "",
@@ -350,8 +349,7 @@ export function BookFormDialog({
   const ratingField = register("rating");
   const authorValue = watch("author");
   const authorField = register("author");
-  const genreValue = watch("genre");
-  const genreField = register("genre");
+  const categoriesValue = watch("categories");
 
   const submit = handleSubmit(async (payload) => {
     if (editing) {
@@ -484,15 +482,14 @@ export function BookFormDialog({
             )}
           </Field>
 
-          <Field label={t("field.category")} error={errors.genre}>
+          <Field label={t("field.category")} error={errors.categories}>
             <CategoryPicker
-              name={genreField.name}
-              value={genreValue}
-              clearLabel={t("bookForm.noCategory")}
+              ariaLabel={t("field.category")}
+              value={categoriesValue}
               className={INPUT}
-              onChange={(genre) => setValue("genre", genre, { shouldDirty: true })}
-              onBlur={genreField.onBlur}
-              inputRef={genreField.ref}
+              onChange={(categories) =>
+                setValue("categories", categories, { shouldDirty: true })
+              }
             />
           </Field>
 
@@ -813,7 +810,7 @@ function toFormValues(book: Book): BookFormValues {
     author: book.author ?? "",
     isbn: book.isbn ?? "",
     totalPages: book.totalPages === null ? "" : String(book.totalPages),
-    genre: book.genre ?? "",
+    categories: book.categories,
     publisher: book.publisher ?? "",
     publicationYear: book.publicationYear === null ? "" : String(book.publicationYear),
     volume: book.volume === null ? "" : String(book.volume),
@@ -853,7 +850,10 @@ const FORM_FIELDS = Object.keys(EMPTY) as FormField[];
 /** The edit payload: exactly the fields the user changed, nothing else. */
 function onlyDirty(
   payload: CreateBookInput,
-  dirtyFields: Partial<Readonly<Record<keyof BookFormValues, boolean>>>,
+  // `unknown` rather than `boolean`: react-hook-form tracks a *set* field like
+  // `categories` element-by-element, so its entry is a `boolean[]`, not a
+  // `boolean`. Either way it is truthy once touched, which is all this reads.
+  dirtyFields: Partial<Readonly<Record<keyof BookFormValues, unknown>>>,
 ): Partial<CreateBookInput> {
   const changed: Record<string, unknown> = {};
 
@@ -883,8 +883,15 @@ function onlyFilled(payload: CreateBookInput): CreateBookInput {
 
   for (const key of FORM_FIELDS) {
     const value = payload[key];
+    // §D45 — an empty `categories` array is "no shelves", the default, so it is
+    // dropped like any other empty field rather than sent as `[]`.
+    const empty =
+      value === null ||
+      value === undefined ||
+      value === "" ||
+      (Array.isArray(value) && value.length === 0);
 
-    if (value !== null && value !== undefined && value !== "") {
+    if (!empty) {
       filled[key] = value;
     }
   }

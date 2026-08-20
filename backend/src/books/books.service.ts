@@ -6,7 +6,6 @@ import {
   normalizeIsbn,
   type Book,
   type CreateBookInput,
-  type Genre,
   type IsbnDuplicate,
   type IsbnDuplicatesQuery,
   type ListBooksQuery,
@@ -14,6 +13,7 @@ import {
   type UpdateBookInput,
   type WishlistSummary,
 } from "@bookcsi/shared";
+import { CategoriesService } from "../categories/categories.service";
 import { AppError } from "../common/app-error";
 import { toDecimal, toNumber } from "../common/money";
 import { ownedOrNotFound } from "../common/ownership";
@@ -36,7 +36,6 @@ type BookWriteData = {
   author?: string | null;
   isbn?: string | null;
   totalPages?: number | null;
-  genre?: Genre | null;
   publisher?: string | null;
   publicationYear?: number | null;
   volume?: number | null;
@@ -76,16 +75,26 @@ const WISHLIST: Status = "WISHLIST";
  * that stays cheap however many books there are, and it is all `coverUrl`
  * needs.
  */
-const WITH_COVER = { cover: { select: { updatedAt: true } } };
+const WITH_COVER = {
+  cover: { select: { updatedAt: true } },
+  // §D45 — the book's shelves. Codes only; the client resolves labels and
+  // display order against the tree from `GET /categories`, so this stays a
+  // cheap join however many books are listed.
+  categories: { select: { categoryCode: true }, orderBy: { categoryCode: "asc" } },
+} as const;
 
-/** A book row with that timestamp attached. */
-type BookRowWithCover = BookRow & { cover: { updatedAt: Date } | null };
+/** A book row with that timestamp and its category codes attached. */
+type BookRowWithCover = BookRow & {
+  cover: { updatedAt: Date } | null;
+  categories: { categoryCode: string }[];
+};
 
 @Injectable()
 export class BooksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly covers: CoversService,
+    private readonly categories: CategoriesService,
   ) {}
 
   /** S1.1, and from Sprint 4 on, the moment a cover gets downloaded (§D8). */
@@ -93,6 +102,11 @@ export class BooksService {
     const status = input.status ?? DEFAULT_STATUS;
 
     this.checkRating(input.rating, status);
+    // §D45 — reject unknown category codes before the row is written, so a bad
+    // code fails the request rather than the foreign key mid-insert.
+    if (input.categories !== undefined) {
+      await this.categories.assertExist(input.categories);
+    }
 
     const data: BookWriteData & { title: string } = {
       ...writeData(input),
@@ -113,7 +127,15 @@ export class BooksService {
     }
 
     const row = await this.prisma.book.create({
-      data: { ...data, userId },
+      data: {
+        ...data,
+        userId,
+        // §D45 — attach the shelves in the same insert. Absent leaves the set
+        // empty, which is the ordinary case for a book added from memory.
+        ...(input.categories === undefined
+          ? {}
+          : { categories: { create: categoryRows(input.categories) } }),
+      },
       include: WITH_COVER,
     });
 
@@ -223,6 +245,9 @@ export class BooksService {
     // The status the book ends up in, which is what S2.3 constrains — a
     // request may set the rating and the status that permits it at once.
     this.checkRating(input.rating, input.status ?? existing.status);
+    if (input.categories !== undefined) {
+      await this.categories.assertExist(input.categories);
+    }
 
     const data = writeData(input);
 
@@ -244,7 +269,21 @@ export class BooksService {
     // Ownership was settled by `load`; the id alone is enough to address the row.
     const row = await this.prisma.book.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        // §D45 — an absent `categories` leaves the shelves untouched (Prisma's
+        // convention, §D45 in book.ts); a provided one *replaces* the whole
+        // set, so `[]` clears it. Drop-then-recreate rather than a diff: the
+        // set is a handful of rows, and computing the delta buys nothing.
+        ...(input.categories === undefined
+          ? {}
+          : {
+              categories: {
+                deleteMany: {},
+                create: categoryRows(input.categories),
+              },
+            }),
+      },
       include: WITH_COVER,
     });
 
@@ -367,7 +406,13 @@ function listWhere(userId: string, query: ListBooksQuery): Prisma.BookWhereInput
     // `in` over one value is the same query the single-status view has always
     // run — S3.1 gets no new behaviour out of S5.3 widening the parameter.
     ...(query.status === undefined ? {} : { status: { in: query.status } }),
-    ...(query.genre === undefined ? {} : { genre: query.genre }),
+    // §D45 — a book matches if it sits on *any* of the requested shelves (OR),
+    // which then combines with `AND` against the other filters. `some` over the
+    // join is that OR. Absent, no predicate — the same absent-vs-empty rule the
+    // other filters follow (§D29).
+    ...(query.category === undefined
+      ? {}
+      : { categories: { some: { categoryCode: { in: query.category } } } }),
     ...(query.favorite === undefined ? {} : { favorite: query.favorite }),
     // §D42 — one `AND` entry per word of the search, each an `OR` across the
     // five searchable fields. Absent, and the key is not there at all: an
@@ -383,7 +428,6 @@ function writeData(input: BookWriteInput): BookWriteData {
     author: input.author,
     isbn: input.isbn,
     totalPages: input.totalPages,
-    genre: input.genre,
     publisher: input.publisher,
     publicationYear: input.publicationYear,
     volume: input.volume,
@@ -412,6 +456,13 @@ function providedDate(
   return key in input ? fromCalendarDate(input[key] ?? null) : undefined;
 }
 
+/** §D45 — category codes as `BookCategory` create rows for a nested write. */
+function categoryRows(codes: string[]): { categoryCode: string }[] {
+  // Deduped: the schema allows a repeated code, but the join's composite PK
+  // would reject the second copy, failing the whole write.
+  return [...new Set(codes)].map((categoryCode) => ({ categoryCode }));
+}
+
 /**
  * The row as the API exposes it. Written out field by field on purpose: the
  * mapping is also the boundary that keeps a column like `userId` from leaking
@@ -428,7 +479,9 @@ function toBook(row: BookRowWithCover): Book {
     author: row.author,
     isbn: row.isbn,
     totalPages: row.totalPages,
-    genre: row.genre,
+    // §D45 — the shelves this book sits on, as codes. Labels and display order
+    // are the client's to resolve against the taxonomy tree.
+    categories: row.categories.map((link) => link.categoryCode),
     publisher: row.publisher,
     publicationYear: row.publicationYear,
     volume: row.volume,

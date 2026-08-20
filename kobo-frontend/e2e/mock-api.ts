@@ -55,6 +55,29 @@ export function createMockApi(): Express {
     );
   });
 
+  // §D45 — the taxonomy the form's multi-select and the list's labels read.
+  app.get("/categories", (_req, res) => {
+    res.json([
+      {
+        code: "FICTION",
+        labelRo: "Ficțiune",
+        labelEn: "Fiction",
+        categories: [
+          { code: "FICTION__GENERAL", labelRo: "Generalități", labelEn: "General" },
+          { code: "FICTION__SF", labelRo: "SF", labelEn: "Science fiction" },
+        ],
+      },
+      {
+        code: "HISTORY",
+        labelRo: "Istorie",
+        labelEn: "History",
+        categories: [
+          { code: "HISTORY__GENERAL", labelRo: "Istorie generală", labelEn: "General history" },
+        ],
+      },
+    ]);
+  });
+
   app.get("/books/:id", (req, res) => {
     const found = books.get(req.params["id"] as string);
 
@@ -75,7 +98,7 @@ export function createMockApi(): Express {
       author: null,
       isbn: null,
       totalPages: null,
-      genre: null,
+      categories: [],
       publisher: null,
       publicationYear: null,
       volume: null,

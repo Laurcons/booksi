@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   formatCount,
-  genreLabel,
   progressLabel,
   progressRatio,
   type Book,
 } from "@bookcsi/shared";
 import { usePurchaseBook, useUpdateBook } from "../api/books";
+import { useCategoryLookup } from "../api/categories";
+import { bookCategoryLabels, bookGroupCode } from "../lib/book-categories";
 import { useChallenge, useChallenges } from "../api/challenges";
 import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
@@ -423,9 +424,10 @@ function ChallengeSpine({
   slotHeight: number;
   onOpen: () => void;
 }) {
+  const { index } = useCategoryLookup();
   const width = spineWidth(book.totalPages);
   const height = spineHeight(book);
-  const color = spineColor(book.genre);
+  const color = spineColor(bookGroupCode(book.categories, index));
   const ratio = progressRatio(book);
 
   const finished = book.status === "FINISHED";
@@ -513,6 +515,8 @@ function MiniPlank() {
 function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) {
   const nextLabel = useNextStatusLabel();
   const { locale } = useLocale();
+  const { index } = useCategoryLookup();
+  const categoryLabels = bookCategoryLabels(book.categories, index, locale);
   const update = useUpdateBook();
   const purchase = usePurchaseBook();
   const [asking, setAsking] = useState(false);
@@ -556,7 +560,7 @@ function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) 
           </button>
           <p className="truncate text-sm text-ink-3">
             {book.author}
-            {book.genre !== null && ` · ${genreLabel(book.genre, locale)}`}
+            {categoryLabels.length > 0 && ` · ${categoryLabels.join(", ")}`}
           </p>
           {book.status === "READING" && <PageProgressEditor book={book} />}
         </div>

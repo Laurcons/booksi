@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import type { Book } from "@bookcsi/shared";
-import { makeBook, stubApi, type ApiCall } from "../test/helpers";
+import { CATEGORY_TREE, makeBook, stubApi, type ApiCall } from "../test/helpers";
 import { GalleryPage } from "./GalleryPage";
 import { renderWithQuery } from "../test/helpers";
 
@@ -15,7 +15,13 @@ import { renderWithQuery } from "../test/helpers";
  * would leave exactly that half untested.
  */
 function renderGallery(books: Book[]) {
-  const calls = stubApi((call) => (call.url.includes("/books") ? books : null));
+  const calls = stubApi((call) =>
+    call.url.includes("/categories")
+      ? CATEGORY_TREE
+      : call.url.includes("/books")
+        ? books
+        : null,
+  );
 
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -72,16 +78,16 @@ describe("GalleryPage — filters on the wire (S5.3)", () => {
     );
   });
 
-  it("sends genre and favorite alongside it", async () => {
+  it("sends category and favorite alongside it (§D45)", async () => {
     const { user, calls } = renderGallery([makeBook()]);
     await screen.findByRole("button", { name: "Dune" });
 
     await user.click(screen.getByLabelText("Categorie"));
-    await user.click(screen.getByRole("button", { name: "Ficțiune" }));
+    await user.click(screen.getByRole("button", { name: "SF" }));
     await user.click(screen.getByRole("button", { name: /Doar favoritele/ }));
 
     await waitFor(() => {
-      expect(lastListUrl(calls)).toContain("genre=FICTION");
+      expect(lastListUrl(calls)).toContain("category=FICTION__SF");
       expect(lastListUrl(calls)).toContain("favorite=true");
     });
   });

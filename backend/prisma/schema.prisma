@@ -59,39 +59,52 @@ enum Status {
   ABANDONED
 }
 
-/// §D39 — 29 topic categories, replacing the original 17-value literary-genre
-/// list. Still `genre`/`Genre` in code (shared/src/enums.ts explains why the
-/// identifier didn't move with the rename).
-enum Genre {
-  AUDIOBOOKS
-  CULINARY
-  ART_ARCHITECTURE
-  ENCYCLOPEDIAS
-  BIOGRAPHIES
-  LINGUISTICS_DICTIONARIES
-  ROMANIAN_MAGAZINES
-  FOREIGN_LANGUAGES
-  POETRY_THEATRE
-  FICTION
-  COMICS
-  TRAVEL_GUIDES
-  HISTORY
-  RELIGION
-  PHILOSOPHY
-  PSYCHOLOGY
-  SOCIAL_SCIENCES_POLITICS
-  MARKETING_COMMUNICATION
-  BUSINESS_ECONOMY
-  LAW
-  MEDICINE
-  EXACT_SCIENCES_MATH
-  NATURE_ENVIRONMENT
-  TECHNOLOGY
-  COMPUTERS_INTERNET
-  HEALTH_SELF_DEVELOPMENT
-  LIFESTYLE_SPORT_LEISURE
-  ROMANIA
-  EDUCATIONAL_SOFTWARE
+/// §D45 — the category taxonomy, as data rather than an enum. Two levels: a
+/// `CategoryGroup` is a shelving *heading* (never attached to a book), and a
+/// `Category` is one shelf under it (the only thing a book may carry). The
+/// full tree, its labels and the reasoning behind moving it out of the type
+/// system live in `backend/prisma/categories.data.ts` and docs/DECISIONS.md
+/// §D45. Replaces §D39's `Genre` enum and its single-value `Book.genre`.
+///
+/// `code` is the primary key on purpose: it is a stable controlled-vocabulary
+/// identifier (`FICTION__SF`), which is what the migration maps old data onto,
+/// what tests and MCP reference without knowing a cuid, and what a `BookCategory`
+/// points at. Both label columns are NOT NULL — the successor to the
+/// compile-time `GENRE_LABELS` completeness guarantee (§D45).
+model CategoryGroup {
+  code      String     @id
+  labelRo   String
+  labelEn   String
+  /// Display order of the heading within the picker; the images' top-to-bottom.
+  sortOrder Int
+  categories Category[]
+}
+
+model Category {
+  code      String        @id
+  groupCode String
+  group     CategoryGroup @relation(fields: [groupCode], references: [code], onDelete: Cascade)
+  labelRo   String
+  labelEn   String
+  /// Display order of the shelf within its group.
+  sortOrder Int
+  books     BookCategory[]
+
+  @@index([groupCode])
+}
+
+/// §D45 — the many-to-many between a book and its shelves. A book may sit on
+/// several shelves at once (reversing §D17's one-value rule), and a shelf holds
+/// many books. `onDelete: Cascade` on both sides: deleting a book drops its
+/// tags, and removing a category from the taxonomy drops the tags that used it.
+model BookCategory {
+  bookId       String
+  book         Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  categoryCode String
+  category     Category @relation(fields: [categoryCode], references: [code], onDelete: Cascade)
+
+  @@id([bookId, categoryCode])
+  @@index([categoryCode])
 }
 
 model Book {
@@ -104,7 +117,6 @@ model Book {
   author          String?
   isbn            String? // NOT unique — see D13
   totalPages      Int? // frequently absent — see D4
-  genre           Genre?
   publisher       String?
   publicationYear Int?
   volume          Int?
@@ -141,6 +153,7 @@ model Book {
 
   cover      Cover?
   challenges ChallengeBook[]
+  categories BookCategory[]
 
   @@index([userId, status])
   @@index([userId, finishedOn])

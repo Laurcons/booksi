@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import type { Challenge, ChallengeSummary } from "@bookcsi/shared";
-import { lastWrite, makeBook, stubApi, type ApiCall } from "../test/helpers";
+import { CATEGORY_TREE, lastWrite, makeBook, stubApi, type ApiCall } from "../test/helpers";
 import { ChallengePage } from "./ChallengePage";
 import { renderWithQuery } from "../test/helpers";
 
@@ -56,6 +56,7 @@ function renderChallengePage({
     if (call.url.includes("/challenges/challenge-1") && call.method === "GET") return detail;
     if (call.url.includes("/challenges/challenge-1") && call.method === "PATCH") return detail;
     if (call.url.includes("/books/isbn-duplicates")) return [];
+    if (call.url.includes("/categories")) return CATEGORY_TREE;
     const custom = extra?.(call);
     if (custom !== undefined) return custom;
     // Any book PATCH/POST just echoes something usable back.

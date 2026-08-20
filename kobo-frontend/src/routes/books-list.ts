@@ -1,17 +1,23 @@
 import { Router } from "express";
 import {
   CURRENCY,
+  categoryLabel,
   formatCount,
   formatMoney,
-  genreLabel,
   progressLabel,
   showsProgressBar,
   type Book,
   type BudgetSummary,
+  type CategoryTree,
   type StatsOverview,
 } from "@bookcsi/shared";
 import type { Env } from "../config/env";
-import { getBudgetSummary, getStatsOverview, listBooks } from "../lib/backend-client";
+import {
+  getBudgetSummary,
+  getStatsOverview,
+  listBooks,
+  listCategories,
+} from "../lib/backend-client";
 import { html, type Html } from "../lib/html";
 import { BOOKS_PER_PAGE, paginate } from "../lib/pagination";
 import { renderPage } from "../lib/page";
@@ -206,11 +212,16 @@ function addedYear(book: Book): number {
  * what was paid, when there is one — a book typed straight in as `Terminat`
  * has no obligation to carry a price at all.
  */
-function bookExtras(book: Book): Html[] {
+function bookExtras(book: Book, categoryLabels: Map<string, string>): Html[] {
   const extras: Html[] = [];
 
-  if (book.genre !== null) {
-    extras.push(html`<span class="book-extra">${genreLabel(book.genre, KOBO_LOCALE)}</span>`);
+  // §D45 — a book's shelves as a single line, unknown codes dropped (one arose
+  // only if a taxonomy migration removed a shelf a book still carried).
+  const labels = book.categories
+    .map((code) => categoryLabels.get(code))
+    .filter((label): label is string => label !== undefined);
+  if (labels.length > 0) {
+    extras.push(html`<span class="book-extra">${labels.join(" · ")}</span>`);
   }
 
   const price = book.status === "WISHLIST" ? book.estimatedPrice : book.paidPrice;
@@ -238,7 +249,7 @@ function bookExtras(book: Book): Html[] {
  * it was enough on its own to push `.book-info` onto its own line below the
  * cover instead of beside it, on every engine, not just this one.
  */
-function bookRow(book: Book): Html {
+function bookRow(book: Book, categoryLabels: Map<string, string>): Html {
   const cover =
     book.coverUrl === null
       ? html`<span class="cover-placeholder" aria-hidden="true">
@@ -255,7 +266,7 @@ function bookRow(book: Book): Html {
           alt=""
         />`;
 
-  const extras = bookExtras(book);
+  const extras = bookExtras(book, categoryLabels);
 
   const info = html`<div class="book-info">
     <a class="book-title" href="/books/${book.id}">${book.title}</a>
@@ -293,6 +304,35 @@ function errorPage(): string {
   });
 }
 
+/**
+ * §D45 — the taxonomy, degrading to an empty tree on failure: a book's
+ * category line is the one detail a reader can lose without the list becoming
+ * useless, so it must not take the whole page down with it.
+ */
+async function loadTree(
+  env: Env,
+  userAgent: string | undefined,
+  session: string,
+): Promise<CategoryTree> {
+  try {
+    const tree = await listCategories(env, userAgent, session);
+    return Array.isArray(tree) ? tree : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A `code → label` map in the Kobo locale, for resolving a book's shelves. */
+function categoryLabelMap(tree: CategoryTree): Map<string, string> {
+  return new Map(
+    tree.flatMap((group) =>
+      group.categories.map(
+        (category) => [category.code, categoryLabel(category, KOBO_LOCALE)] as const,
+      ),
+    ),
+  );
+}
+
 export function createBooksListRouter(env: Env): Router {
   const router = Router();
   router.use(requireSession);
@@ -304,6 +344,7 @@ export function createBooksListRouter(env: Env): Router {
 
     try {
       const books = await listBooks(env, userAgent, session);
+      const categoryLabels = categoryLabelMap(await loadTree(env, userAgent, session));
       const { items, page, totalPages } = paginate(books, requestedPage, BOOKS_PER_PAGE);
 
       // The dashboard describes the whole library, not one page of it —
@@ -337,7 +378,7 @@ export function createBooksListRouter(env: Env): Router {
           body: html`${[headerMain, dashboardHtml]}
             ${books.length === 0
               ? html`<p>Biblioteca e goală.</p>`
-              : html`${pager(page, totalPages)} ${items.map(bookRow)}
+              : html`${pager(page, totalPages)} ${items.map((b) => bookRow(b, categoryLabels))}
                   ${pager(page, totalPages)}`}`,
         }),
       );

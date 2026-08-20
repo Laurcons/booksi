@@ -36,7 +36,8 @@ const storedBook = {
   author: "Frank Herbert",
   isbn: "978-606-4-00000-0",
   totalPages: 620,
-  genre: "FICTION" as const,
+  // §D45 — categories are a relation now; Prisma returns them as join rows.
+  categories: [{ categoryCode: "FICTION__GENERAL" }],
   olEditionKey: null,
   status: "READING" as const,
   favorite: false,
@@ -70,6 +71,9 @@ describe("books routes (Sprints 1–3)", () => {
       deleteMany: jest.fn(),
       aggregate: jest.fn(),
     },
+    // §D45 — CategoriesService validates a write's codes against this.
+    category: { findMany: jest.fn().mockResolvedValue([]) },
+    categoryGroup: { findMany: jest.fn().mockResolvedValue([]) },
   };
 
   beforeAll(async () => {
@@ -182,7 +186,7 @@ describe("books routes (Sprints 1–3)", () => {
         author: "Frank Herbert",
         isbn: "978-606-4-00000-0",
         totalPages: 620,
-        genre: "FICTION",
+        categories: ["FICTION__GENERAL"],
         status: "READING",
         favorite: false,
         pagesRead: 143,
@@ -257,7 +261,7 @@ describe("books routes (Sprints 1–3)", () => {
 
     it("names the offending field in every message", async () => {
       const res = await as("post", "/books")
-        .send({ title: "", genre: "COOKBOOK" })
+        .send({ title: "", categories: "nope" })
         .expect(400);
 
       // One sentence per problem, each prefixed with its path. A bare
@@ -266,7 +270,7 @@ describe("books routes (Sprints 1–3)", () => {
       expect(res.body.message).toEqual(
         expect.arrayContaining([
           expect.stringContaining("title:"),
-          expect.stringContaining("genre:"),
+          expect.stringContaining("categories:"),
         ]),
       );
     });
@@ -763,10 +767,19 @@ describe("books routes (Sprints 1–3)", () => {
       });
     });
 
-    it("filters by genre, one value only (§D17)", async () => {
-      expect(await whereFor("genre=FICTION")).toEqual({
+    it("filters by a single category (§D45)", async () => {
+      expect(await whereFor("category=FICTION__SF")).toEqual({
         userId: "user-1",
-        genre: "FICTION",
+        categories: { some: { categoryCode: { in: ["FICTION__SF"] } } },
+      });
+    });
+
+    it("takes several categories from a repeated parameter, matched with OR (§D45)", async () => {
+      expect(await whereFor("category=FICTION__SF&category=FICTION__FANTASY")).toEqual({
+        userId: "user-1",
+        categories: {
+          some: { categoryCode: { in: ["FICTION__SF", "FICTION__FANTASY"] } },
+        },
       });
     });
 
@@ -787,27 +800,32 @@ describe("books routes (Sprints 1–3)", () => {
       });
     });
 
-    it("combines the three filters with AND", async () => {
+    it("combines the filters with AND", async () => {
       expect(
-        await whereFor("status=FINISHED&genre=FICTION&favorite=true"),
+        await whereFor("status=FINISHED&category=FICTION__SF&favorite=true"),
       ).toEqual({
         userId: "user-1",
         status: { in: ["FINISHED"] },
-        genre: "FICTION",
+        categories: { some: { categoryCode: { in: ["FICTION__SF"] } } },
         favorite: true,
       });
     });
 
     it("keeps the user scope whatever the filters say", async () => {
       // S0.3 is not something a query parameter may widen.
-      expect(await whereFor("favorite=true&genre=POETRY_THEATRE")).toMatchObject({
+      expect(await whereFor("favorite=true&category=POETRY_THEATRE__POETRY")).toMatchObject({
         userId: "user-1",
       });
     });
 
-    it("rejects a genre outside the controlled list", async () => {
-      await as("get", "/books?genre=SF").expect(400);
-      expect(prisma.book.findMany).not.toHaveBeenCalled();
+    it("does not police the filter against the taxonomy — an unknown code just matches nothing (§D45)", async () => {
+      // Category existence is checked on *write*, not on read: a filter by a
+      // code that no longer exists narrows to an empty result rather than 400.
+      // No per-request taxonomy query for something the client controls.
+      expect(await whereFor("category=NOPE__NOPE")).toEqual({
+        userId: "user-1",
+        categories: { some: { categoryCode: { in: ["NOPE__NOPE"] } } },
+      });
     });
 
     it("rejects a favorite that is neither true nor false", async () => {
@@ -857,10 +875,10 @@ describe("books routes (Sprints 1–3)", () => {
     });
 
     it("combines the search with the filters, never replacing them", async () => {
-      expect(await whereFor("status=WISHLIST&genre=FICTION&q=lem")).toMatchObject({
+      expect(await whereFor("status=WISHLIST&category=FICTION__SF&q=lem")).toMatchObject({
         userId: "user-1",
         status: { in: ["WISHLIST"] },
-        genre: "FICTION",
+        categories: { some: { categoryCode: { in: ["FICTION__SF"] } } },
       });
     });
 
@@ -1134,6 +1152,77 @@ describe("books routes (Sprints 1–3)", () => {
       prisma.book.deleteMany.mockResolvedValue({ count: 1 });
 
       await as("delete", "/books/book-1").expect(204);
+    });
+  });
+
+  describe("categories (§D45)", () => {
+    it("attaches the shelves in the create insert, deduped", async () => {
+      prisma.category.findMany.mockResolvedValue([
+        { code: "FICTION__SF" },
+        { code: "FICTION__FANTASY" },
+      ]);
+      prisma.book.create.mockResolvedValue(storedBook);
+
+      await as("post", "/books")
+        .send({ title: "Dune", categories: ["FICTION__SF", "FICTION__FANTASY", "FICTION__SF"] })
+        .expect(201);
+
+      expect(prisma.book.create.mock.calls[0][0].data.categories).toEqual({
+        create: [{ categoryCode: "FICTION__SF" }, { categoryCode: "FICTION__FANTASY" }],
+      });
+    });
+
+    it("returns 400 and writes nothing when a code does not exist", async () => {
+      prisma.category.findMany.mockResolvedValue([{ code: "FICTION__SF" }]);
+
+      const res = await as("post", "/books")
+        .send({ title: "Dune", categories: ["FICTION__SF", "NOPE__NOPE"] })
+        .expect(400);
+
+      expect(res.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining("categories:")]),
+      );
+      expect(res.body.message[0]).toContain("NOPE__NOPE");
+      expect(prisma.book.create).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the shelves when the field is absent", async () => {
+      prisma.book.create.mockResolvedValue(storedBook);
+
+      await as("post", "/books").send({ title: "Dune" }).expect(201);
+
+      expect(prisma.category.findMany).not.toHaveBeenCalled();
+      expect(prisma.book.create.mock.calls[0][0].data.categories).toBeUndefined();
+    });
+
+    it("replaces the whole set on update — drop then recreate", async () => {
+      prisma.category.findMany.mockResolvedValue([{ code: "HISTORY__GENERAL" }]);
+      prisma.book.findFirst.mockResolvedValue(storedBook);
+      prisma.book.update.mockResolvedValue(storedBook);
+
+      await as("patch", "/books/book-1")
+        .send({ categories: ["HISTORY__GENERAL"] })
+        .expect(200);
+
+      expect(prisma.book.update.mock.calls[0][0].data.categories).toEqual({
+        deleteMany: {},
+        create: [{ categoryCode: "HISTORY__GENERAL" }],
+      });
+    });
+
+    it("clears the set on update with an explicit empty array", async () => {
+      prisma.book.findFirst.mockResolvedValue(storedBook);
+      prisma.book.update.mockResolvedValue(storedBook);
+
+      await as("patch", "/books/book-1").send({ categories: [] }).expect(200);
+
+      // No existence query for an empty set, and the nested write still runs so
+      // the drop happens.
+      expect(prisma.category.findMany).not.toHaveBeenCalled();
+      expect(prisma.book.update.mock.calls[0][0].data.categories).toEqual({
+        deleteMany: {},
+        create: [],
+      });
     });
   });
 

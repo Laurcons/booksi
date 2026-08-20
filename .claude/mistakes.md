@@ -218,3 +218,23 @@ honestly, twice, and then committed anyway on a "commit pls" — but a flagged g
 is still a gap, and a half-translated interface is worse than either language
 alone. When the remaining work is the same *kind* of work, finish it rather than
 reporting a count; a checkpoint is for decisions, not for grinding.
+
+### Moving a compile-time constant to a fetched resource: guard every consumer, not one
+
+§D45 moved the category taxonomy out of a compile-time `Genre` enum/label-map
+into `GET /categories`. The tree is now `undefined` while loading, `null` from
+an empty stub, and a plain object if a catch-all test mock returns `{}`. I
+guarded the shared `useCategoryLookup` helper — but `CategoryPicker` read the
+react-query `data` directly and did `tree.map(...)`, so the same
+`tree is not iterable` / `Cannot read properties of null` crash simply moved to
+a different component. It only surfaced under Node 24 (the sandbox default Node
+20 can't even start vitest — undici 8 needs `webidl.util.markAsUncloneable`,
+added in Node 22), and only in the test whose leaked mock returned a non-array.
+
+**Lesson:** when a value stops being compile-time-guaranteed and becomes
+fetched, every consumer that used to trust its shape is now a crash site. Grep
+for *all* readers of the data (not just the obvious helper) and normalise to a
+safe shape (`Array.isArray(x) ? x : []`) at each one — including server-side
+loaders, where a catch-all test mock returning `{}` will happily satisfy a
+200 and then blow up `.map`. Also: check the runtime Node version before trusting
+that "tests don't run" means "my code is broken".

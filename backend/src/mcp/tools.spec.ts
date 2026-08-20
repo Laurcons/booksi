@@ -57,6 +57,7 @@ function registerAndCapture() {
     // never invoked here.
     stats: {},
     budget: {},
+    categories: { tree: () => Promise.resolve([]) },
     openLibrary: {},
     challenges: {},
     audit: { log: () => undefined },
@@ -116,14 +117,14 @@ describe("search_library (§D42)", () => {
     await handlers.get("search_library")!({
       q: "lem",
       status: ["WISHLIST"],
-      genre: "FICTION",
+      category: ["FICTION__SF"],
       favorite: true,
     });
 
     expect(queries[0]).toMatchObject({
       q: "lem",
       status: ["WISHLIST"],
-      genre: "FICTION",
+      category: ["FICTION__SF"],
       favorite: true,
       sort: "createdAt",
       order: "desc",

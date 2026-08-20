@@ -19,7 +19,7 @@ describe("isFiltered", () => {
 
   it.each<[string, Partial<ListBooksQuery>]>([
     ["status", { status: ["READING"] }],
-    ["genre", { genre: "FICTION" }],
+    ["category", { category: ["FICTION__SF"] }],
     ["favorite", { favorite: true }],
     // §D42 — a search narrows the list like a filter, so the empty state has
     // to read the same way rather than claiming the library is empty.

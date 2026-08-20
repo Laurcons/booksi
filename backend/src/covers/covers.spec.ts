@@ -46,7 +46,7 @@ const storedBook = {
   author: "Frank Herbert",
   isbn: null,
   totalPages: 620,
-  genre: "FICTION" as const,
+  categories: [{ categoryCode: "FICTION__GENERAL" }],
   olEditionKey: null,
   status: "WISHLIST" as const,
   favorite: false,
@@ -369,6 +369,8 @@ describe("covers (Sprint 4)", () => {
     // table is that listing a library must not carry one image per row.
     expect(prisma.book.findMany.mock.calls[0][0].include).toEqual({
       cover: { select: { updatedAt: true } },
+      // §D45 — the book's shelves ride along, codes only.
+      categories: { select: { categoryCode: true }, orderBy: { categoryCode: "asc" } },
     });
   });
 });

@@ -15,6 +15,19 @@ const env: Env = {
 const app = createApp(env);
 
 const STATS = { booksFinished: 12, booksReading: 2, pagesRead: 3400, averageRating: 4.2 };
+
+// §D45 — a minimal taxonomy the list resolves a book's codes against.
+const CATEGORY_TREE = [
+  {
+    code: "FICTION",
+    labelRo: "Ficțiune",
+    labelEn: "Fiction",
+    categories: [
+      { code: "FICTION__GENERAL", labelRo: "Generalități", labelEn: "General" },
+      { code: "FICTION__SF", labelRo: "SF", labelEn: "Science fiction" },
+    ],
+  },
+];
 const BUDGET = {
   total: 500,
   month: { month: "2026-08", spent: 71.5, budget: 200, remaining: 128.5 },
@@ -32,6 +45,7 @@ function jsonResponse(status: number, body: unknown) {
 function mockBackend(books: unknown[]) {
   const fetchMock = vi.fn((url: string, _init?: RequestInit) => {
     if (url.endsWith("/books")) return jsonResponse(200, books);
+    if (url.endsWith("/categories")) return jsonResponse(200, CATEGORY_TREE);
     if (url.endsWith("/stats/overview")) return jsonResponse(200, STATS);
     if (url.endsWith("/budget/summary")) return jsonResponse(200, BUDGET);
     return jsonResponse(404, { statusCode: 404, message: "not found" });
@@ -70,9 +84,9 @@ describe("GET /books", () => {
         "session=a-real-jwt",
       );
     }
-    // Books, stats, and budget — the dashboard's two requests are back on
-    // this page now that it sits beside the heading instead of below it.
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // Books, categories (§D45), stats, and budget — the dashboard's two
+    // requests are back on this page now that it sits beside the heading.
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("shows the S8.1 dashboard figures, the same numbers /stats and /budget compute", async () => {
@@ -132,17 +146,17 @@ describe("GET /books", () => {
     expect(res.text.match(/class="book-progress"/g)?.length).toBe(1);
   });
 
-  it("shows the category when the book has one", async () => {
-    const book = makeBook({ id: "b1", genre: "FICTION" });
+  it("shows a book's categories, resolved to labels (§D45)", async () => {
+    const book = makeBook({ id: "b1", categories: ["FICTION__SF"] });
     mockBackend([book]);
 
     const res = await request(app).get("/books").set("Cookie", "session=x");
 
-    expect(res.text).toContain("Ficțiune");
+    expect(res.text).toContain("SF");
   });
 
-  it("omits the genre line entirely for a book that has none", async () => {
-    const book = makeBook({ id: "b1", genre: null });
+  it("omits the category line entirely for a book on no shelf", async () => {
+    const book = makeBook({ id: "b1", categories: [] });
     mockBackend([book]);
 
     const res = await request(app).get("/books").set("Cookie", "session=x");
@@ -231,13 +245,15 @@ describe("GET /books", () => {
 
     const page1 = await request(app).get("/books").set("Cookie", "session=x");
     expect(page1.text).toContain("Cărți citite");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // books + categories + stats + budget
+    expect(fetchMock).toHaveBeenCalledTimes(4);
 
     fetchMock.mockClear();
 
     const page2 = await request(app).get("/books?page=2").set("Cookie", "session=x");
     expect(page2.text).not.toContain("Cărți citite");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // books + categories only — no dashboard beyond page 1
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("clears the session and sends the device back to pair on a 401 from the API", async () => {

@@ -17,7 +17,9 @@ import type { ListBooksQuery } from "@bookcsi/shared";
 export function isFiltered(query: ListBooksQuery): boolean {
   return (
     (query.status !== undefined && query.status.length > 0) ||
-    query.genre !== undefined ||
+    // §D45 — category is a set now, and an empty one is no filter, matching the
+    // status rule directly above (§D29).
+    (query.category !== undefined && query.category.length > 0) ||
     query.favorite !== undefined ||
     // §D42 — a search narrows the list exactly like a filter does, so the
     // empty state has to read the same way. Without this, searching for

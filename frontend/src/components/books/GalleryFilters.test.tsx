@@ -78,23 +78,33 @@ describe("GalleryFilters — status (S5.3)", () => {
   });
 });
 
-describe("GalleryFilters — category and favourites (S5.3, §D39)", () => {
-  it("filters by a single category (§D17)", async () => {
+describe("GalleryFilters — category and favourites (S5.3, §D45)", () => {
+  it("filters by a single category — a leaf, never the group heading (§D45)", async () => {
     const { user, onChange } = renderFilters();
 
     await user.click(screen.getByLabelText("Categorie"));
-    await user.click(screen.getByRole("button", { name: "Ficțiune" }));
+    // The group "Ficțiune" is a heading, not a button; its shelves are.
+    expect(screen.queryByRole("button", { name: "Ficțiune" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "SF" }));
 
-    expect(asked(onChange).genre).toBe("FICTION");
+    expect(asked(onChange).category).toEqual(["FICTION__SF"]);
   });
 
-  it("clears the category back to all of them", async () => {
-    const { user, onChange } = renderFilters({ ...BASE, genre: "FICTION" });
+  it("accumulates categories rather than replacing them (§D45)", async () => {
+    const { user, onChange } = renderFilters({ ...BASE, category: ["FICTION__SF"] });
 
     await user.click(screen.getByLabelText("Categorie"));
-    await user.click(screen.getByRole("button", { name: "Toate categoriile" }));
+    await user.click(screen.getByRole("button", { name: "Fantasy" }));
 
-    expect(asked(onChange).genre).toBeUndefined();
+    expect(asked(onChange).category).toEqual(["FICTION__SF", "FICTION__FANTASY"]);
+  });
+
+  it("removes one via its chip, dropping the parameter when the last goes (§D29)", async () => {
+    const { user, onChange } = renderFilters({ ...BASE, category: ["FICTION__SF"] });
+
+    await user.click(screen.getByRole("button", { name: "Elimină SF" }));
+
+    expect(asked(onChange).category).toBeUndefined();
   });
 
   it("turns the favourites filter on", async () => {
@@ -119,14 +129,14 @@ describe("GalleryFilters — category and favourites (S5.3, §D39)", () => {
     const { user, onChange } = renderFilters({
       ...BASE,
       status: ["FINISHED"],
-      genre: "FICTION",
+      category: ["FICTION__SF"],
     });
 
     await user.click(screen.getByRole("button", { name: /Doar favoritele/ }));
 
     expect(asked(onChange)).toMatchObject({
       status: ["FINISHED"],
-      genre: "FICTION",
+      category: ["FICTION__SF"],
       favorite: true,
       // The sort survives a filter change; they are separate concerns.
       sort: "createdAt",
@@ -148,7 +158,7 @@ describe("GalleryFilters — clearing", () => {
     const { user, onChange } = renderFilters({
       ...BASE,
       status: ["READING"],
-      genre: "FICTION",
+      category: ["FICTION__SF"],
       favorite: true,
     });
 

@@ -26,7 +26,6 @@ import {
 } from "@nestjs/swagger";
 import {
   BOOK_SORT_VALUES,
-  GENRE_VALUES,
   STATUS_VALUES,
   createBookSchema,
   isbnDuplicatesQuerySchema,
@@ -90,12 +89,17 @@ export class BooksController {
       "biblioteca.",
   })
   @ApiQuery({
-    name: "genre",
+    name: "category",
     required: false,
-    enum: GENRE_VALUES,
+    type: String,
+    isArray: true,
     description:
-      "S5.3 — o singură valoare: o carte are o singură categorie (§D17, §D39). " +
-      "Absent: toate categoriile.",
+      "§D45 — filtrează pe categorie (raft), acum multi-valoare (o carte poate " +
+      "sta pe mai multe rafturi). Cod de categorie, ca parametru repetat " +
+      "(`?category=FICTION__SF&category=FICTION__FANTASY`). O carte se " +
+      "potrivește dacă e pe **oricare** dintre rafturile cerute (OR), combinat " +
+      "cu `AND` cu restul filtrelor. Doar frunze — un grup nu e selectabil " +
+      "(§D45). Absent: toate categoriile.",
   })
   @ApiQuery({
     name: "favorite",

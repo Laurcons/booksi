@@ -6,6 +6,7 @@ import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { BooksModule } from "./books/books.module";
 import { BudgetModule } from "./budget/budget.module";
+import { CategoriesModule } from "./categories/categories.module";
 import { ChallengesModule } from "./challenges/challenges.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { AppExceptionFilter } from "./common/filters/app-exception.filter";
@@ -53,6 +54,9 @@ import { StatsModule } from "./stats/stats.module";
     AuditModule,
     AuthModule,
     BooksModule,
+    // §D45 — the category taxonomy. `BooksModule` imports it too, to validate
+    // a write's category codes; listed here so the app's surface shows it.
+    CategoriesModule,
     // Sprint 4. `BooksModule` already pulls `CoversModule` in for the download
     // at creation; both are named here so the app's surface reads off this
     // list rather than off another module's imports.

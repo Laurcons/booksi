@@ -37,7 +37,7 @@ function storedBook(overrides: Partial<Record<string, unknown>> = {}) {
     author: "Stanisław Lem",
     isbn: null,
     totalPages: 264,
-    genre: "FICTION" as const,
+    categories: [{ categoryCode: "FICTION__GENERAL" }],
     olEditionKey: null,
     status: "FINISHED" as const,
     favorite: false,

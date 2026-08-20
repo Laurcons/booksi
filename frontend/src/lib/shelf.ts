@@ -1,4 +1,4 @@
-import type { Book, Genre } from "@bookcsi/shared";
+import type { Book } from "@bookcsi/shared";
 
 /**
  * S8.2 — the shelf's model layer: what a spine looks like, given a book.
@@ -11,50 +11,42 @@ import type { Book, Genre } from "@bookcsi/shared";
 /**
  * Decorative, not a data palette. docs/DESIGN.md §Raftul is explicit that
  * nothing on the shelf encodes a readable value, so the dataviz rules do not
- * apply and these deliberately do not match the chart or status colours.
+ * apply and this deliberately does not match the chart or status colours.
  *
- * One entry per genre, and the type is what enforces that: the previous copy of
- * this map lived beside a private eight-value `Genre` union and would have
- * returned `undefined` for the nine genres the real enum has had since §D19 —
- * an invisible gap until the day a book was filed under Poezie.
+ * §D45 note: the palette used to be a 29-entry `Record<Genre, string>` the type
+ * system kept complete. The taxonomy is data now (~240 leaves), so a
+ * hand-picked colour per shelf is neither maintainable nor wanted — books in
+ * the same *group* looking related is the effect worth keeping. So the colour
+ * is derived from the **group code**: a stable string hash into a pastel band
+ * of the same hue range the old map spanned. Same group → same colour, no map
+ * to maintain, and a group added by a future migration is coloured for free.
+ *
+ * The caller resolves a book's first category to its group (via the taxonomy
+ * tree) and passes that group's code here; a book with no category passes
+ * `null` and gets the unclassified spine.
  */
-export const GENRE_SPINE_COLOR: Record<Genre, string> = {
-  AUDIOBOOKS: "#deb5b5",
-  CULINARY: "#debdb5",
-  ART_ARCHITECTURE: "#dec6b5",
-  ENCYCLOPEDIAS: "#deceb5",
-  BIOGRAPHIES: "#ded7b5",
-  LINGUISTICS_DICTIONARIES: "#dcdeb5",
-  ROMANIAN_MAGAZINES: "#d4deb5",
-  FOREIGN_LANGUAGES: "#cbdeb5",
-  POETRY_THEATRE: "#c3deb5",
-  FICTION: "#bbdeb5",
-  COMICS: "#b5deb8",
-  TRAVEL_GUIDES: "#b5dec1",
-  HISTORY: "#b5dec9",
-  RELIGION: "#b5ded1",
-  PHILOSOPHY: "#b5deda",
-  PSYCHOLOGY: "#b5dade",
-  SOCIAL_SCIENCES_POLITICS: "#b5d1de",
-  MARKETING_COMMUNICATION: "#b5c9de",
-  BUSINESS_ECONOMY: "#b5c1de",
-  LAW: "#b5b8de",
-  MEDICINE: "#bbb5de",
-  EXACT_SCIENCES_MATH: "#c3b5de",
-  NATURE_ENVIRONMENT: "#cbb5de",
-  TECHNOLOGY: "#d4b5de",
-  COMPUTERS_INTERNET: "#dcb5de",
-  HEALTH_SELF_DEVELOPMENT: "#deb5d7",
-  LIFESTYLE_SPORT_LEISURE: "#deb5ce",
-  ROMANIA: "#deb5c6",
-  EDUCATIONAL_SOFTWARE: "#deb5bd",
-};
-
-/** A book with no genre still needs a spine. */
 const UNCLASSIFIED_SPINE = "#c6c0b8";
 
-export function spineColor(genre: Genre | null): string {
-  return genre === null ? UNCLASSIFIED_SPINE : GENRE_SPINE_COLOR[genre];
+function hashString(value: string): number {
+  let hash = 0;
+
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) % 100000;
+  }
+
+  return hash;
+}
+
+export function spineColor(groupCode: string | null): string {
+  if (groupCode === null) {
+    return UNCLASSIFIED_SPINE;
+  }
+
+  // The old map ran hue roughly around the wheel at a fixed pastel saturation
+  // and lightness; this reproduces that feel without enumerating it.
+  const hue = hashString(groupCode) % 360;
+
+  return `hsl(${hue}, 42%, 79%)`;
 }
 
 /**
