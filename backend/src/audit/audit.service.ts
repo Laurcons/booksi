@@ -1,7 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { AuditOutcome, AuditSource, Prisma } from "@prisma/client";
+import type { AuditSource, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
+/**
+ * §D46 — a row is a record of something that *succeeded*. There is no
+ * `outcome`: failures are not logged, so every row is a success by
+ * construction.
+ */
 export interface AuditEntry {
   userId?: string | null;
   impersonatedBy?: string | null;
@@ -10,7 +15,6 @@ export interface AuditEntry {
   method: string;
   route: string;
   statusCode: number;
-  outcome: AuditOutcome;
   ip?: string | null;
   userAgent?: string | null;
   metadata?: Prisma.InputJsonValue;

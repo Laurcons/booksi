@@ -11,7 +11,6 @@ import { APP_FILTER } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { ThrottlerException } from "@nestjs/throttler";
 import request from "supertest";
-import { AuditService } from "../../audit/audit.service";
 import { AppError } from "../app-error";
 import { AppExceptionFilter } from "./app-exception.filter";
 
@@ -65,13 +64,9 @@ describe("AppExceptionFilter (§D27)", () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [BoomController],
       providers: [
+        // §D46 — the filter no longer audits (failures are not logged), so it
+        // has no dependencies; it is just the filter and BoomController now.
         { provide: APP_FILTER, useClass: AppExceptionFilter },
-        // A stub, not the real `AuditModule`: this filter's audit-logging
-        // side effect isn't what's under test here, and pulling in
-        // `AuditModule` would mean pulling in `PrismaModule`/`ConfigModule`
-        // too, for a test that's otherwise deliberately just
-        // `BoomController` and the filter.
-        { provide: AuditService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 

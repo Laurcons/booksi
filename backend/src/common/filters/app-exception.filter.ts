@@ -14,9 +14,6 @@ import {
   type HttpErrorBody,
   type Locale,
 } from "@bookcsi/shared";
-import type { AuditableRequest } from "../../audit/audit-request";
-import { AuditService } from "../../audit/audit.service";
-import { resolveAction, resolveActor, resolveSource } from "../../audit/resolve-audit-context";
 import { AppError } from "../app-error";
 import { localeOf } from "../request-locale";
 import { SchemaValidationError } from "../validated";
@@ -41,8 +38,6 @@ import { SchemaValidationError } from "../validated";
 export class AppExceptionFilter implements ExceptionFilter {
   private readonly log = new Logger(AppExceptionFilter.name);
 
-  constructor(private readonly audit: AuditService) {}
-
   catch(exception: unknown, host: ArgumentsHost): void {
     const res = host.switchToHttp().getResponse<Response>();
     // §D44 — the same request the handler was given, so the same answer
@@ -52,38 +47,9 @@ export class AppExceptionFilter implements ExceptionFilter {
     const locale = localeOf(host.switchToHttp().getRequest());
     const body = this.toBody(exception, locale);
 
-    this.maybeAudit(host, body.statusCode);
+    // §D46 — failures are not audited, so nothing to log here; the filter's
+    // only job is wording the response.
     res.status(body.statusCode).json(body);
-  }
-
-  /**
-   * The other half of `AuditInterceptor`: a rejection thrown by a **guard**
-   * (no session, not an admin) never reaches an interceptor, since Nest runs
-   * guards first — so it never got the chance to mark the request. Anything
-   * the interceptor *did* see (success or a handler-thrown error) already set
-   * one of these two flags, which is what keeps this from double-logging it.
-   */
-  private maybeAudit(host: ArgumentsHost, statusCode: number): void {
-    const request = host.switchToHttp().getRequest<AuditableRequest>();
-
-    if (request.auditLogged || request.auditSkipped) {
-      return;
-    }
-
-    const { userId, impersonatedBy } = resolveActor(request);
-
-    this.audit.log({
-      userId,
-      impersonatedBy,
-      source: resolveSource(request),
-      action: resolveAction(undefined, request),
-      method: request.method,
-      route: request.route?.path ?? request.path,
-      statusCode,
-      outcome: "FAILURE",
-      ip: request.ip ?? null,
-      userAgent: request.headers["user-agent"] ?? null,
-    });
   }
 
   private toBody(exception: unknown, locale: Locale): HttpErrorBody {

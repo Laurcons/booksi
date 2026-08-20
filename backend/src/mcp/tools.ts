@@ -70,18 +70,17 @@ function errorText(error: unknown): string {
  * One JSON-RPC `/mcp` POST can carry several tool calls (docs/MCP.md §7),
  * which is exactly why `AuditInterceptor` logging that one HTTP request isn't
  * enough — it can say a grant hit `/mcp`, not which tools it ran. Every
- * mutating tool below logs itself, right where the actor (`userId`) and the
- * result already are.
+ * mutating tool below logs itself on success, right where the actor (`userId`)
+ * and the result already are.
  *
- * No literal HTTP status exists per tool call — every outcome, including a
- * tool that reports its own error, still rides back inside one 200 JSON-RPC
- * response — so `statusCode` here is a stand-in that mirrors `outcome`, not a
- * status this request actually received.
+ * Success only (§D46): a tool that fails reports the error back to the model
+ * but leaves no audit row, the same rule the HTTP interceptor follows. Every
+ * tool call rides back inside one 200 JSON-RPC response, so `statusCode` is a
+ * constant stand-in, not a status this request actually received.
  */
 function logToolAudit(
   ctx: Pick<ToolContext, "userId" | "grantId" | "audit">,
   action: string,
-  outcome: "SUCCESS" | "FAILURE",
   metadata: Prisma.InputJsonObject,
 ): void {
   ctx.audit.log({
@@ -90,8 +89,7 @@ function logToolAudit(
     action,
     method: "MCP",
     route: "/mcp",
-    statusCode: outcome === "SUCCESS" ? 200 : 400,
-    outcome,
+    statusCode: 200,
     metadata: { grantId: ctx.grantId, ...metadata },
   });
 }
@@ -261,10 +259,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         const book = await books.create(userId, args);
-        logToolAudit(ctx, "mcp.add_book", "SUCCESS", { bookId: book.id, title: book.title });
+        logToolAudit(ctx, "mcp.add_book", { bookId: book.id, title: book.title });
         return textResult(book);
       } catch (error) {
-        logToolAudit(ctx, "mcp.add_book", "FAILURE", { title: args.title });
         return errorResult(errorText(error));
       }
     },
@@ -288,10 +285,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       const { id, ...input } = args;
       try {
         const book = await books.update(userId, id, input);
-        logToolAudit(ctx, "mcp.update_book", "SUCCESS", { bookId: id, changed: Object.keys(input) });
+        logToolAudit(ctx, "mcp.update_book", { bookId: id, changed: Object.keys(input) });
         return textResult(book);
       } catch (error) {
-        logToolAudit(ctx, "mcp.update_book", "FAILURE", { bookId: id });
         return errorResult(errorText(error));
       }
     },
@@ -310,10 +306,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         await books.remove(userId, args.id);
-        logToolAudit(ctx, "mcp.delete_book", "SUCCESS", { bookId: args.id });
+        logToolAudit(ctx, "mcp.delete_book", { bookId: args.id });
         return textResult({ deleted: true, id: args.id });
       } catch (error) {
-        logToolAudit(ctx, "mcp.delete_book", "FAILURE", { bookId: args.id });
         return errorResult(errorText(error));
       }
     },
@@ -429,13 +424,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         const challenge = await challenges.create(userId, args);
-        logToolAudit(ctx, "mcp.create_challenge", "SUCCESS", {
+        logToolAudit(ctx, "mcp.create_challenge", {
           challengeId: challenge.id,
           title: challenge.title,
         });
         return textResult(challenge);
       } catch (error) {
-        logToolAudit(ctx, "mcp.create_challenge", "FAILURE", { title: args.title });
         return errorResult(errorText(error));
       }
     },
@@ -459,13 +453,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       const { id, ...input } = args;
       try {
         const challenge = await challenges.update(userId, id, input);
-        logToolAudit(ctx, "mcp.update_challenge", "SUCCESS", {
+        logToolAudit(ctx, "mcp.update_challenge", {
           challengeId: id,
           changed: Object.keys(input),
         });
         return textResult(challenge);
       } catch (error) {
-        logToolAudit(ctx, "mcp.update_challenge", "FAILURE", { challengeId: id });
         return errorResult(errorText(error));
       }
     },
@@ -485,10 +478,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         await challenges.remove(userId, args.id);
-        logToolAudit(ctx, "mcp.delete_challenge", "SUCCESS", { challengeId: args.id });
+        logToolAudit(ctx, "mcp.delete_challenge", { challengeId: args.id });
         return textResult({ deleted: true, id: args.id });
       } catch (error) {
-        logToolAudit(ctx, "mcp.delete_challenge", "FAILURE", { challengeId: args.id });
         return errorResult(errorText(error));
       }
     },
@@ -511,16 +503,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         const challenge = await challenges.addBook(userId, args.challengeId, args.bookId);
-        logToolAudit(ctx, "mcp.add_book_to_challenge", "SUCCESS", {
+        logToolAudit(ctx, "mcp.add_book_to_challenge", {
           challengeId: args.challengeId,
           bookId: args.bookId,
         });
         return textResult(challenge);
       } catch (error) {
-        logToolAudit(ctx, "mcp.add_book_to_challenge", "FAILURE", {
-          challengeId: args.challengeId,
-          bookId: args.bookId,
-        });
         return errorResult(errorText(error));
       }
     },
@@ -542,16 +530,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       try {
         const challenge = await challenges.removeBook(userId, args.challengeId, args.bookId);
-        logToolAudit(ctx, "mcp.remove_book_from_challenge", "SUCCESS", {
+        logToolAudit(ctx, "mcp.remove_book_from_challenge", {
           challengeId: args.challengeId,
           bookId: args.bookId,
         });
         return textResult(challenge);
       } catch (error) {
-        logToolAudit(ctx, "mcp.remove_book_from_challenge", "FAILURE", {
-          challengeId: args.challengeId,
-          bookId: args.bookId,
-        });
         return errorResult(errorText(error));
       }
     },
