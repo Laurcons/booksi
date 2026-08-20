@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { Book } from "@bookcsi/shared";
-import { isMessageKey, type MessageKey } from "../i18n/catalog";
 
 /**
  * §D41 — how the book profile knows where its "înapoi" goes.
@@ -22,19 +21,52 @@ import { isMessageKey, type MessageKey } from "../i18n/catalog";
  * That survives a reload (the browser persists `history.state`) and it carries
  * the screen's own name, which is what turns "←" into "← Înapoi la raft".
  *
- * **The name travels as a catalog key, not as a word** (§D44). Because the state
- * outlives the navigation that wrote it, a stored Romanian noun would still be
- * Romanian after the reader switched to English — a label frozen at whichever
- * language happened to be on screen when they clicked. A key is resolved at
- * render, so it follows the language like everything else.
+ * **The label is a screen identifier, never a word** (§D44). It names which
+ * screen the book was opened from — `"gallery"`, `"shelf"` — and the back
+ * button turns that into "Back to the gallery" at render, through `t()`. It has
+ * to be an identifier rather than a translated string precisely because it
+ * lives in `history.state`, which outlives the navigation and survives a
+ * reload: a word stored here would be frozen in whatever language was on screen
+ * when the user clicked, and stay that language after they switched. An
+ * identifier is language-free, so it is resolved fresh every render.
+ *
  * When there is no state — the genuinely cold arrival — `defaultOrigin` picks
  * the screen the book itself belongs on rather than guessing.
  */
+/**
+ * The screens a book can be opened from. A closed set — five listings — so it is
+ * its own type rather than the whole `MessageKey` union: nothing else is a valid
+ * origin, and the type should say so.
+ *
+ * The values are the catalog keys for the back button's noun, which saves a
+ * second table mapping an abstract page id to its wording. `ORIGIN_LABELS` below
+ * is the runtime copy of the same set, for validating state that came from
+ * outside the type system.
+ */
+export type OriginLabel =
+  | "origin.library"
+  | "origin.wishlist"
+  | "origin.gallery"
+  | "origin.shelf"
+  | "origin.challenge";
+
+const ORIGIN_LABELS: readonly OriginLabel[] = [
+  "origin.library",
+  "origin.wishlist",
+  "origin.gallery",
+  "origin.shelf",
+  "origin.challenge",
+];
+
+function isOriginLabel(value: unknown): value is OriginLabel {
+  return (ORIGIN_LABELS as readonly unknown[]).includes(value);
+}
+
 export interface BookOrigin {
   /** An in-app path: pathname plus whatever query string it carried. */
   to: string;
-  /** The screen's name, as a catalog key — see the note above on why. */
-  label: MessageKey;
+  /** Which screen the book was opened from — see the note above. */
+  label: OriginLabel;
 }
 
 export function bookProfilePath(id: string): string {
@@ -49,7 +81,7 @@ export function bookProfilePath(id: string): string {
  * table mapping one to the other would be a second place to keep the nav's
  * wording in step.
  */
-export function useOpenBook(label: MessageKey): (book: Book) => void {
+export function useOpenBook(label: OriginLabel): (book: Book) => void {
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
 
@@ -103,11 +135,10 @@ export function readOrigin(state: unknown): BookOrigin | null {
 
   const { to, label } = origin as { to?: unknown; label?: unknown };
 
-  // The label is held to the catalog, not merely to "a non-empty string": state
-  // this old can predate a key being renamed, and a bare key on the button is
-  // exactly the failure §D44's typed catalog exists to prevent. An unknown one
-  // falls back to `defaultOrigin` rather than rendering itself.
-  if (typeof to !== "string" || !isMessageKey(label)) {
+  // The label is held to the origin set, not merely to "a non-empty string":
+  // history state this old can predate a rename, and anything outside the set
+  // falls back to `defaultOrigin` rather than reaching the button.
+  if (typeof to !== "string" || !isOriginLabel(label)) {
     return null;
   }
 
