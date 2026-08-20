@@ -6,6 +6,7 @@ import { useBookSearch } from "../../lib/use-book-search";
 import { StatusPill } from "../StatusPill";
 import { CoverPlaceholder } from "./CoverPlaceholder";
 import { CoverThumb } from "./CoverThumb";
+import { useT } from "../../i18n/locale-context";
 
 type View = "table" | "gallery";
 
@@ -29,6 +30,7 @@ export function BookSelector({
   selectedIds: ReadonlySet<string>;
   onToggle: (book: Book) => void;
 }) {
+  const t = useT();
   const [view, setView] = useState<View>("table");
   const { search, setSearch, q } = useBookSearch();
 
@@ -57,21 +59,23 @@ export function BookSelector({
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Caută după titlu, autor, editură, ISBN…"
-          aria-label="Caută cărți"
+          placeholder={t("search.byBookFields")}
+          aria-label={t("search.books")}
           className="min-w-0 flex-1 rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 focus:border-accent"
         />
         <ViewToggle view={view} onChange={setView} />
       </div>
 
-      {isPending && <p className="text-sm text-ink-3">Se încarcă biblioteca…</p>}
+      {isPending && <p className="text-sm text-ink-3">{t("loading.library")}</p>}
       {isError && (
-        <p className="text-sm text-status-abandoned">Nu am putut încărca biblioteca.</p>
+        <p className="text-sm text-status-abandoned">{t("page.selector.loadFailed")}</p>
       )}
 
       {!isPending && !isError && found.length === 0 && (
         <p className="rounded-lg border border-line px-3 py-6 text-center text-sm text-ink-3">
-          {search.trim() === "" ? "Nicio carte în bibliotecă." : `Nimic pentru „${search.trim()}”.`}
+          {search.trim() === ""
+            ? t("selector.noBooks")
+            : t("selector.nothingFor", { query: search.trim() })}
         </p>
       )}
 
@@ -89,10 +93,11 @@ export function BookSelector({
 }
 
 function ViewToggle({ view, onChange }: { view: View; onChange: (view: View) => void }) {
+  const t = useT();
   return (
     <div
       role="group"
-      aria-label="Mod de afișare"
+      aria-label={t("page.selector.viewMode")}
       className="flex shrink-0 rounded-lg border border-line bg-surface-1 p-1"
     >
       {(["table", "gallery"] as const).map((option) => (

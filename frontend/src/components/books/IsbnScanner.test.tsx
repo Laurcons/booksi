@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IsbnScanner } from "./IsbnScanner";
+import { renderWithQuery } from "../../test/helpers";
 
 /**
  * §D43 — the scanner, with the camera and the decoder both stubbed.
@@ -89,7 +90,7 @@ afterEach(() => {
 function renderScanner() {
   const onFound = vi.fn();
   const onClose = vi.fn();
-  const view = render(<IsbnScanner onFound={onFound} onClose={onClose} />);
+  const view = renderWithQuery(<IsbnScanner onFound={onFound} onClose={onClose} />);
 
   return { onFound, onClose, ...view };
 }

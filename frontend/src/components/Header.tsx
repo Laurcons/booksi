@@ -48,7 +48,7 @@ export function Header({ onAddBook }: { onAddBook?: () => void }) {
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          aria-label="Meniu"
+          aria-label={t("nav.menu")}
           aria-expanded={menuOpen}
           className="-ml-2 grid size-9 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink md:hidden"
         >
@@ -209,7 +209,7 @@ function NavDrawer({ onClose }: { onClose: () => void }) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Meniu"
+        aria-label={t("nav.menu")}
         className="flex h-full w-72 max-w-[85vw] flex-col border-r border-line bg-surface-2 shadow-lg shadow-black/50"
       >
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-line px-5">

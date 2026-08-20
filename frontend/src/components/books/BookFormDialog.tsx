@@ -3,13 +3,14 @@ import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
+  CURRENCY,
+  STATUS_VALUES,
   createBookSchema,
   genreSchema,
   isRatable,
   normalizeIsbn,
-  statusSchema,
   statusLabel,
-  STATUS_VALUES,
+  statusSchema,
   type Book,
   type BookSuggestion,
   type CreateBookInput,
@@ -31,7 +32,7 @@ import { IsbnScanner } from "./IsbnScanner";
 import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
 import { StarRatingInput } from "./StarRating";
-import { useLocale } from "../../i18n/locale-context";
+import { useLocale, useT } from "../../i18n/locale-context";
 import { useLocalizedResolver } from "../../i18n/zod-resolver";
 
 /**
@@ -172,6 +173,7 @@ export function BookFormDialog({
   book?: Book;
   onClose: () => void;
 }) {
+  const t = useT();
   const { locale } = useLocale();
   const create = useCreateBook();
   const update = useUpdateBook();
@@ -388,11 +390,11 @@ export function BookFormDialog({
   return (
     <Modal
       wide
-      title={editing ? "Editează cartea" : "Adaugă o carte"}
+      title={editing ? t("bookForm.editTitle") : t("nav.addBook")}
       description={
         editing
-          ? "Orice câmp e editabil, indiferent de unde a venit."
-          : "Doar titlul e obligatoriu. Restul se poate completa oricând."
+          ? t("bookForm.anyFieldEditable")
+          : t("bookForm.hint")
       }
       onClose={onClose}
     >
@@ -407,11 +409,11 @@ export function BookFormDialog({
         )}
 
         <div className="grid gap-5 px-6 py-5 sm:grid-cols-2">
-          <Field className="sm:col-span-2" label="Titlu" error={errors.title}>
+          <Field className="sm:col-span-2" label={t("field.title")} error={errors.title}>
             <input {...register("title")} className={INPUT} autoComplete="off" />
           </Field>
 
-          <Field label="Autor" error={errors.author}>
+          <Field label={t("field.author")} error={errors.author}>
             <AuthorInput
               name={authorField.name}
               value={authorValue}
@@ -423,7 +425,7 @@ export function BookFormDialog({
             />
           </Field>
 
-          <Field label="Nr. de pagini" error={errors.totalPages} hint="Poate lipsi">
+          <Field label={t("field.pages")} error={errors.totalPages} hint={t("field.pagesHint")}>
             <input
               {...register("totalPages")}
               type="number"
@@ -433,7 +435,7 @@ export function BookFormDialog({
             />
           </Field>
 
-          <Field label="ISBN" error={errors.isbn} hint="Opțional">
+          <Field label="ISBN" error={errors.isbn} hint={t("common.optional")}>
             <div className="flex items-center gap-2">
               <input
                 {...register("isbn")}
@@ -445,13 +447,13 @@ export function BookFormDialog({
                 type="button"
                 onClick={() => setScanning((on) => !on)}
                 aria-pressed={scanning}
-                title="Scanează codul de bare"
+                title={t("bookForm.scanBarcode")}
                 className="shrink-0 rounded-lg border border-line px-3 py-2 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet hover:text-ink"
               >
                 {/* The label carries the meaning; the glyph is decoration, so it
                     is hidden rather than read out as punctuation. */}
                 <span aria-hidden>▥</span>
-                <span className="sr-only">Scanează codul de bare</span>
+                <span className="sr-only">{t("bookForm.scanBarcode")}</span>
               </button>
             </div>
 
@@ -482,11 +484,11 @@ export function BookFormDialog({
             )}
           </Field>
 
-          <Field label="Categorie" error={errors.genre}>
+          <Field label={t("field.category")} error={errors.genre}>
             <CategoryPicker
               name={genreField.name}
               value={genreValue}
-              clearLabel="— fără categorie —"
+              clearLabel={t("bookForm.noCategory")}
               className={INPUT}
               onChange={(genre) => setValue("genre", genre, { shouldDirty: true })}
               onBlur={genreField.onBlur}
@@ -494,14 +496,14 @@ export function BookFormDialog({
             />
           </Field>
 
-          <Field label="Editura" error={errors.publisher} hint="Opțional">
+          <Field label={t("field.publisher")} error={errors.publisher} hint={t("common.optional")}>
             <input {...register("publisher")} className={INPUT} autoComplete="off" />
           </Field>
 
           <Field
-            label="Anul apariției"
+            label={t("book.publicationYear")}
             error={errors.publicationYear}
-            hint="Opțional"
+            hint={t("common.optional")}
           >
             <input
               {...register("publicationYear")}
@@ -512,7 +514,7 @@ export function BookFormDialog({
             />
           </Field>
 
-          <Field label="Volum" error={errors.volume} hint="Opțional">
+          <Field label={t("field.volume")} error={errors.volume} hint={t("common.optional")}>
             <input
               {...register("volume")}
               type="number"
@@ -522,7 +524,7 @@ export function BookFormDialog({
             />
           </Field>
 
-          <Field label="Format" error={errors.format} hint="ex. 13x20 cm">
+          <Field label={t("field.format")} error={errors.format} hint={t("field.formatHint")}>
             <input {...register("format")} className={INPUT} autoComplete="off" />
           </Field>
 
@@ -533,15 +535,15 @@ export function BookFormDialog({
               this field is the feature, not a workaround. */}
           <Field
             className="sm:col-span-2"
-            label="Descriere"
+            label={t("field.description")}
             error={errors.description}
-            hint="Opțional — o poate completa și Claude"
+            hint={t("bookForm.optionalOrClaude")}
           >
             <textarea
               {...register("description")}
               rows={5}
               className={`${INPUT} resize-y leading-relaxed`}
-              placeholder="Despre ce e cartea…"
+              placeholder={t("field.descriptionPlaceholder")}
             />
           </Field>
 
@@ -559,7 +561,7 @@ export function BookFormDialog({
 
           {/* §D12: any status, in any order — the row button only ever
               proposes the next natural step. */}
-          <Field label="Status" error={errors.status}>
+          <Field label={t("field.status")} error={errors.status}>
             <select {...register("status")} className={INPUT}>
               {STATUS_VALUES.map((status) => (
                 <option key={status} value={status}>
@@ -577,11 +579,11 @@ export function BookFormDialog({
               next to each other. */}
           <div className="sm:col-span-2">
             <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-              Progres și evaluare
+              {t("bookForm.progressAndRating")}
             </h3>
 
             <div className="mt-4 grid gap-5 sm:grid-cols-3">
-              <Field label="Pagina la care am ajuns" error={errors.pagesRead}>
+              <Field label={t("field.currentPage")} error={errors.pagesRead}>
                 <input
                   {...register("pagesRead")}
                   type="number"
@@ -594,9 +596,9 @@ export function BookFormDialog({
               {/* S3.2 — optional, and it stays visible after the purchase: it
                   is what the paid price gets compared against. */}
               <Field
-                label="Cât cred că va costa"
+                label={t("bookForm.estimatedPrice")}
                 error={errors.estimatedPrice}
-                hint="lei"
+                hint={CURRENCY}
               >
                 <input
                   {...register("estimatedPrice")}
@@ -607,7 +609,7 @@ export function BookFormDialog({
                 />
               </Field>
 
-              <Field label="Cât am plătit" error={errors.paidPrice} hint="lei">
+              <Field label={t("bookForm.paidPrice")} error={errors.paidPrice} hint={CURRENCY}>
                 <input
                   {...register("paidPrice")}
                   type="text"
@@ -623,7 +625,7 @@ export function BookFormDialog({
                 do anything. */}
             {isRatable(status) ? (
               <div className="mt-5">
-                <span className="mb-1.5 block text-sm text-ink-2">Rating</span>
+                <span className="mb-1.5 block text-sm text-ink-2">{t("field.rating")}</span>
                 <StarRatingInput
                   name={ratingField.name}
                   value={ratingValue}
@@ -639,28 +641,27 @@ export function BookFormDialog({
               </div>
             ) : (
               <p className="mt-5 text-xs text-ink-3">
-                Ratingul se dă cărților terminate sau abandonate.
+                {t("bookForm.ratingHint")}
               </p>
             )}
           </div>
 
           <div className="sm:col-span-2">
             <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-              Datele lecturii
+              {t("bookForm.readingData")}
             </h3>
             <p className="mt-1 text-xs text-ink-3">
-              Se completează singure la schimbarea statusului. Corectează-le
-              oricând — o carte citită în 2019 trebuie să apară în 2019.
+              {t("bookForm.datesHint")}
             </p>
 
             <div className="mt-4 grid gap-5 sm:grid-cols-3">
-              <Field label="Cumpărată" error={errors.purchasedOn}>
+              <Field label={t("book.purchasedOn")} error={errors.purchasedOn}>
                 <input {...register("purchasedOn")} type="date" className={INPUT} />
               </Field>
-              <Field label="Începută" error={errors.startedOn}>
+              <Field label={t("book.startedOn")} error={errors.startedOn}>
                 <input {...register("startedOn")} type="date" className={INPUT} />
               </Field>
-              <Field label="Terminată" error={errors.finishedOn}>
+              <Field label={t("book.finishedOn")} error={errors.finishedOn}>
                 <input {...register("finishedOn")} type="date" className={INPUT} />
               </Field>
             </div>
@@ -688,10 +689,10 @@ export function BookFormDialog({
 
         <div className="flex justify-end gap-3 border-t border-line px-6 py-4">
           <button type="button" onClick={onClose} className={BUTTON_QUIET}>
-            Renunță
+            {t("common.cancel")}
           </button>
           <button type="submit" disabled={isSubmitting} className={BUTTON_PRIMARY}>
-            {isSubmitting ? "Se salvează…" : editing ? "Salvează" : "Adaugă"}
+            {isSubmitting ? t("common.saving") : editing ? t("common.save") : t("common.add")}
           </button>
         </div>
       </form>
@@ -704,10 +705,12 @@ export function BookFormDialog({
  * and a second edition are both legitimate, so nothing here blocks the save.
  */
 function DuplicateWarning({ titles }: { titles: string[] }) {
+  const t = useT();
   return (
     <p className="rounded-lg border border-accent-quiet bg-accent-quiet/30 px-3 py-2 text-xs text-accent sm:col-span-2">
-      Ai deja {titles.map((title) => `„${title}"`).join(", ")} cu acest ISBN.
-      Poți salva oricum.
+      {t("bookForm.duplicate", {
+        titles: titles.map((title) => `„${title}"`).join(", "),
+      })}
     </p>
   );
 }
@@ -734,23 +737,21 @@ function IsbnLookupNote({
   found: boolean;
   error: Error | null;
 }) {
+  const t = useT();
   if (pending) {
-    return <Note>Se caută ISBN-ul în Open Library…</Note>;
+    return <Note>{t("bookForm.searchingIsbn")}</Note>;
   }
 
   if (error !== null) {
     return (
       <Note>
-        {errorMessage(
-          error,
-          "Open Library nu răspunde acum. Completează câmpurile manual.",
-        )}
+        {errorMessage(error, t("bookForm.olUnavailable"))}
       </Note>
     );
   }
 
   if (found) {
-    return <Note>Completat din Open Library. Corectează orice câmp.</Note>;
+    return <Note>{t("bookForm.fromOpenLibrary")}</Note>;
   }
 
   return null;

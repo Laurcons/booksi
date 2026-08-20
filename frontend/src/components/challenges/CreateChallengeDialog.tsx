@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCreateChallenge } from "../../api/challenges";
 import { Modal } from "../Modal";
+import { useT } from "../../i18n/locale-context";
 
 const INPUT =
   "w-full rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 focus:border-accent";
@@ -11,6 +12,7 @@ const INPUT =
  * even real would be the wizard-section machinery Kobo's static HTML needs
  * and this page, with real interactivity, does not. */
 export function CreateChallengeDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const create = useCreateChallenge();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -33,7 +35,7 @@ export function CreateChallengeDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title="Provocare nouă" onClose={onClose}>
+    <Modal title={t("challenge.new")} onClose={onClose}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -43,18 +45,20 @@ export function CreateChallengeDialog({ onClose }: { onClose: () => void }) {
       >
         <div className="flex flex-col gap-4 px-6 py-5">
           <label className="block">
-            <span className="mb-1.5 block text-sm text-ink-2">Titlu</span>
+            <span className="mb-1.5 block text-sm text-ink-2">{t("field.title")}</span>
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Provocarea de vară"
+              placeholder={t("challenge.namePlaceholder")}
               className={INPUT}
               autoFocus
             />
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-sm text-ink-2">Descriere (opțional)</span>
+            <span className="mb-1.5 block text-sm text-ink-2">
+              {t("challenge.descriptionOptional")}
+            </span>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
@@ -64,7 +68,7 @@ export function CreateChallengeDialog({ onClose }: { onClose: () => void }) {
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-sm text-ink-2">Termen</span>
+            <span className="mb-1.5 block text-sm text-ink-2">{t("field.deadline")}</span>
             <input
               type="date"
               value={deadline}
@@ -86,14 +90,14 @@ export function CreateChallengeDialog({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
-            Renunță
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             disabled={create.isPending || !valid}
             className="rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-60"
           >
-            {create.isPending ? "Se creează…" : "Creează"}
+            {create.isPending ? t("common.creating") : t("common.create")}
           </button>
         </div>
       </form>

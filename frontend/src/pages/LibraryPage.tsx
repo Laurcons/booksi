@@ -38,13 +38,14 @@ type Dialog =
   | null;
 
 export function LibraryPage() {
+  const t = useT();
   const [sort, setSort] = useState<ListBooksQuery>({
     sort: "createdAt",
     order: "desc",
   });
   const { search, setSearch, q } = useBookSearch();
   const [dialog, setDialog] = useState<Dialog>(null);
-  const openBook = useOpenBook("bibliotecă");
+  const openBook = useOpenBook("origin.library");
 
   // The search is not part of the sort state, and the two are joined only
   // here: a header click re-sorts what is on screen, which includes whatever
@@ -71,11 +72,11 @@ export function LibraryPage() {
             whatever is typed here. */}
         <BookSearch value={search} onChange={setSearch} className="w-full sm:max-w-md" />
 
-        {isPending && <Note>Se încarcă biblioteca…</Note>}
+        {isPending && <Note>{t("loading.library")}</Note>}
 
         {isError && (
           <LoadFailure
-            what="biblioteca"
+            what={t("what.library")}
             error={error}
             onRetry={() => void refetch()}
           />

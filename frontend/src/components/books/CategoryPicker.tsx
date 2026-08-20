@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FocusEventHandler, type Ref } from "react";
 import { genreLabel, GENRE_VALUES, type Genre } from "@bookcsi/shared";
 import { useLocale } from "../../i18n/locale-context";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * The category field (form) and filter (gallery), searchable rather than a
@@ -33,7 +34,7 @@ export function CategoryPicker({
 }: {
   name?: string;
   value: Genre | "";
-  /** What an empty selection reads as — "— fără categorie —" on the form, "Toate categoriile" on the filter. */
+  /** What an empty selection reads as — already translated by the caller. */
   clearLabel: string;
   ariaLabel?: string;
   className: string;
@@ -41,6 +42,7 @@ export function CategoryPicker({
   onBlur?: FocusEventHandler<HTMLInputElement>;
   inputRef?: Ref<HTMLInputElement>;
 }) {
+  const t = useT();
   const { locale } = useLocale();
 
   const selectedLabel = value === "" ? "" : genreLabel(value, locale);
@@ -123,7 +125,7 @@ export function CategoryPicker({
           ))}
 
           {matches.length === 0 && (
-            <li className="px-3 py-2 text-sm text-ink-3">Nicio categorie nu se potrivește.</li>
+            <li className="px-3 py-2 text-sm text-ink-3">{t("search.noCategoryMatches")}</li>
           )}
         </ul>
       )}

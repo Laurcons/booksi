@@ -4,6 +4,7 @@ import { LoadFailure, Note } from "../components/Note";
 import { MonthBudget } from "../components/budget/MonthBudget";
 import { SpendChart } from "../components/budget/SpendChart";
 import { SpendTotal } from "../components/budget/SpendTotal";
+import { useT } from "../i18n/locale-context";
 
 /**
  * Sprint 6 — the budget.
@@ -18,6 +19,7 @@ import { SpendTotal } from "../components/budget/SpendTotal";
  * that could disagree with the books it is derived from.
  */
 export function BudgetPage() {
+  const t = useT();
   const summary = useBudgetSummary();
   const byMonth = useBudgetByMonth();
 
@@ -28,18 +30,18 @@ export function BudgetPage() {
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <div>
           <h1 className="font-display text-4xl text-ink">
-            Buget<span className="text-accent">.</span>
+            {t("nav.budget")}<span className="text-accent">.</span>
           </h1>
           <p className="mt-2 text-ink-2">
-            Cât ai dat pe cărți, și cât ți-ai propus să dai luna asta.
+            {t("page.budget.blurb")}
           </p>
         </div>
 
-        {summary.isPending && <Note>Se încarcă bugetul…</Note>}
+        {summary.isPending && <Note>{t("loading.budget")}</Note>}
 
         {summary.isError && (
           <LoadFailure
-            what="bugetul"
+            what={t("what.budget")}
             error={summary.error}
             onRetry={() => void summary.refetch()}
           />
@@ -58,13 +60,13 @@ export function BudgetPage() {
           </div>
         )}
 
-        {byMonth.isPending && <Note>Se încarcă graficul…</Note>}
+        {byMonth.isPending && <Note>{t("loading.chart")}</Note>}
 
         {/* The chart failing is not the page failing: the figures above it are
             a different request and still say something useful. */}
         {byMonth.isError && (
           <LoadFailure
-            what="graficul"
+            what={t("what.chart")}
             error={byMonth.error}
             onRetry={() => void byMonth.refetch()}
           />

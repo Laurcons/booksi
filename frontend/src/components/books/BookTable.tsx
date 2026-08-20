@@ -16,6 +16,8 @@ import { CoverThumb } from "./CoverThumb";
 import { StarRating } from "./StarRating";
 import { StartReadingDialog } from "./StartReadingDialog";
 import { useNextStatusLabel } from "../../i18n/next-status";
+import { useT } from "../../i18n/locale-context";
+import type { MessageKey } from "../../i18n/catalog";
 
 /**
  * S1.2 — the table.
@@ -77,6 +79,7 @@ export function BookTable({
   /** Which of §D6's two prices this view is about. */
   price?: PriceColumn;
 }) {
+  const t = useT();
   // Phrased as the *narrow* condition on purpose: `useMediaQuery` answers
   // `false` where there is no `matchMedia` to ask, and in jsdom that has to
   // come out as the full table rather than as the phone layout.
@@ -148,25 +151,25 @@ export function BookTable({
               row rather than sitting there permanently. */}
           <tr className="group border-b border-line text-left">
             <Th>
-              <span className="sr-only">Copertă</span>
+              <span className="sr-only">{t("book.cover")}</span>
             </Th>
             <Th sort="title" query={query} onSort={sortBy}>
-              Titlu
+              {t("field.title")}
             </Th>
             <Th sort="author" query={query} onSort={sortBy}>
-              Autor
+              {t("field.author")}
             </Th>
             <Th sort="status" query={query} onSort={sortBy}>
-              Status
+              {t("field.status")}
             </Th>
-            <Th align="right">Pagini</Th>
-            <Th align="right">{PRICE_LABEL[price]}</Th>
-            <Th align="right">Rating</Th>
+            <Th align="right">{t("field.pagesShort")}</Th>
+            <Th align="right">{t(PRICE_LABEL[price])}</Th>
+            <Th align="right">{t("field.rating")}</Th>
             <Th sort="createdAt" query={query} onSort={sortBy} align="right">
-              Adăugată
+              {t("book.addedOn")}
             </Th>
             <Th align="right">
-              <span className="sr-only">Acțiuni</span>
+              <span className="sr-only">{t("table.actions")}</span>
             </Th>
           </tr>
         </thead>
@@ -247,6 +250,7 @@ function Row({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const nextLabel = useNextStatusLabel();
   const { next, advance, advancing, asking, stopAsking } = useAdvance(book);
 
@@ -294,10 +298,10 @@ function Row({
               {nextLabel(book.status)}
             </button>
           )}
-          <RowAction onClick={onEdit} label="Editează">
+          <RowAction onClick={onEdit} label={t("common.edit")}>
             <EditIcon />
           </RowAction>
-          <RowAction onClick={onDelete} label="Șterge">
+          <RowAction onClick={onDelete} label={t("common.delete")}>
             <DeleteIcon />
           </RowAction>
 
@@ -365,13 +369,14 @@ function SortStrip({
   query: ListBooksQuery;
   onQueryChange: (query: ListBooksQuery) => void;
 }) {
+  const t = useT();
   const sort = query.sort ?? "createdAt";
   const order = query.order ?? "desc";
 
   return (
     <div className="flex items-center gap-2">
       <label className="sr-only" htmlFor="book-sort">
-        Sortează după
+        {t("table.sortBy")}
       </label>
       <select
         id="book-sort"
@@ -383,7 +388,7 @@ function SortStrip({
       >
         {SORT_OPTIONS.map((option) => (
           <option key={option.sort} value={option.sort}>
-            {option.label}
+            {t(option.label)}
           </option>
         ))}
       </select>
@@ -393,8 +398,8 @@ function SortStrip({
         onClick={() =>
           onQueryChange({ ...query, sort, order: order === "asc" ? "desc" : "asc" })
         }
-        aria-label={order === "asc" ? "Crescător" : "Descrescător"}
-        title={order === "asc" ? "Crescător" : "Descrescător"}
+        aria-label={order === "asc" ? t("table.asc") : t("table.desc")}
+        title={order === "asc" ? t("table.asc") : t("table.desc")}
         className="grid size-9 shrink-0 place-items-center rounded-lg border border-line text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
       >
         <span aria-hidden>{order === "asc" ? "↑" : "↓"}</span>
@@ -403,11 +408,11 @@ function SortStrip({
   );
 }
 
-const SORT_OPTIONS: { sort: BookSort; label: string }[] = [
-  { sort: "createdAt", label: "Adăugată" },
-  { sort: "title", label: "Titlu" },
-  { sort: "author", label: "Autor" },
-  { sort: "status", label: "Status" },
+const SORT_OPTIONS: { sort: BookSort; label: MessageKey }[] = [
+  { sort: "createdAt", label: "book.addedOn" },
+  { sort: "title", label: "field.title" },
+  { sort: "author", label: "field.author" },
+  { sort: "status", label: "field.status" },
 ];
 
 function BookRowCard({
@@ -423,6 +428,7 @@ function BookRowCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const nextLabel = useNextStatusLabel();
   const { next, advance, advancing, asking, stopAsking } = useAdvance(book);
   const money = price === "paid" ? book.paidPrice : book.estimatedPrice;
@@ -484,8 +490,8 @@ function BookRowCard({
           <button
             type="button"
             onClick={onEdit}
-            aria-label="Editează"
-            title="Editează"
+            aria-label={t("common.edit")}
+            title={t("common.edit")}
             className="grid size-8 place-items-center rounded-lg text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
             <EditIcon />
@@ -493,8 +499,8 @@ function BookRowCard({
           <button
             type="button"
             onClick={onDelete}
-            aria-label="Șterge"
-            title="Șterge"
+            aria-label={t("common.delete")}
+            title={t("common.delete")}
             className="grid size-8 place-items-center rounded-lg text-ink-3 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
             <DeleteIcon />
@@ -685,9 +691,9 @@ function DeleteIcon() {
 /** §D6 — the two prices are different questions, so they get different headers. */
 export type PriceColumn = "paid" | "estimated";
 
-const PRICE_LABEL: Record<PriceColumn, string> = {
-  paid: "Preț",
-  estimated: "Preț estimat",
+const PRICE_LABEL: Record<PriceColumn, MessageKey> = {
+  paid: "book.price",
+  estimated: "book.estimatedPrice",
 };
 
 /**

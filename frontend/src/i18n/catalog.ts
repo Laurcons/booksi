@@ -34,3 +34,14 @@ export type TFunction = (key: MessageKey, vars?: Vars) => string;
 export function translatorFor(locale: Locale): TFunction {
   return translator(locale, catalogs[locale]);
 }
+
+/**
+ * Whether a string is a key this catalog knows.
+ *
+ * For the values that arrive from outside the type system — `history.state`
+ * survives reloads and is editable from the console — where a wrong key would
+ * otherwise render as itself.
+ */
+export function isMessageKey(value: unknown): value is MessageKey {
+  return typeof value === "string" && value in ro;
+}

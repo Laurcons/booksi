@@ -8,6 +8,7 @@ import {
 } from "../../api/challenges";
 import { BookSelector } from "../books/BookSelector";
 import { Modal } from "../Modal";
+import { useT } from "../../i18n/locale-context";
 
 const INPUT =
   "w-full rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 focus:border-accent";
@@ -30,6 +31,7 @@ export function ChallengeEditDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const t = useT();
   const update = useUpdateChallenge();
   const remove = useDeleteChallenge();
   const addBook = useAddChallengeBook();
@@ -70,10 +72,10 @@ export function ChallengeEditDialog({
   };
 
   return (
-    <Modal title="Editează provocarea" onClose={onClose} wide>
+    <Modal title={t("challenge.edit")} onClose={onClose} wide>
       <div className="flex flex-col gap-4 px-6 py-5">
         <label className="block">
-          <span className="mb-1.5 block text-sm text-ink-2">Titlu</span>
+          <span className="mb-1.5 block text-sm text-ink-2">{t("field.title")}</span>
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -82,7 +84,7 @@ export function ChallengeEditDialog({
         </label>
 
         <label className="block">
-          <span className="mb-1.5 block text-sm text-ink-2">Descriere</span>
+          <span className="mb-1.5 block text-sm text-ink-2">{t("field.description")}</span>
           <textarea
             value={description}
             onChange={(event) => setDescription(event.target.value)}
@@ -92,7 +94,7 @@ export function ChallengeEditDialog({
         </label>
 
         <label className="block max-w-xs">
-          <span className="mb-1.5 block text-sm text-ink-2">Termen</span>
+          <span className="mb-1.5 block text-sm text-ink-2">{t("field.deadline")}</span>
           <input
             type="date"
             value={deadline}
@@ -110,8 +112,8 @@ export function ChallengeEditDialog({
         <div className="border-t border-line pt-4">
           <p className="mb-2 text-sm text-ink-2">
             {challenge.books.length === 0
-              ? "Nicio carte încă."
-              : `${challenge.books.length} ${challenge.books.length === 1 ? "carte" : "cărți"}`}
+              ? t("challenge.noBooksYet")
+              : t("challenge.bookTally", { count: challenge.books.length })}
           </p>
 
           <BookSelector selectedIds={memberIds} onToggle={toggleBook} />
@@ -121,13 +123,13 @@ export function ChallengeEditDialog({
       <div className="flex items-center justify-between gap-3 border-t border-line px-6 py-4">
         {confirmingDelete ? (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-ink-2">Ștergi definitiv provocarea?</span>
+            <span className="text-sm text-ink-2">{t("challenge.deleteTitle")}</span>
             <button
               type="button"
               onClick={() => setConfirmingDelete(false)}
               className="text-sm text-ink-3 hover:text-ink-2"
             >
-              Renunță
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -135,7 +137,7 @@ export function ChallengeEditDialog({
               onClick={() => remove.mutate(challenge.id, { onSuccess: onDeleted })}
               className="rounded-lg border border-status-abandoned/40 px-3 py-1.5 text-sm font-medium text-ink-2 transition-colors duration-150 hover:border-status-abandoned hover:text-ink disabled:opacity-60"
             >
-              {remove.isPending ? "Se șterge…" : "Șterge"}
+              {remove.isPending ? t("common.deleting") : t("common.delete")}
             </button>
           </div>
         ) : (
@@ -144,7 +146,7 @@ export function ChallengeEditDialog({
             onClick={() => setConfirmingDelete(true)}
             className="text-sm text-ink-3 transition-colors duration-150 hover:text-status-abandoned"
           >
-            Șterge provocarea
+            {t("challenge.delete")}
           </button>
         )}
 
@@ -154,7 +156,7 @@ export function ChallengeEditDialog({
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
-            Închide
+            {t("common.close")}
           </button>
           <button
             type="button"
@@ -162,7 +164,7 @@ export function ChallengeEditDialog({
             onClick={() => void save()}
             className="rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-60"
           >
-            {update.isPending ? "Se salvează…" : "Salvează"}
+            {update.isPending ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </div>

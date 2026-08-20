@@ -1,8 +1,10 @@
+import { statusLabel } from "@bookcsi/shared";
 import { useState } from "react";
 import type { Book } from "@bookcsi/shared";
 import { useUpdateBook } from "../../api/books";
 import { Modal } from "../Modal";
 import { StarRatingInput } from "../books/StarRating";
+import { useLocale } from "../../i18n/locale-context";
 
 /**
  * The bundling the design conversation asked for: finishing a book from the
@@ -27,6 +29,7 @@ export function FinishChallengeBookDialog({
   book: Book;
   onClose: () => void;
 }) {
+  const { locale, t } = useLocale();
   const update = useUpdateBook();
   const [rating, setRating] = useState("");
 
@@ -43,7 +46,7 @@ export function FinishChallengeBookDialog({
   };
 
   return (
-    <Modal title="Ai terminat-o?" onClose={onClose}>
+    <Modal title={t("challenge.finishTitle")} onClose={onClose}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -53,10 +56,13 @@ export function FinishChallengeBookDialog({
       >
         <div className="px-6 py-5">
           <p className="mb-4 text-sm text-ink-2">
-            „{book.title}" trece la <span className="text-ink">Terminat</span>.
+            {t("startReading.movesTo", {
+              title: `„${book.title}"`,
+              status: statusLabel("FINISHED", locale),
+            })}
           </p>
 
-          <span className="mb-1.5 block text-sm text-ink-2">Notă (opțional)</span>
+          <span className="mb-1.5 block text-sm text-ink-2">{t("challenge.noteOptional")}</span>
           <StarRatingInput
             name="rating"
             value={rating}
@@ -77,14 +83,14 @@ export function FinishChallengeBookDialog({
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
           >
-            Renunță
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             disabled={update.isPending}
             className="rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-60"
           >
-            {update.isPending ? "Se salvează…" : "Marchează terminată"}
+            {update.isPending ? t("common.saving") : t("challenge.finishBook")}
           </button>
         </div>
       </form>

@@ -1,3 +1,5 @@
+import { useT } from "../../i18n/locale-context";
+
 /**
  * §D42 — the search box, on every screen that lists books.
  *
@@ -13,23 +15,26 @@
 export function BookSearch({
   value,
   onChange,
-  placeholder = "Caută după titlu, autor, editură, ISBN…",
+  placeholder,
   className = "",
 }: {
   value: string;
   onChange: (value: string) => void;
+  /** Defaults to the generic book-field prompt. */
+  /** Defaults to the generic book-field prompt. */
   placeholder?: string;
   className?: string;
 }) {
+  const t = useT();
   return (
     <input
       type="search"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t("search.byBookFields")}
       // The label is the accessible name and the placeholder is an example;
       // a placeholder alone would leave the field unnamed once it has text.
-      aria-label="Caută în bibliotecă"
+      aria-label={t("search.library")}
       className={
         "min-w-0 rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 focus:border-accent " +
         className

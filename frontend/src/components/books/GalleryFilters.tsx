@@ -8,6 +8,7 @@ import { isFiltered } from "../../lib/filters";
 import { BookSearch } from "./BookSearch";
 import { CategoryPicker } from "./CategoryPicker";
 import { useLocale } from "../../i18n/locale-context";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S5.3 — status (multi-select), genre and favourites, combined with AND.
@@ -37,6 +38,7 @@ export function GalleryFilters({
   search: string;
   onSearchChange: (search: string) => void;
 }) {
+  const t = useT();
   const { locale } = useLocale();
 
   const statuses = query.status ?? [];
@@ -61,7 +63,7 @@ export function GalleryFilters({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <FilterLabel>Status</FilterLabel>
+        <FilterLabel>{t("field.status")}</FilterLabel>
 
         {STATUS_VALUES.map((status) => (
           <Toggle
@@ -75,7 +77,7 @@ export function GalleryFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <FilterLabel>Categorie</FilterLabel>
+        <FilterLabel>{t("field.category")}</FilterLabel>
 
         {/* One value, not a set: a book has exactly one category (§D17), and
             a multi-select here would advertise a data model that does not
@@ -83,7 +85,7 @@ export function GalleryFilters({
         <CategoryPicker
           ariaLabel="Categorie"
           value={query.genre ?? ""}
-          clearLabel="Toate categoriile"
+          clearLabel={t("filters.allCategories")}
           className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet"
           onChange={(genre) =>
             onChange({ ...query, genre: genre === "" ? undefined : genre })
@@ -116,7 +118,7 @@ export function GalleryFilters({
             }}
             className="ml-auto text-sm text-ink-3 underline-offset-4 transition-colors duration-150 hover:text-ink-2 hover:underline"
           >
-            Șterge filtrele
+            {t("filters.clear")}
           </button>
         )}
       </div>

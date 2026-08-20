@@ -36,7 +36,7 @@ export function GalleryPage() {
    * opens the book's page instead, and editing is a button on that page.
    */
   const [adding, setAdding] = useState(false);
-  const openBook = useOpenBook("galerie");
+  const openBook = useOpenBook("origin.gallery");
 
   // The filters and the search meet here, and nowhere else: the panel below
   // edits one of them at a time and neither may drop the other.
@@ -57,10 +57,10 @@ export function GalleryPage() {
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <div>
           <h1 className="font-display text-4xl text-ink">
-            Galerie<span className="text-accent">.</span>
+            {t("nav.gallery")}<span className="text-accent">.</span>
           </h1>
           <p className="mt-2 text-ink-2">
-            Cărțile tale după copertă — cum arată un raft, nu un tabel.
+            {t("page.gallery.blurb")}
           </p>
         </div>
 
@@ -71,11 +71,11 @@ export function GalleryPage() {
           onSearchChange={setSearch}
         />
 
-        {isPending && <Note>Se încarcă galeria…</Note>}
+        {isPending && <Note>{t("loading.gallery")}</Note>}
 
         {isError && (
           <LoadFailure
-            what="galeria"
+            what={t("what.gallery")}
             error={error}
             onRetry={() => void refetch()}
           />

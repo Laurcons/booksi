@@ -84,7 +84,19 @@ describe("the two catalogs", () => {
       return typeof a === "string" && typeof b === "string" && a === b;
     });
 
-    // A short, named allow-list beats a threshold: each of these is a decision.
-    expect(shared).toEqual(["nav.wishlist"]);
+    // A short, named allow-list beats a threshold: each of these is a decision,
+    // and each is a word Romanian took from English unchanged.
+    //
+    //   nav.wishlist  — "Wishlist" is the word the app has always used.
+    //   field.status  — likewise "Status".
+    //   field.format  — "Format", the physical dimensions field.
+    //   field.rating  — "Rating"; "notă" would be the native word, but the
+    //                   interface has said "rating" since Sprint 2.
+    expect(shared).toEqual([
+      "nav.wishlist",
+      "field.status",
+      "field.format",
+      "field.rating",
+    ]);
   });
 });

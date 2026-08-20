@@ -73,9 +73,11 @@ export async function resizeCover(file: File): Promise<Blob> {
   }
 
   if (file.size > COVER_MAX_BYTES) {
-    throw new Error(
-      `Imaginea are ${Math.round(file.size / (1024 * 1024))}MB și n-a putut fi micșorată automat. Alege una mai mică.`,
-    );
+    // A key, not a sentence (§D44): this runs in a plain module with no reader
+    // in scope, and the message surfaces through the mutation's `error.message`
+    // — so whoever displays it translates it, the same split `AppError` uses on
+    // the server. The size travels with it, since only this function knows it.
+    throw new CoverTooLargeError(Math.round(file.size / (1024 * 1024)));
   }
 
   return file;
@@ -117,4 +119,18 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
     // not something a book jacket has.
     canvas.toBlob((blob) => resolve(blob), JPEG, COVER_QUALITY);
   });
+}
+
+/**
+ * "Too big, and shrinking it did not help." Its own class so the size survives
+ * as a number rather than being baked into a sentence here — see the throw site.
+ */
+export class CoverTooLargeError extends Error {
+  readonly megabytes: number;
+
+  constructor(megabytes: number) {
+    super("cover.tooBigToResize");
+    this.name = "CoverTooLargeError";
+    this.megabytes = megabytes;
+  }
 }

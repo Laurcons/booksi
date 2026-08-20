@@ -55,12 +55,12 @@ export function ChallengePage() {
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
-  const openBook = useOpenBook("provocare");
+  const openBook = useOpenBook("origin.challenge");
 
   if (listPending) {
     return (
       <Page>
-        <Note>Se încarcă provocarea…</Note>
+        <Note>{t("loading.challenge")}</Note>
       </Page>
     );
   }
@@ -68,7 +68,7 @@ export function ChallengePage() {
   if (listError) {
     return (
       <Page>
-        <LoadFailure what="provocarea" error={listErr} onRetry={() => void refetchList()} />
+        <LoadFailure what={t("what.challenge")} error={listErr} onRetry={() => void refetchList()} />
       </Page>
     );
   }
@@ -85,7 +85,7 @@ export function ChallengePage() {
   if (detailPending || challenge === undefined) {
     return (
       <Page>
-        <Note>Se încarcă provocarea…</Note>
+        <Note>{t("loading.challenge")}</Note>
       </Page>
     );
   }
@@ -93,7 +93,7 @@ export function ChallengePage() {
   if (detailError) {
     return (
       <Page>
-        <LoadFailure what="provocarea" error={detailErr} onRetry={() => void refetchDetail()} />
+        <LoadFailure what={t("what.challenge")} error={detailErr} onRetry={() => void refetchDetail()} />
       </Page>
     );
   }
@@ -109,7 +109,9 @@ export function ChallengePage() {
   // do, which is the only case where "pages" would mean dividing by zero.
   const hasPageData = pages.total > 0;
   const progressRatioValue = hasPageData ? pages.ratio : total === 0 ? 0 : finished / total;
-  const progressLabelText = hasPageData ? "Pagini citite" : "Cărți";
+  const progressLabelText = hasPageData
+    ? t("stats.pagesRead")
+    : t("challenge.booksLabel");
   const progressCaption = hasPageData
     ? t("challenge.pagesOf", {
         read: formatCount(pages.read, locale),
@@ -147,7 +149,7 @@ export function ChallengePage() {
           onClick={() => setEditing(true)}
           className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet hover:text-ink"
         >
-          Editează provocarea
+          {t("challenge.edit")}
         </button>
       </div>
 
@@ -166,7 +168,7 @@ export function ChallengePage() {
 
       {total === 0 ? (
         <Note>
-          Nicio carte încă. „Editează provocarea” ca să adaugi una din bibliotecă.
+          {t("challenge.noBooksYetHint")}
         </Note>
       ) : (
         <>
@@ -207,19 +209,19 @@ function Page({ children }: { children: ReactNode }) {
 }
 
 function EmptyChallenge({ onCreate }: { onCreate: () => void }) {
+  const t = useT();
   return (
     <div className="rounded-xl border border-line bg-surface-1 px-6 py-16 text-center">
-      <p className="font-display text-2xl text-ink">Nicio provocare încă</p>
+      <p className="font-display text-2xl text-ink">{t("challenge.none")}</p>
       <p className="mx-auto mt-3 max-w-sm text-sm text-ink-2">
-        O provocare e un set de cărți și un termen — un raft care se umple pe
-        măsură ce citești.
+        {t("challenge.noneBody")}
       </p>
       <button
         type="button"
         onClick={onCreate}
         className="mt-6 rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet"
       >
-        Creează o provocare
+        {t("challenge.create")}
       </button>
     </div>
   );
@@ -260,7 +262,7 @@ function ChallengeHero({
           {finished} din {total}
         </p>
         <p className="mt-2 text-[11px] font-medium tracking-[0.08em] text-ink-3 uppercase">
-          cărți terminate
+          {t("challenge.finishedBooks")}
         </p>
       </div>
 
@@ -271,10 +273,10 @@ function ChallengeHero({
           barClassName="bg-accent"
           caption={progressCaption}
         />
-        <ProgressRow label="Timp scurs" percent={timeRatio} barClassName="bg-ink-3/50" />
+        <ProgressRow label={t("challenge.timeElapsed")} percent={timeRatio} barClassName="bg-ink-3/50" />
         {!done && total > 0 && (
           <p className="text-xs text-ink-3">
-            {behind ? "Ceva mai puțin citit decât timpul scurs." : "Conform sau înaintea termenului."}
+            {behind ? t("challenge.behind") : t("challenge.onTrack")}
           </p>
         )}
         {missingPageCounts > 0 && (
@@ -286,14 +288,16 @@ function ChallengeHero({
 
       <div className="shrink-0 border-line sm:border-l sm:pl-8">
         {done ? (
-          <p className="font-display text-2xl text-accent">Provocare încheiată.</p>
+          <p className="font-display text-2xl text-accent">{t("challenge.done")}</p>
         ) : (
           <>
             <p className="tabular font-display text-3xl leading-none text-ink">{daysLeft}</p>
             <p className="mt-2 text-[11px] font-medium tracking-[0.08em] text-ink-3 uppercase">
               {t("challenge.daysLeft", { count: daysLeft })}
             </p>
-            <p className="mt-1 text-xs text-ink-3">până pe {deadlineLabel}</p>
+            <p className="mt-1 text-xs text-ink-3">
+              {t("challenge.deadlineOn", { date: deadlineLabel })}
+            </p>
           </>
         )}
       </div>
@@ -589,6 +593,7 @@ function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) 
  * you to touch most often).
  */
 function PageProgressEditor({ book }: { book: Book }) {
+  const t = useT();
   const update = useUpdateBook();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(book.pagesRead));
@@ -608,7 +613,7 @@ function PageProgressEditor({ book }: { book: Book }) {
         onClick={() => setEditing(true)}
         className="tabular mt-0.5 block text-left text-xs text-ink-3 underline decoration-dotted underline-offset-2 transition-colors duration-150 hover:text-ink-2"
       >
-        {progressLabel(book)} · schimbă pagina
+        {t("challenge.changePage", { progress: progressLabel(book) })}
       </button>
     );
   }
@@ -641,7 +646,7 @@ function PageProgressEditor({ book }: { book: Book }) {
         value={value}
         onChange={(event) => setValue(event.target.value)}
         autoFocus
-        aria-label="Pagina curentă"
+        aria-label={t("challenge.currentPage")}
         className="tabular w-20 rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none transition-colors duration-150 focus:border-accent"
       />
       <button
@@ -649,7 +654,7 @@ function PageProgressEditor({ book }: { book: Book }) {
         disabled={!valid || update.isPending}
         className="text-xs font-medium text-accent hover:underline disabled:opacity-50"
       >
-        Salvează
+        {t("common.save")}
       </button>
       <button
         type="button"
@@ -659,7 +664,7 @@ function PageProgressEditor({ book }: { book: Book }) {
         }}
         className="text-xs text-ink-3 hover:text-ink-2"
       >
-        Renunță
+        {t("common.cancel")}
       </button>
     </form>
   );

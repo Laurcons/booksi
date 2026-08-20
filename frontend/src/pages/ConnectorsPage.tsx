@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { McpGrant } from "@bookcsi/shared";
 import { useGrants } from "../api/mcp";
 import { RevokeGrantDialog } from "../components/mcp/RevokeGrantDialog";
+import { useT } from "../i18n/locale-context";
 
 const DATE_FORMAT = new Intl.DateTimeFormat("ro-RO", {
   day: "2-digit",
@@ -20,40 +21,40 @@ function formatDate(iso: string): string {
  * visible here instead of only inferred after something goes wrong.
  */
 export function ConnectorsPage() {
+  const t = useT();
   const grants = useGrants();
   const [revoking, setRevoking] = useState<McpGrant | null>(null);
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="font-display text-2xl text-ink">Aplicații conectate</h1>
+      <h1 className="font-display text-2xl text-ink">{t("connectors.title")}</h1>
       <p className="mt-2 text-sm text-ink-2">
-        Asistenții AI cu acces la biblioteca ta prin MCP. Un conector revocat poate fi reconectat
-        oricând, printr-o nouă aprobare.
+        {t("connectors.body")}
       </p>
 
       <div className="mt-8">
         {grants.isPending && (
           <p className="text-sm text-ink-3" role="status">
-            Se încarcă…
+            {t("common.loading")}
           </p>
         )}
 
         {grants.isError && (
           <div className="rounded-lg border border-line bg-surface-2 px-4 py-3">
-            <p className="text-sm text-ink-2">Nu am putut încărca lista.</p>
+            <p className="text-sm text-ink-2">{t("connectors.loadFailed")}</p>
             <button
               type="button"
               onClick={() => void grants.refetch()}
               className="mt-3 rounded-lg border border-accent-quiet bg-accent-quiet/40 px-3 py-1.5 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet"
             >
-              Încearcă din nou
+              {t("common.retry")}
             </button>
           </div>
         )}
 
         {grants.data && grants.data.length === 0 && (
           <p className="rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink-2">
-            Niciun asistent conectat momentan.
+            {t("connectors.none")}
           </p>
         )}
 
@@ -69,8 +70,10 @@ export function ConnectorsPage() {
                     Conectat pe {formatDate(grant.createdAt)}
                     {" · "}
                     {grant.lastUsedAt
-                      ? `folosit ultima dată pe ${formatDate(grant.lastUsedAt)}`
-                      : "nefolosit încă"}
+                      ? t("connectors.lastUsed", {
+                          date: formatDate(grant.lastUsedAt),
+                        })
+                      : t("connectors.neverUsed")}
                   </p>
                 </div>
                 <button
@@ -78,7 +81,7 @@ export function ConnectorsPage() {
                   onClick={() => setRevoking(grant)}
                   className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-status-abandoned"
                 >
-                  Revocă
+                  {t("connectors.revoke")}
                 </button>
               </li>
             ))}

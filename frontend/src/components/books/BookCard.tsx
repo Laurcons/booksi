@@ -4,6 +4,7 @@ import { apiImageSrc, CREDENTIALED_IMAGE } from "../../lib/media";
 import { StatusPill } from "../StatusPill";
 import { CoverPlaceholder } from "./CoverPlaceholder";
 import { StarRating } from "./StarRating";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S5.1 and S5.4 — one book in the gallery.
@@ -86,6 +87,7 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: () => void }) {
  * and here the round trip is one small `PATCH`, not a page load.
  */
 function FavoriteStar({ book }: { book: Book }) {
+  const t = useT();
   const update = useUpdateBook();
 
   return (
@@ -98,8 +100,8 @@ function FavoriteStar({ book }: { book: Book }) {
       // A toggle, so the state belongs on the control rather than in two
       // different labels a screen reader would have to compare.
       aria-pressed={book.favorite}
-      aria-label="Favorită"
-      title={book.favorite ? "Scoate de la favorite" : "Marchează ca favorită"}
+      aria-label={t("book.favorite")}
+      title={book.favorite ? t("book.unfavorite") : t("book.markFavorite")}
       className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-surface-0/70 text-base leading-none backdrop-blur transition-colors duration-150 hover:bg-surface-0/90 disabled:opacity-50"
     >
       <span aria-hidden className={book.favorite ? "text-accent" : "text-ink-2"}>

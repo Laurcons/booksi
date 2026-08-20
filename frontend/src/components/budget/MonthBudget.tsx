@@ -11,6 +11,7 @@ import { useUpdateSettings } from "../../api/budget";
 import { errorMessage } from "../../lib/api";
 import { monthLabel } from "../../lib/month";
 import { useLocale } from "../../i18n/locale-context";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S6.3 — this month against this month's budget, and the form that sets it.
@@ -51,7 +52,7 @@ export function MonthBudget({ month }: { month: BudgetSummary["month"] }) {
 
       <p className="mt-2 text-sm text-ink-3">
         {month.budget === null ? (
-          "Cheltuit luna asta. Pune-ți un buget ca să vezi și cât mai ai."
+          t("budget.noBudgetYet")
         ) : (
           <Remaining budget={month.budget} remaining={month.remaining ?? 0} />
         )}
@@ -68,25 +69,26 @@ export function MonthBudget({ month }: { month: BudgetSummary["month"] }) {
  * thing twice — so the sentence changes, and the figure stays arithmetic.
  */
 function Remaining({ budget, remaining }: { budget: number; remaining: number }) {
+  const t = useT();
   if (remaining < 0) {
     return (
+      // One sentence with both figures inside it: English puts them either
+      // side of the verb, so two fragments joined in JSX could not be reordered.
       <span className="text-ink-2">
-        Ai depășit bugetul de {formatMoney(budget)} {CURRENCY} cu{" "}
-        <span className="text-accent tabular">
-          {formatMoney(Math.abs(remaining))} {CURRENCY}
-        </span>
-        . Nimic nu se blochează — doar știi.
+        {t("budget.overspent", {
+          budget: `${formatMoney(budget)} ${CURRENCY}`,
+          over: `${formatMoney(Math.abs(remaining))} ${CURRENCY}`,
+        })}
       </span>
     );
   }
 
   return (
     <span className="text-ink-2">
-      Ți-au mai rămas{" "}
-      <span className="text-ink tabular">
-        {formatMoney(remaining)} {CURRENCY}
-      </span>{" "}
-      din {formatMoney(budget)} {CURRENCY} luna asta.
+      {t("budget.remaining", {
+        remaining: `${formatMoney(remaining)} ${CURRENCY}`,
+        budget: `${formatMoney(budget)} ${CURRENCY}`,
+      })}
     </span>
   );
 }
@@ -143,7 +145,7 @@ function BudgetField({ budget }: { budget: number | null }) {
           wrapping both would fold "lei" into the field's accessible name. */}
       <div className="flex flex-col gap-1.5">
         <label htmlFor={FIELD_ID} className="text-sm text-ink-2">
-          Buget lunar
+          {t("budget.monthly")}
         </label>
         <span className="flex items-center gap-2">
           <input
@@ -151,7 +153,7 @@ function BudgetField({ budget }: { budget: number | null }) {
             inputMode="decimal"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder="fără buget"
+            placeholder={t("budget.noBudget")}
             className="w-32 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink tabular transition-colors duration-150 focus:border-accent-quiet focus:outline-none"
           />
           <span aria-hidden className="text-sm text-ink-3">
@@ -165,7 +167,7 @@ function BudgetField({ budget }: { budget: number | null }) {
         disabled={save.isPending}
         className="rounded-lg border border-accent-quiet bg-accent-quiet/40 px-3.5 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-50"
       >
-        {save.isPending ? "Se salvează…" : "Salvează"}
+        {save.isPending ? t("common.saving") : t("common.save")}
       </button>
 
       {problem !== null && <p className="text-sm text-status-abandoned">{problem}</p>}

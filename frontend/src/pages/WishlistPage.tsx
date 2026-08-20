@@ -12,6 +12,7 @@ import { WishlistTotal } from "../components/books/WishlistTotal";
 import { useOpenBook } from "../lib/book-origin";
 import { isSearched } from "../lib/filters";
 import { useBookSearch } from "../lib/use-book-search";
+import { useT } from "../i18n/locale-context";
 
 /**
  * Sprint 3 — the wishlist.
@@ -32,13 +33,14 @@ type Dialog =
   | null;
 
 export function WishlistPage() {
+  const t = useT();
   const [sort, setSort] = useState<Pick<ListBooksQuery, "sort" | "order">>({
     sort: "createdAt",
     order: "desc",
   });
   const { search, setSearch, q } = useBookSearch();
   const [dialog, setDialog] = useState<Dialog>(null);
-  const openBook = useOpenBook("wishlist");
+  const openBook = useOpenBook("origin.wishlist");
 
   // The filter is not part of the sort state: it is what this page *is*, and
   // a header click must not be able to drop it. A one-element list since S5.3
@@ -61,10 +63,10 @@ export function WishlistPage() {
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <div>
           <h1 className="font-display text-4xl text-ink">
-            Wishlist<span className="text-accent">.</span>
+            {t("nav.wishlist")}<span className="text-accent">.</span>
           </h1>
           <p className="mt-2 text-ink-2">
-            Cărțile pe care vrei să le citești, separat de ce ai deja.
+            {t("page.wishlist.blurb")}
           </p>
         </div>
 
@@ -76,8 +78,7 @@ export function WishlistPage() {
             <WishlistTotal summary={summary.data} />
             {searching && (
               <p className="text-sm text-ink-3">
-                Totalul e pentru tot wishlist-ul, nu doar pentru rezultatele
-                căutării.
+                {t("page.wishlist.totalNote")}
               </p>
             )}
           </div>
@@ -86,15 +87,15 @@ export function WishlistPage() {
         <BookSearch
           value={search}
           onChange={setSearch}
-          placeholder="Caută în wishlist…"
+          placeholder={t("search.wishlist")}
           className="w-full sm:max-w-md"
         />
 
-        {books.isPending && <Note>Se încarcă wishlist-ul…</Note>}
+        {books.isPending && <Note>{t("loading.wishlist")}</Note>}
 
         {books.isError && (
           <LoadFailure
-            what="wishlist-ul"
+            what={t("what.wishlist")}
             error={books.error}
             onRetry={() => void books.refetch()}
           />
@@ -134,19 +135,19 @@ export function WishlistPage() {
 }
 
 function EmptyWishlist({ onAdd }: { onAdd: () => void }) {
+  const t = useT();
   return (
     <div className="rounded-xl border border-line bg-surface-1 px-6 py-16 text-center">
-      <p className="font-display text-2xl text-ink">Wishlist-ul e gol</p>
+      <p className="font-display text-2xl text-ink">{t("page.wishlist.emptyTitle")}</p>
       <p className="mx-auto mt-3 max-w-sm text-sm text-ink-2">
-        Adaugă o carte cu statusul „Wishlist” și trece-i prețul pe care crezi
-        că-l are. Prețul e opțional — cartea poate sta aici și fără el.
+        {t("page.wishlist.empty")}
       </p>
       <button
         type="button"
         onClick={onAdd}
         className="mt-6 rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet"
       >
-        Adaugă o carte
+        {t("nav.addBook")}
       </button>
     </div>
   );

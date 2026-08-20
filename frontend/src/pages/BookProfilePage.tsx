@@ -15,9 +15,9 @@ import { BookFormDialog } from "../components/books/BookFormDialog";
 import { CoverPlaceholder } from "../components/books/CoverPlaceholder";
 import { DeleteBookDialog } from "../components/books/DeleteBookDialog";
 import { StarRating } from "../components/books/StarRating";
-import { useBookOrigin } from "../lib/book-origin";
+import { useBookOrigin, type BookOrigin } from "../lib/book-origin";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
-import { useLocale } from "../i18n/locale-context";
+import { useLocale, useT } from "../i18n/locale-context";
 
 /**
  * §D40 — the book's own page: everything known about it, and the description
@@ -36,6 +36,7 @@ import { useLocale } from "../i18n/locale-context";
  * own (§D40), so the blank is where the user is told who can.
  */
 export function BookProfilePage() {
+  const t = useT();
   // The route is `/books/:id`, so this is only ever absent if someone rewires
   // the route; an empty id would ask the API for `/books/` and get the listing.
   const { id = "" } = useParams<{ id: string }>();
@@ -50,10 +51,10 @@ export function BookProfilePage() {
       <main className="mx-auto max-w-5xl space-y-8 px-6 py-12">
         <BackLink origin={origin} />
 
-        {isPending && <Note>Se încarcă cartea…</Note>}
+        {isPending && <Note>{t("loading.book")}</Note>}
 
         {isError && (
-          <LoadFailure what="cartea" error={error} onRetry={() => void refetch()} />
+          <LoadFailure what={t("what.book")} error={error} onRetry={() => void refetch()} />
         )}
 
         {book && <Profile book={book} />}
@@ -67,14 +68,15 @@ export function BookProfilePage() {
  * should behave like one: middle-click, ctrl-click and "copy link address" all
  * work, and the destination shows in the status bar before the click.
  */
-function BackLink({ origin }: { origin: { to: string; label: string } }) {
+function BackLink({ origin }: { origin: BookOrigin }) {
+  const t = useT();
   return (
     <Link
       to={origin.to}
       className="inline-flex items-center gap-2 text-sm text-ink-3 transition-colors duration-150 hover:text-ink"
     >
       <span aria-hidden>←</span>
-      Înapoi la {origin.label}
+      {t("origin.back", { where: t(origin.label) })}
     </Link>
   );
 }
@@ -207,15 +209,14 @@ function Progress({ book }: { book: Book }) {
  * remote writer the page.
  */
 function Description({ text }: { text: string | null }) {
+  const t = useT();
   return (
     <section>
-      <SectionTitle>Descriere</SectionTitle>
+      <SectionTitle>{t("field.description")}</SectionTitle>
 
       {text === null ? (
         <p className="mt-3 max-w-prose text-sm text-ink-3">
-          Cartea n-are încă o descriere. Scrie una din „Editează” — sau
-          cere-i lui Claude, dacă l-ai conectat la bibliotecă, să caute despre
-          ce e cartea și să ți-o completeze.
+          {t("page.profile.noDescription")}
         </p>
       ) : (
         <p className="mt-3 max-w-prose whitespace-pre-line leading-relaxed text-ink-2">
@@ -236,19 +237,20 @@ function Description({ text }: { text: string | null }) {
  * be mostly empty on nearly every book.
  */
 function Details({ book }: { book: Book }) {
+  const t = useT();
   const rows: [string, string | null][] = [
     ["ISBN", book.isbn],
     ["Editura", book.publisher],
-    ["Anul apariției", nullableNumber(book.publicationYear)],
+    [t("book.publicationYear"), nullableNumber(book.publicationYear)],
     ["Volum", nullableNumber(book.volume)],
     ["Format", book.format],
-    ["Număr de pagini", nullableNumber(book.totalPages)],
-    ["Preț estimat", money(book.estimatedPrice)],
-    ["Preț plătit", money(book.paidPrice)],
-    ["Cumpărată", day(book.purchasedOn)],
-    ["Începută", day(book.startedOn)],
-    ["Terminată", day(book.finishedOn)],
-    ["Adăugată", day(book.createdAt.slice(0, 10))],
+    [t("book.totalPages"), nullableNumber(book.totalPages)],
+    [t("book.estimatedPrice"), money(book.estimatedPrice)],
+    [t("book.paidPrice"), money(book.paidPrice)],
+    [t("book.purchasedOn"), day(book.purchasedOn)],
+    [t("book.startedOn"), day(book.startedOn)],
+    [t("book.finishedOn"), day(book.finishedOn)],
+    [t("book.addedOn"), day(book.createdAt.slice(0, 10))],
   ];
 
   const known = rows.filter(
@@ -257,7 +259,7 @@ function Details({ book }: { book: Book }) {
 
   return (
     <section>
-      <SectionTitle>Detalii</SectionTitle>
+      <SectionTitle>{t("profile.details")}</SectionTitle>
 
       <dl className="mt-3 grid gap-x-8 gap-y-3 sm:grid-cols-2">
         {known.map(([label, value]) => (
@@ -272,6 +274,7 @@ function Details({ book }: { book: Book }) {
 }
 
 function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-3">
       <button
@@ -279,14 +282,14 @@ function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
         onClick={onEdit}
         className="rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet"
       >
-        Editează
+        {t("common.edit")}
       </button>
       <button
         type="button"
         onClick={onDelete}
         className="rounded-lg border border-line px-4 py-2 text-sm text-ink-2 transition-colors duration-150 hover:border-status-abandoned hover:text-ink"
       >
-        Șterge
+        {t("common.delete")}
       </button>
     </div>
   );
@@ -299,6 +302,7 @@ function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
  * un-light itself.
  */
 function FavoriteToggle({ book }: { book: Book }) {
+  const t = useT();
   const update = useUpdateBook();
 
   return (
@@ -312,7 +316,7 @@ function FavoriteToggle({ book }: { book: Book }) {
       <span aria-hidden className={book.favorite ? "text-accent" : "text-ink-3"}>
         {book.favorite ? "★" : "☆"}
       </span>
-      {book.favorite ? "Favorită" : "Marchează favorită"}
+      {book.favorite ? t("book.favorite") : t("book.markFavorite")}
     </button>
   );
 }

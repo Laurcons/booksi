@@ -188,6 +188,327 @@ export const ro = {
 
   "budget.notANumber": "Scrie o sumă, sau lasă gol ca să renunți la buget.",
 
+  /* -------------------------------------------------- common */
+  "common.close": "Închide",
+  "common.delete": "Șterge",
+  "common.deleting": "Se șterge…",
+  "common.edit": "Editează",
+  "common.add": "Adaugă",
+  "common.create": "Creează",
+  "common.creating": "Se creează…",
+  "common.approve": "Aprobă",
+  "common.approving": "Se aprobă…",
+  "common.optional": "Opțional",
+  "common.searching": "Se caută…",
+  "common.loading": "Se încarcă…",
+
+  /* -------------------------------------------------- a book's own fields */
+  "book.cover": "Copertă",
+  "book.coverOf": "Coperta cărții {title}",
+  "book.publicationYear": "Anul apariției",
+  "book.totalPages": "Număr de pagini",
+  "book.price": "Preț",
+  "book.estimatedPrice": "Preț estimat",
+  "book.paidPrice": "Preț plătit",
+  "book.purchasedOn": "Cumpărată",
+  "book.startedOn": "Începută",
+  "book.finishedOn": "Terminată",
+  "book.addedOn": "Adăugată",
+  "book.favorite": "Favorită",
+  "book.markFavorite": "Marchează ca favorită",
+  "book.noRating": "fără rating",
+
+  /* -------------------------------------------------- the add/edit form */
+  "bookForm.editTitle": "Editează cartea",
+  "bookForm.hint": "Doar titlul e obligatoriu. Restul se poate completa oricând.",
+  "bookForm.fromOpenLibrary": "Completat din Open Library. Corectează orice câmp.",
+  "bookForm.anyFieldEditable": "Orice câmp e editabil, indiferent de unde a venit.",
+  "bookForm.olUnavailable":
+    "Open Library nu răspunde acum. Completează câmpurile manual.",
+  "bookForm.searchingIsbn": "Se caută ISBN-ul în Open Library…",
+  "bookForm.scanBarcode": "Scanează codul de bare",
+  "bookForm.paidPrice": "Cât am plătit",
+  "bookForm.estimatedPrice": "Cât cred că va costa",
+  "bookForm.progressAndRating": "Progres și evaluare",
+  "bookForm.ratingHint": "Ratingul se dă cărților terminate sau abandonate.",
+  "bookForm.datesHint":
+    "Se completează singure la schimbarea statusului. Corectează-le oricând — o carte citită în 2019 trebuie să apară în 2019.",
+  "bookForm.noCategory": "— fără categorie —",
+  "bookForm.optionalOrClaude": "Opțional — o poate completa și Claude",
+
+  /* -------------------------------------------------- the table */
+  "table.actions": "Acțiuni",
+  "table.sortBy": "Sortează după",
+  "table.asc": "Crescător",
+  "table.desc": "Descrescător",
+
+  /* -------------------------------------------------- the barcode scanner */
+  "scan.instruction": "Arată codul de bare de pe spatele cărții.",
+  "scan.starting": "Se pornește camera…",
+  "scan.videoLabel": "Imagine de la cameră",
+  "scan.unsupported":
+    "Browserul acesta nu dă acces la cameră. Scrie ISBN-ul de mână.",
+  "scan.needsHttps": "Camera funcționează doar pe HTTPS. Scrie ISBN-ul de mână.",
+  "scan.failed": "Camera n-a putut porni. Scrie ISBN-ul de mână.",
+  "scan.denied":
+    "N-am primit acces la cameră. Poți permite accesul din setările browserului, sau scrie ISBN-ul de mână.",
+  "scan.noCamera": "Nu găsesc nicio cameră. Scrie ISBN-ul de mână.",
+
+  /* -------------------------------------------------- search boxes */
+  "search.library": "Caută în bibliotecă",
+  "search.books": "Caută cărți",
+  "search.byBookFields": "Caută după titlu, autor, editură, ISBN…",
+  "search.wishlist": "Caută în wishlist…",
+  "search.byEmail": "Caută după email",
+  "search.openLibrary": "Caută în Open Library",
+  "search.byTitleOrAuthor": "după titlu sau autor",
+  "search.noCategoryMatches": "Nicio categorie nu se potrivește.",
+
+  "field.title": "Titlu",
+  "field.author": "Autor",
+  "field.status": "Status",
+  "field.pages": "Nr. de pagini",
+  "field.pagesHint": "Poate lipsi",
+  "field.publisher": "Editura",
+  "field.volume": "Volum",
+  "field.format": "Format",
+  "field.formatHint": "ex. 13x20 cm",
+  "field.category": "Categorie",
+  "field.description": "Descriere",
+  "field.rating": "Rating",
+  "field.currentPage": "Pagina la care am ajuns",
+  "bookForm.duplicate": "Ai deja {titles} cu acest ISBN. Poți salva oricum.",
+  "field.deadline": "Termen",
+  "challenge.finishTitle": "Ai terminat-o?",
+  "selector.noBooks": "Nicio carte în bibliotecă.",
+  "selector.nothingFor": "Nimic pentru „{query}”.",
+
+  /* -------------------------------------------------- covers */
+  "cover.upload": "Încarcă o imagine",
+  "cover.uploading": "Se încarcă…",
+  "cover.replaced": "Coperta a fost înlocuită.",
+  "cover.formatHintPick": "JPEG, PNG sau WebP. Se micșorează automat la salvare.",
+  "cover.formatHintUpload":
+    "JPEG, PNG sau WebP. Se micșorează automat înainte de încărcare.",
+  "cover.tooBigToResize":
+    "Imaginea are {mb}MB și n-a putut fi micșorată automat. Alege una mai mică.",
+
+  /* -------------------------------------------------- deleting a book */
+  "deleteBook.title": "Ștergi cartea?",
+  "deleteBook.confirm": "Șterge definitiv",
+
+  "book.unfavorite": "Scoate de la favorite",
+  "deleteBook.body":
+    "{title}{author} se șterge definitiv, împreună cu datele de lectură. Nu se poate anula.",
+  "deleteBook.byAuthor": " de {author}",
+  "deleteBook.failed": "Nu am putut șterge: {message}",
+
+  /* -------------------------------------------------- empty and no-match states */
+  "empty.library.title": "Încă n-ai nicio carte",
+  "empty.library.body":
+    "Adaugă prima carte completând titlul. Restul câmpurilor — autor, pagini, gen, ISBN — sunt opționale și le poți completa oricând.",
+  "noMatches.title": "Nicio carte nu se potrivește",
+  "noMatches.search":
+    "Biblioteca nu e goală — caută cu mai puține cuvinte, sau verifică dacă titlul e scris altfel decât ți-l amintești.",
+  "noMatches.filters":
+    "Biblioteca nu e goală — filtrele sunt prea înguste. Mai scoate unul și cărțile se întorc.",
+  "noMatches.showAll": "Arată toate cărțile",
+  "filters.clear": "Șterge filtrele",
+
+  /* -------------------------------------------------- Open Library search */
+  "openLibrary.noResults": "Niciun rezultat. Completează manual mai jos.",
+  "openLibrary.unavailable":
+    "Open Library nu răspunde acum. Completează cartea manual mai jos.",
+  "openLibrary.orManual":
+    "Sau completează manual mai jos — câmpurile rămân editabile oricum.",
+
+  /* -------------------------------------------------- start reading */
+  "startReading.title": "Câte pagini are?",
+  "startReading.why": "Ca să-ți pot arăta cât ai citit din ea. Poți sări peste.",
+  "startReading.without": "Fără el, progresul se arată ca „pag. 143”, fără procent.",
+  "startReading.confirm": "Salvează și începe",
+
+  "startReading.movesTo": "{title} trece la {status}.",
+  "startReading.pagesLabel": "Nr. de pagini",
+  "revoke.title": "Revoci accesul?",
+  "revoke.body": "{client} nu va mai putea citi sau modifica biblioteca. Poți reconecta asistentul oricând, dintr-o nouă aprobare.",
+  "revoke.failed": "Nu am putut revoca accesul: {message}",
+
+  /* -------------------------------------------------- budget */
+  "budget.wishlistTotal": "Cât m-ar costa tot",
+  "budget.spentTotal": "Cât am cheltuit",
+  "budget.noBudgetYet":
+    "Cheltuit luna asta. Pune-ți un buget ca să vezi și cât mai ai.",
+  "budget.noBudget": "fără buget",
+  "budget.overspentTail": ". Nimic nu se blochează — doar știi.",
+  "budget.emptyChart":
+    "Niciun grafic încă: nicio carte cumpărată n-are dată de cumpărare.",
+
+  "budget.overspent": "Ai depășit bugetul de {budget} cu {over}. Nimic nu se blochează — doar știi.",
+  "budget.remaining": "Ți-au mai rămas {remaining} din {budget} luna asta.",
+
+  /* -------------------------------------------------- reading chart */
+  "chart.reading.title": "Cărți terminate pe luni",
+  "chart.reading.column": "Cărți terminate",
+  "chart.reading.empty":
+    "Niciun grafic încă: nicio carte terminată n-are dată de terminare.",
+  "chart.month": "Luna",
+
+  /* -------------------------------------------------- challenges */
+  "challenge.edit": "Editează provocarea",
+  "challenge.new": "Provocare nouă",
+  "challenge.create": "Creează o provocare",
+  "challenge.namePlaceholder": "Provocarea de vară",
+  "challenge.descriptionOptional": "Descriere (opțional)",
+  "challenge.noBooksYet": "Nicio carte încă.",
+  "challenge.noBooksYetHint":
+    "Nicio carte încă. „Editează provocarea” ca să adaugi una din bibliotecă.",
+  "challenge.deleteTitle": "Ștergi definitiv provocarea?",
+  "challenge.delete": "Șterge provocarea",
+  "challenge.bookTally": {
+    one: "o carte",
+    few: "{count} cărți",
+    other: "{count} de cărți",
+  },
+  "challenge.none": "Nicio provocare încă",
+  "challenge.noneBody":
+    "O provocare e un set de cărți și un termen — un raft care se umple pe măsură ce citești.",
+  "challenge.done": "Provocare încheiată.",
+  "challenge.behind": "Ceva mai puțin citit decât timpul scurs.",
+  "challenge.onTrack": "Conform sau înaintea termenului.",
+  "challenge.booksLabel": "Cărți",
+  "challenge.finishedBooks": "cărți terminate",
+  "challenge.currentPage": "Pagina curentă",
+  "challenge.timeElapsed": "Timp scurs",
+  "challenge.deadlineOn": "până pe {date}",
+  "challenge.changePage": "{progress} · schimbă pagina",
+  "challenge.finishBook": "Marchează terminată",
+  "challenge.noteOptional": "Notă (opțional)",
+
+  /* -------------------------------------------------- connectors (MCP) */
+  "connectors.title": "Aplicații conectate",
+  "connectors.body":
+    "Asistenții AI cu acces la biblioteca ta prin MCP. Un conector revocat poate fi reconectat oricând, printr-o nouă aprobare.",
+  "connectors.loadFailed": "Nu am putut încărca lista.",
+  "connectors.revoke": "Revocă",
+  "connectors.revoking": "Se revocă…",
+  "connectors.revokeConfirm": "Revocă accesul",
+  "connectors.revokeBody":
+    "nu va mai putea citi sau modifica biblioteca. Poți reconecta asistentul oricând, dintr-o nouă aprobare.",
+  "connectors.lastUsed": "folosit ultima dată pe {date}",
+  "connectors.neverUsed": "nefolosit încă",
+
+  /* -------------------------------------------------- MCP consent */
+  "consent.scope":
+    "Acces complet la biblioteca ta: poate citi, adăuga, modifica și șterge cărți.",
+  "consent.scopeOther": "Domeniul cerut: {scope}",
+  "consent.approve": "Aprobă",
+  "consent.deny": "Refuză",
+  "consent.connecting": "Se conectează…",
+  "consent.missing":
+    "Lipsește cererea de conectare. Reia procesul din asistentul AI.",
+
+  "consent.requestInvalid": "Cererea a expirat sau nu mai e validă. Reia conectarea din asistent.",
+  "consent.failed": "Nu am putut conecta: {message}",
+  "pair.codeLabel": "Codul de pe Kobo",
+
+  /* -------------------------------------------------- Kobo pairing */
+  "pair.title": "Împerechere Kobo",
+  "pair.body":
+    "Google refuză autentificarea directă în browserul unui Kobo. Tastează aici codul pe care Kobo-ul îl arată pe ecran.",
+  "pair.failed": "Nu am putut aproba codul. Încearcă din nou.",
+  "pair.done": "Pe Kobo, apasă „Am aprobat, continuă”.",
+  "pair.again": "Împerechează alt dispozitiv",
+
+  /* -------------------------------------------------- admin */
+  "admin.title": "Impersonează utilizator",
+  "admin.body":
+    "Preia sesiunea unui alt cont, pentru depanare. Te poți întoarce oricând la contul tău din bannerul afișat cât timp impersonezi.",
+  "admin.searchFailed": "Căutarea a eșuat. Încearcă din nou.",
+  "admin.noAccounts": "Niciun cont găsit.",
+  "admin.impersonate": "Impersonează",
+
+  /* -------------------------------------------------- login */
+  "login.tagline": "așa cum o ții minte",
+  "login.google": "Continuă cu Google",
+  "login.privacy":
+    "Nu-ți cerem o parolă nouă și nu citim nimic din contul tău Google în afară de nume, e-mail și poză.",
+  "login.failed": "Autentificarea nu a reușit. Mai încearcă o dată.",
+  "login.throttled":
+    "Prea multe încercări de autentificare. Așteaptă un minut și încearcă din nou.",
+
+  "login.headlineLead": "Biblioteca ta,",
+  "login.headline": "Biblioteca ta, {tagline}.",
+  "page.shelf.alphabetical": "Alfabetic",
+
+  "origin.library": "bibliotecă",
+  "origin.wishlist": "wishlist",
+  "origin.gallery": "galerie",
+  "origin.shelf": "raft",
+  "origin.challenge": "provocare",
+  "origin.back": "Înapoi la {where}",
+
+  /* -------------------------------------------------- page furniture */
+  "page.wishlist.blurb": "Cărțile pe care vrei să le citești, separat de ce ai deja.",
+  "page.wishlist.empty":
+    "Adaugă o carte cu statusul „Wishlist” și trece-i prețul pe care crezi că-l are. Prețul e opțional — cartea poate sta aici și fără el.",
+  "page.wishlist.totalNote":
+    "Totalul e pentru tot wishlist-ul, nu doar pentru rezultatele căutării.",
+  "page.gallery.blurb": "Cărțile tale după copertă — cum arată un raft, nu un tabel.",
+  "page.shelf.blurb": "Cărțile pe care le ai, așa cum ar sta pe un raft adevărat.",
+  "page.shelf.empty":
+    "Aici ajung cărțile pe care le ai — cumpărate, în curs, terminate sau abandonate. Cele din wishlist încă nu-ți stau pe raft.",
+  "page.shelf.order": "Ordinea cărților pe raft",
+  "page.shelf.byPurchase": "După cumpărare",
+  "page.budget.blurb": "Cât ai dat pe cărți, și cât ți-ai propus să dai luna asta.",
+  "page.stats.blurb": "Cât ai citit, și când — nu câte cărți ai.",
+  "page.profile.noDescription":
+    "Cartea n-are încă o descriere. Scrie una din „Editează” — sau cere-i lui Claude, dacă l-ai conectat la bibliotecă, să caute despre ce e cartea și să ți-o completeze.",
+  "page.selector.viewMode": "Mod de afișare",
+  "page.selector.loadFailed": "Nu am putut încărca biblioteca.",
+
+  /* -------------------------------------------------- what a screen is loading */
+  "loading.library": "Se încarcă biblioteca…",
+  "loading.wishlist": "Se încarcă wishlist-ul…",
+  "loading.gallery": "Se încarcă galeria…",
+  "loading.shelf": "Se încarcă raftul…",
+  "loading.budget": "Se încarcă bugetul…",
+  "loading.chart": "Se încarcă graficul…",
+  "loading.stats": "Se încarcă statisticile…",
+  "loading.challenge": "Se încarcă provocarea…",
+  "loading.book": "Se încarcă cartea…",
+
+  /* -------------------------------------------------- what failed to load */
+  "what.library": "biblioteca",
+  "what.wishlist": "wishlist-ul",
+  "what.gallery": "galeria",
+  "what.shelf": "raftul",
+  "what.budget": "bugetul",
+  "what.chart": "graficul",
+  "what.stats": "statisticile",
+  "what.challenge": "provocarea",
+  "what.book": "cartea",
+
+  /* -------------------------------------------------- api */
+  "api.sessionExpired": "Sesiune expirată sau inexistentă",
+
+  "nav.menu": "Meniu",
+  "home.readingNow": "Citesc acum",
+  "field.pagesShort": "Pagini",
+  "field.descriptionPlaceholder": "Despre ce e cartea…",
+  "bookForm.readingData": "Datele lecturii",
+  "cover.preview": "Previzualizarea copertei",
+  "filters.allCategories": "Toate categoriile",
+  "startReading.skip": "Sari peste",
+  "budget.monthly": "Buget lunar",
+  "chart.spend.title": "Cheltuieli pe luni",
+  "profile.details": "Detalii",
+  "connectors.none": "Niciun asistent conectat momentan.",
+  "pair.codeApproved": "Cod aprobat",
+  "pair.code": "Cod",
+  "page.shelf.emptyTitle": "Raftul e gol",
+  "page.wishlist.emptyTitle": "Wishlist-ul e gol",
+
   /* -------------------------------------------------- months */
   "month.1": "ianuarie",
   "month.2": "februarie",

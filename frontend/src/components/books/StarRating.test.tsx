@@ -1,12 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { StarRating, StarRatingInput } from "./StarRating";
+import { renderWithQuery } from "../../test/helpers";
 
 describe("StarRating — the read-only stars (S2.3)", () => {
   it("says the rating in words, not in five separate glyphs", () => {
-    render(<StarRating rating={4} />);
+    renderWithQuery(<StarRating rating={4} />);
 
     // The stars are decoration; a screen reader gets one sentence.
     expect(screen.getByRole("img", { name: "4 din 5 stele" })).toBeInTheDocument();
@@ -14,14 +15,14 @@ describe("StarRating — the read-only stars (S2.3)", () => {
 
   it("shows an empty marker for an unrated book, not zero stars", () => {
     // §D5 excludes unrated books from the average — they are absent, not bad.
-    render(<StarRating rating={null} />);
+    renderWithQuery(<StarRating rating={null} />);
 
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("fills exactly as many stars as the rating", () => {
-    const { container } = render(<StarRating rating={3} />);
+    const { container } = renderWithQuery(<StarRating rating={3} />);
 
     const stars = [...container.querySelectorAll("span[aria-hidden]")];
     expect(stars).toHaveLength(5);
@@ -46,7 +47,7 @@ function Harness({ initial = "" }: { initial?: string }) {
 
 describe("StarRatingInput — the form control (S2.3)", () => {
   it("offers five whole stars and no halves", async () => {
-    render(<Harness />);
+    renderWithQuery(<Harness />);
 
     expect(screen.getAllByRole("radio")).toHaveLength(6); // five stars + "no rating"
     expect(screen.getByRole("radio", { name: "1 stea" })).toBeInTheDocument();
@@ -56,7 +57,7 @@ describe("StarRatingInput — the form control (S2.3)", () => {
 
   it("selects the star that was clicked", async () => {
     const user = userEvent.setup();
-    render(<Harness />);
+    renderWithQuery(<Harness />);
 
     await user.click(screen.getByRole("radio", { name: "4 stele" }));
 
@@ -65,7 +66,7 @@ describe("StarRatingInput — the form control (S2.3)", () => {
   });
 
   it("keeps an existing rating selected when it opens", () => {
-    render(<Harness initial="2" />);
+    renderWithQuery(<Harness initial="2" />);
 
     expect(screen.getByRole("radio", { name: "2 stele" })).toBeChecked();
   });
@@ -74,7 +75,7 @@ describe("StarRatingInput — the form control (S2.3)", () => {
     // The API takes `null` at any status, so removing a rating is never the
     // thing that blocks a save.
     const user = userEvent.setup();
-    render(<Harness initial="5" />);
+    renderWithQuery(<Harness initial="5" />);
 
     await user.click(screen.getByText("fără rating"));
 
@@ -87,7 +88,7 @@ describe("StarRatingInput — the form control (S2.3)", () => {
     // to move within it. A div with an onClick would have needed every bit of
     // that written by hand.
     const user = userEvent.setup();
-    render(<Harness initial="3" />);
+    renderWithQuery(<Harness initial="3" />);
 
     await user.tab();
     expect(screen.getByRole("radio", { name: "3 stele" })).toHaveFocus();
@@ -99,7 +100,7 @@ describe("StarRatingInput — the form control (S2.3)", () => {
   it("does not fire when disabled", async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderWithQuery(
       <StarRatingInput name="rating" value="" disabled onChange={onChange} />,
     );
 

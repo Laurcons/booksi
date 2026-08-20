@@ -1,5 +1,6 @@
 import { progressLabel, progressRatio, type Book } from "@bookcsi/shared";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
+import { useT } from "../i18n/locale-context";
 
 /**
  * A small strip so the page has somewhere to go after the shelf. The progress
@@ -11,6 +12,7 @@ import { apiImageSrc, CREDENTIALED_IMAGE } from "../lib/media";
  * time by hand.
  */
 export function CurrentlyReading({ books }: { books: Book[] }) {
+  const t = useT();
   const reading = books.filter((book) => book.status === "READING");
 
   if (reading.length === 0) {
@@ -20,7 +22,7 @@ export function CurrentlyReading({ books }: { books: Book[] }) {
   return (
     <section>
       <h2 className="mb-4 text-[11px] font-medium tracking-[0.08em] text-ink-3 uppercase">
-        Citesc acum
+        {t("home.readingNow")}
       </h2>
 
       <div className="grid gap-4 sm:grid-cols-3">

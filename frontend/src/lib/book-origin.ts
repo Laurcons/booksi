@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { Book } from "@bookcsi/shared";
+import { isMessageKey, type MessageKey } from "../i18n/catalog";
 
 /**
  * §D41 — how the book profile knows where its "înapoi" goes.
@@ -20,14 +21,20 @@ import type { Book } from "@bookcsi/shared";
  * So the origin travels *with* the navigation, in the history entry's state.
  * That survives a reload (the browser persists `history.state`) and it carries
  * the screen's own name, which is what turns "←" into "← Înapoi la raft".
+ *
+ * **The name travels as a catalog key, not as a word** (§D44). Because the state
+ * outlives the navigation that wrote it, a stored Romanian noun would still be
+ * Romanian after the reader switched to English — a label frozen at whichever
+ * language happened to be on screen when they clicked. A key is resolved at
+ * render, so it follows the language like everything else.
  * When there is no state — the genuinely cold arrival — `defaultOrigin` picks
  * the screen the book itself belongs on rather than guessing.
  */
 export interface BookOrigin {
   /** An in-app path: pathname plus whatever query string it carried. */
   to: string;
-  /** The screen's name, as it reads after "Înapoi la". */
-  label: string;
+  /** The screen's name, as a catalog key — see the note above on why. */
+  label: MessageKey;
 }
 
 export function bookProfilePath(id: string): string {
@@ -42,7 +49,7 @@ export function bookProfilePath(id: string): string {
  * table mapping one to the other would be a second place to keep the nav's
  * wording in step.
  */
-export function useOpenBook(label: string): (book: Book) => void {
+export function useOpenBook(label: MessageKey): (book: Book) => void {
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
 
@@ -61,7 +68,7 @@ export function useOpenBook(label: string): (book: Book) => void {
  *
  * The book is passed in so that a cold arrival still lands somewhere true: a
  * wishlist entry belongs on the wishlist, everything else on the library. It
- * is `undefined` while the book loads, and the button reads "bibliotecă" for
+ * is `undefined` while the book loads, and the button reads "the library" for
  * that moment — the honest default, and the one screen every book appears on.
  */
 export function useBookOrigin(book: Book | undefined): BookOrigin {
@@ -72,8 +79,8 @@ export function useBookOrigin(book: Book | undefined): BookOrigin {
 
 export function defaultOrigin(book: Book | undefined): BookOrigin {
   return book?.status === "WISHLIST"
-    ? { to: "/wishlist", label: "wishlist" }
-    : { to: "/", label: "bibliotecă" };
+    ? { to: "/wishlist", label: "origin.wishlist" }
+    : { to: "/", label: "origin.library" };
 }
 
 /**
@@ -96,7 +103,11 @@ export function readOrigin(state: unknown): BookOrigin | null {
 
   const { to, label } = origin as { to?: unknown; label?: unknown };
 
-  if (typeof to !== "string" || typeof label !== "string" || label === "") {
+  // The label is held to the catalog, not merely to "a non-empty string": state
+  // this old can predate a key being renamed, and a bare key on the button is
+  // exactly the failure §D44's typed catalog exists to prevent. An unknown one
+  // falls back to `defaultOrigin` rather than rendering itself.
+  if (typeof to !== "string" || !isMessageKey(label)) {
     return null;
   }
 

@@ -4,10 +4,7 @@ import { MIN_SEARCH_LENGTH, useOpenLibrarySearch } from "../../api/openlibrary";
 import { errorMessage } from "../../lib/api";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../../lib/media";
 import { useDebounced } from "../../lib/use-debounced";
-
-/** Only for a failure with no words of its own — see `errorMessage` (§D27). */
-const SEARCH_FAILED =
-  "Open Library nu răspunde acum. Completează cartea manual mai jos.";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S4.1 — the search band at the top of the add dialog.
@@ -30,6 +27,7 @@ export function OpenLibrarySearch({
   /** Set while the parent is resolving the edition behind a chosen result. */
   busy?: boolean;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
 
   // The 300ms S4.1 asks for: one request per pause in typing, not per key.
@@ -52,8 +50,8 @@ export function OpenLibrarySearch({
     <div className="border-b border-line bg-surface-2/40 px-6 py-4">
       <label className="block">
         <span className="mb-1.5 flex items-baseline justify-between">
-          <span className="text-sm text-ink-2">Caută în Open Library</span>
-          <span className="text-xs text-ink-3">după titlu sau autor</span>
+          <span className="text-sm text-ink-2">{t("search.openLibrary")}</span>
+          <span className="text-xs text-ink-3">{t("search.byTitleOrAuthor")}</span>
         </span>
         <input
           type="search"
@@ -69,7 +67,7 @@ export function OpenLibrarySearch({
       </label>
 
       <p className="mt-2 text-xs text-ink-3">
-        Sau completează manual mai jos — câmpurile rămân editabile oricum.
+        {t("openLibrary.orManual")}
       </p>
 
       {open && (
@@ -77,7 +75,7 @@ export function OpenLibrarySearch({
           {/* A pending fetch and a pause not yet elapsed look the same to
               someone waiting, so they read the same. */}
           {(search.isPending || typing) && (
-            <p className="text-sm text-ink-3">Se caută…</p>
+            <p className="text-sm text-ink-3">{t("common.searching")}</p>
           )}
 
           {/* The degradation criterion, on screen.
@@ -89,13 +87,14 @@ export function OpenLibrarySearch({
               the API at all. */}
           {search.isError && (
             <p role="status" className="text-sm text-ink-2">
-              {errorMessage(search.error, SEARCH_FAILED)}
+              {/* Only for a failure with no words of its own — §D27. */}
+              {errorMessage(search.error, t("openLibrary.unavailable"))}
             </p>
           )}
 
           {search.isSuccess && search.data.length === 0 && (
             <p className="text-sm text-ink-2">
-              Niciun rezultat. Completează manual mai jos.
+              {t("openLibrary.noResults")}
             </p>
           )}
 

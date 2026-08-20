@@ -1,3 +1,5 @@
+import { useT } from "../../i18n/locale-context";
+
 /**
  * The other kind of empty — the list is short because the user narrowed it,
  * not because the library is.
@@ -19,18 +21,15 @@ export function NoMatches({
   searching: boolean;
   onClear: () => void;
 }) {
+  const t = useT();
   return (
     <div className="rounded-xl border border-line bg-surface-1 px-6 py-16 text-center">
-      <p className="font-display text-2xl text-ink">Nicio carte nu se potrivește</p>
+      <p className="font-display text-2xl text-ink">{t("noMatches.title")}</p>
       <p className="mx-auto mt-3 max-w-sm text-sm text-ink-2">
-        {searching
-          ? // Naming the likeliest cause beats a generic "try again": every word
-            // typed has to match something, so one word too many is the usual
-            // way a search that should have worked comes back empty.
-            "Biblioteca nu e goală — caută cu mai puține cuvinte, sau verifică" +
-            " dacă titlul e scris altfel decât ți-l amintești."
-          : "Biblioteca nu e goală — filtrele sunt prea înguste. Mai scoate unul" +
-            " și cărțile se întorc."}
+        {/* Naming the likeliest cause beats a generic "try again": every word
+            typed has to match something, so one word too many is the usual way
+            a search that should have worked comes back empty. */}
+        {searching ? t("noMatches.search") : t("noMatches.filters")}
       </p>
       {/* Deliberately not the same words as the filter strip's own reset: two
           buttons reading "Șterge filtrele" on one screen is a puzzle, and this
@@ -40,7 +39,7 @@ export function NoMatches({
         onClick={onClear}
         className="mt-6 rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet"
       >
-        Arată toate cărțile
+        {t("noMatches.showAll")}
       </button>
     </div>
   );

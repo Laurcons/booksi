@@ -3,8 +3,8 @@ import { Navigate, useNavigate } from "react-router";
 import { MIN_ADMIN_SEARCH_LENGTH, useCurrentUser, useImpersonate, useSearchAdminUsers } from "../api/auth";
 import { errorMessage } from "../lib/api";
 import { useDebounced } from "../lib/use-debounced";
+import { useT } from "../i18n/locale-context";
 
-const SEARCH_FAILED = "Căutarea a eșuat. Încearcă din nou.";
 
 /**
  * §D38 — admin-only. The backend's `AdminGuard` is the real enforcement; the
@@ -22,6 +22,7 @@ export function AdminImpersonatePage() {
 }
 
 function AdminImpersonateScreen() {
+  const t = useT();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const debounced = useDebounced(query, 300);
@@ -32,14 +33,13 @@ function AdminImpersonateScreen() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="font-display text-2xl text-ink">Impersonează utilizator</h1>
+      <h1 className="font-display text-2xl text-ink">{t("admin.title")}</h1>
       <p className="mt-2 text-sm text-ink-2">
-        Preia sesiunea unui alt cont, pentru depanare. Te poți întoarce oricând la contul tău din
-        bannerul afișat cât timp impersonezi.
+        {t("admin.body")}
       </p>
 
       <label className="mt-8 block">
-        <span className="mb-1.5 block text-sm text-ink-2">Caută după email</span>
+        <span className="mb-1.5 block text-sm text-ink-2">{t("search.byEmail")}</span>
         <input
           type="search"
           value={query}
@@ -54,26 +54,26 @@ function AdminImpersonateScreen() {
         <div className="mt-4">
           {results.isPending && (
             <p className="text-sm text-ink-3" role="status">
-              Se caută…
+              {t("common.searching")}
             </p>
           )}
 
           {results.isError && (
             <div className="rounded-lg border border-line bg-surface-2 px-4 py-3">
-              <p className="text-sm text-ink-2">{errorMessage(results.error, SEARCH_FAILED)}</p>
+              <p className="text-sm text-ink-2">{errorMessage(results.error, t("admin.searchFailed"))}</p>
               <button
                 type="button"
                 onClick={() => void results.refetch()}
                 className="mt-3 rounded-lg border border-accent-quiet bg-accent-quiet/40 px-3 py-1.5 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet"
               >
-                Încearcă din nou
+                {t("common.retry")}
               </button>
             </div>
           )}
 
           {results.data && results.data.length === 0 && (
             <p className="rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink-2">
-              Niciun cont găsit.
+              {t("admin.noAccounts")}
             </p>
           )}
 
@@ -99,7 +99,7 @@ function AdminImpersonateScreen() {
                     }
                     className="shrink-0 rounded-lg border border-accent-quiet bg-accent-quiet/40 px-3 py-1.5 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-60"
                   >
-                    Impersonează
+                    {t("admin.impersonate")}
                   </button>
                 </li>
               ))}

@@ -7,6 +7,7 @@ import { Shelf } from "../components/Shelf";
 import { useOpenBook } from "../lib/book-origin";
 import { SHELF_ORDERS, type ShelfOrder } from "../lib/shelf";
 import { useT } from "../i18n/locale-context";
+import type { MessageKey } from "../i18n/catalog";
 
 /**
  * S8.2 — the shelf.
@@ -24,9 +25,9 @@ import { useT } from "../i18n/locale-context";
  */
 const OWNED: Status[] = ["PURCHASED", "READING", "FINISHED", "ABANDONED"];
 
-const ORDER_LABEL: Record<ShelfOrder, string> = {
-  purchased: "După cumpărare",
-  alphabetical: "Alfabetic",
+const ORDER_LABEL: Record<ShelfOrder, MessageKey> = {
+  purchased: "page.shelf.byPurchase",
+  alphabetical: "page.shelf.alphabetical",
 };
 
 function queryFor(order: ShelfOrder): ListBooksQuery {
@@ -36,7 +37,7 @@ function queryFor(order: ShelfOrder): ListBooksQuery {
 export function ShelfPage() {
   const t = useT();
   const [order, setOrder] = useState<ShelfOrder>("purchased");
-  const openBook = useOpenBook("raft");
+  const openBook = useOpenBook("origin.shelf");
 
   const { data: books, isPending, isError, error, refetch } = useBooks(
     queryFor(order),
@@ -50,21 +51,21 @@ export function ShelfPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-4xl text-ink">
-              Raft<span className="text-accent">.</span>
+              {t("nav.shelf")}<span className="text-accent">.</span>
             </h1>
             <p className="mt-2 text-ink-2">
-              Cărțile pe care le ai, așa cum ar sta pe un raft adevărat.
+              {t("page.shelf.blurb")}
             </p>
           </div>
 
           <OrderPicker order={order} onChange={setOrder} />
         </div>
 
-        {isPending && <Note>Se încarcă raftul…</Note>}
+        {isPending && <Note>{t("loading.shelf")}</Note>}
 
         {isError && (
           <LoadFailure
-            what="raftul"
+            what={t("what.shelf")}
             error={error}
             onRetry={() => void refetch()}
           />
@@ -97,10 +98,11 @@ function OrderPicker({
   order: ShelfOrder;
   onChange: (order: ShelfOrder) => void;
 }) {
+  const t = useT();
   return (
     <div
       role="group"
-      aria-label="Ordinea cărților pe raft"
+      aria-label={t("page.shelf.order")}
       className="flex rounded-lg border border-line bg-surface-1 p-1"
     >
       {(Object.keys(ORDER_LABEL) as ShelfOrder[]).map((option) => (
@@ -124,12 +126,12 @@ function OrderPicker({
 }
 
 function EmptyShelf() {
+  const t = useT();
   return (
     <div className="rounded-xl border border-line bg-surface-1 px-6 py-16 text-center">
-      <p className="font-display text-2xl text-ink">Raftul e gol</p>
+      <p className="font-display text-2xl text-ink">{t("page.shelf.emptyTitle")}</p>
       <p className="mx-auto mt-3 max-w-sm text-sm text-ink-2">
-        Aici ajung cărțile pe care le ai — cumpărate, în curs, terminate sau
-        abandonate. Cele din wishlist încă nu-ți stau pe raft.
+        {t("page.shelf.empty")}
       </p>
     </div>
   );

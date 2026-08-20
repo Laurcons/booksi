@@ -74,12 +74,12 @@ export function SpendChart({
   return (
     <section className="rounded-xl border border-line bg-surface-1 px-8 py-7">
       <h2 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        Cheltuieli pe luni
+        {t("chart.spend.title")}
       </h2>
 
       {data.months.length === 0 ? (
         <p className="mt-4 text-sm text-ink-2">
-          Niciun grafic încă: nicio carte cumpărată n-are dată de cumpărare.
+          {t("budget.emptyChart")}
         </p>
       ) : (
         <>
@@ -148,10 +148,10 @@ export function SpendChart({
               screen reader, and the numbers behind it are small enough to say
               outright. Same data, same order, no separate source of truth. */}
           <table className="sr-only">
-            <caption>Cheltuieli pe luni</caption>
+            <caption>{t("chart.spend.title")}</caption>
             <thead>
               <tr>
-                <th scope="col">Luna</th>
+                <th scope="col">{t("chart.month")}</th>
                 <th scope="col">Cheltuit ({CURRENCY})</th>
               </tr>
             </thead>

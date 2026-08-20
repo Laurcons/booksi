@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { useApproveConsent, useConsentRequest } from "../api/mcp";
 import { errorMessage } from "../lib/api";
+import type { TFunction } from "../i18n/catalog";
+import { useT } from "../i18n/locale-context";
 
 /**
  * The consent screen `GET /oauth/authorize` redirects to once a user is
@@ -10,6 +12,7 @@ import { errorMessage } from "../lib/api";
  * existing `return-to` mechanism, no extra plumbing needed.
  */
 export function McpConsentPage() {
+  const t = useT();
   const [params] = useSearchParams();
   const req = params.get("req");
 
@@ -17,7 +20,7 @@ export function McpConsentPage() {
     return (
       <ConsentShell>
         <p className="text-sm text-ink-2">
-          Lipsește cererea de conectare. Reia procesul din asistentul AI.
+          {t("consent.missing")}
         </p>
       </ConsentShell>
     );
@@ -27,6 +30,7 @@ export function McpConsentPage() {
 }
 
 function ConsentPrompt({ req }: { req: string }) {
+  const t = useT();
   const consent = useConsentRequest(req);
   const approve = useApproveConsent(req);
 
@@ -34,7 +38,7 @@ function ConsentPrompt({ req }: { req: string }) {
     return (
       <ConsentShell>
         <p className="text-sm text-ink-3" role="status">
-          Se încarcă…
+          {t("common.loading")}
         </p>
       </ConsentShell>
     );
@@ -46,7 +50,7 @@ function ConsentPrompt({ req }: { req: string }) {
         <p role="alert" className="text-sm text-status-abandoned">
           {errorMessage(
             consent.error,
-            "Cererea a expirat sau nu mai e validă. Reia conectarea din asistent.",
+            t("consent.requestInvalid"),
           )}
         </p>
       </ConsentShell>
@@ -70,12 +74,14 @@ function ConsentPrompt({ req }: { req: string }) {
         {clientName} vrea acces la biblioteca ta
       </h1>
       <p className="mt-3 text-sm text-ink-2">
-        {scopeDescription(scope)}
+        {scopeDescription(scope, t)}
       </p>
 
       {approve.error && (
         <p role="alert" className="mt-4 text-sm text-status-abandoned">
-          Nu am putut conecta: {errorMessage(approve.error, "Încearcă din nou.")}
+          {t("consent.failed", {
+            message: errorMessage(approve.error, t("common.retry")),
+          })}
         </p>
       )}
 
@@ -86,7 +92,7 @@ function ConsentPrompt({ req }: { req: string }) {
           disabled={approve.isPending}
           className="rounded-lg px-4 py-2 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink disabled:opacity-60"
         >
-          Refuză
+          {t("consent.deny")}
         </button>
         <button
           type="button"
@@ -100,18 +106,25 @@ function ConsentPrompt({ req }: { req: string }) {
           }
           className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-surface-0 transition-colors duration-150 hover:bg-accent-hover disabled:opacity-60"
         >
-          {approve.isPending ? "Se conectează…" : "Aprobă"}
+          {approve.isPending ? t("consent.connecting") : t("consent.approve")}
         </button>
       </div>
     </ConsentShell>
   );
 }
 
-/** One scope exists today (docs/MCP.md §8) — spelled out, not shown as a raw token. */
-function scopeDescription(scope: string): string {
+/**
+ * One scope exists today (docs/MCP.md §8) — spelled out, not shown as a raw
+ * token.
+ *
+ * Takes `t` rather than calling `useT()`: this is a plain function, not a
+ * component, so a hook inside it would break the rules of hooks (and did, until
+ * `oxlint` said so).
+ */
+function scopeDescription(scope: string, t: TFunction): string {
   return scope.includes("library")
-    ? "Acces complet la biblioteca ta: poate citi, adăuga, modifica și șterge cărți."
-    : `Domeniul cerut: ${scope}`;
+    ? t("consent.scope")
+    : t("consent.scopeOther", { scope });
 }
 
 function ConsentShell({ children }: { children: ReactNode }) {

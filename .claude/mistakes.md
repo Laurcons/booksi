@@ -189,3 +189,32 @@ list in `CategoryPicker`, so the category filter would have gone on matching
 against the previous language's labels after a switch. Typecheck was clean;
 `oxlint`'s `exhaustive-deps` caught it. Worth running lint, not just tests,
 after a mechanical sweep that adds a new reactive value to many components.
+
+### A diacritic scan is not an inventory of Romanian strings
+
+Reported "224 strings across 42 files remaining", stopped, and committed a
+half-translated app on the strength of that number. The number came from
+grepping for `[ăâîșțĂÂÎȘȚ]`.
+
+It missed roughly a third of what was left, because plenty of Romanian has no
+diacritics: `Titlu`, `Autor`, `Status`, `Raft`, `Galerie`, `Buget`,
+`Cod aprobat`, `Meniu`, `Detalii`, `Descriere`, `Sari peste`,
+`Toate categoriile`, `Buget lunar`, `Cheltuieli pe luni`,
+`Niciun asistent conectat momentan.` — table headers, page headings and button
+labels, i.e. the most visible text in the app. The scan's blind spot correlated
+with *short* strings, which is exactly where headings live.
+
+**What actually works:** scan the user-facing *surfaces* instead of the
+alphabet — JSX text nodes, plus `aria-label`/`title`/`placeholder`/`label`/
+`hint`/`alt` attributes — and require every one to be a `t(...)` call rather
+than a literal, with a named allow-list for the handful that are legitimately
+language-neutral (`Bookcsi`, `ISBN`, `lei`, example placeholders). That check
+found 40 more strings after the diacritic scan reported zero, and it is the
+check worth keeping, because it fails for the right reason: a bare literal on a
+user-facing surface, whatever language it is in.
+
+**The bigger mistake was stopping there.** "224 remaining" was reported
+honestly, twice, and then committed anyway on a "commit pls" — but a flagged gap
+is still a gap, and a half-translated interface is worse than either language
+alone. When the remaining work is the same *kind* of work, finish it rather than
+reporting a count; a checkpoint is for decisions, not for grinding.

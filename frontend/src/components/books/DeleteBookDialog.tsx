@@ -1,6 +1,7 @@
 import type { Book } from "@bookcsi/shared";
 import { useDeleteBook } from "../../api/books";
 import { Modal } from "../Modal";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * S1.3 — deletion asks first. It is permanent and it is one click away from an
@@ -23,20 +24,26 @@ export function DeleteBookDialog({
    */
   onDeleted?: () => void;
 }) {
+  const t = useT();
   const remove = useDeleteBook();
 
   return (
-    <Modal title="Ștergi cartea?" onClose={onClose}>
+    <Modal title={t("deleteBook.title")} onClose={onClose}>
       <div className="px-6 py-5">
+        {/* One sentence, with title and author interpolated: the clause order
+            around them differs between the two languages (§D44). */}
         <p className="text-sm text-ink-2">
-          <span className="text-ink">„{book.title}"</span>
-          {book.author && <span className="text-ink-3"> de {book.author}</span>} se
-          șterge definitiv, împreună cu datele de lectură. Nu se poate anula.
+          {t("deleteBook.body", {
+            title: `„${book.title}"`,
+            author: book.author
+              ? t("deleteBook.byAuthor", { author: book.author })
+              : "",
+          })}
         </p>
 
         {remove.error && (
           <p role="alert" className="mt-4 text-sm text-status-abandoned">
-            Nu am putut șterge: {remove.error.message}
+            {t("deleteBook.failed", { message: remove.error.message })}
           </p>
         )}
       </div>
@@ -47,7 +54,7 @@ export function DeleteBookDialog({
           onClick={onClose}
           className="rounded-lg px-4 py-2 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
         >
-          Renunță
+          {t("common.cancel")}
         </button>
         <button
           type="button"
@@ -57,7 +64,7 @@ export function DeleteBookDialog({
           }
           className="rounded-lg border border-status-abandoned/40 px-4 py-2 text-sm font-medium text-ink-2 transition-colors duration-150 hover:border-status-abandoned hover:text-ink disabled:opacity-60"
         >
-          {remove.isPending ? "Se șterge…" : "Șterge definitiv"}
+          {remove.isPending ? t("common.deleting") : t("deleteBook.confirm")}
         </button>
       </div>
     </Modal>

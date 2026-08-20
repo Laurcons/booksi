@@ -39,12 +39,12 @@ export function ReadingChart({ data }: { data: StatsByMonth }) {
   return (
     <section className="rounded-xl border border-line bg-surface-1 px-8 py-7">
       <h2 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        Cărți terminate pe luni
+        {t("chart.reading.title")}
       </h2>
 
       {data.months.length === 0 ? (
         <p className="mt-4 text-sm text-ink-2">
-          Niciun grafic încă: nicio carte terminată n-are dată de terminare.
+          {t("chart.reading.empty")}
         </p>
       ) : (
         <>
@@ -92,11 +92,11 @@ export function ReadingChart({ data }: { data: StatsByMonth }) {
               screen reader, and the numbers behind it are small enough to say
               outright. Same data, same order, no separate source of truth. */}
           <table className="sr-only">
-            <caption>Cărți terminate pe luni</caption>
+            <caption>{t("chart.reading.title")}</caption>
             <thead>
               <tr>
-                <th scope="col">Luna</th>
-                <th scope="col">Cărți terminate</th>
+                <th scope="col">{t("chart.month")}</th>
+                <th scope="col">{t("chart.reading.column")}</th>
               </tr>
             </thead>
             <tbody>

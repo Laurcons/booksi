@@ -18,10 +18,11 @@ export function SpendTotal({
   total: number;
   undated: UndatedSpend;
 }) {
+  const t = useT();
   return (
     <div className="rounded-xl border border-line bg-surface-1 px-8 py-7">
       <p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        Cât am cheltuit
+        {t("budget.spentTotal")}
       </p>
       <p className="mt-2 font-display text-4xl text-ink tabular">
         {formatMoney(total)}{" "}

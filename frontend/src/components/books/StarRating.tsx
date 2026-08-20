@@ -1,3 +1,5 @@
+import { useT } from "../../i18n/locale-context";
+
 /**
  * S2.3 — five whole stars, no halves (docs/DESIGN.md §Stelele: `--accent` for
  * the filled ones, `--border` for the empty ones).
@@ -69,11 +71,12 @@ export function StarRatingInput({
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
   inputRef?: React.Ref<HTMLInputElement>;
 }) {
+  const t = useT();
   const selected = value === "" ? 0 : Number(value);
 
   return (
     <div className="flex items-center gap-3">
-      <div role="radiogroup" aria-label="Rating" className="flex items-center gap-1">
+      <div role="radiogroup" aria-label={t("field.rating")} className="flex items-center gap-1">
         {RATING_VALUES.map((star) => (
           <label
             key={star}
@@ -121,7 +124,7 @@ export function StarRatingInput({
           ref={inputRef}
           className="sr-only"
         />
-        <span className={value === "" ? "text-ink-2" : ""}>fără rating</span>
+        <span className={value === "" ? "text-ink-2" : ""}>{t("book.noRating")}</span>
       </label>
     </div>
   );

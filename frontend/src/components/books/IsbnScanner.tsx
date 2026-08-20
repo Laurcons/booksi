@@ -5,6 +5,8 @@ import {
   scanUnavailableReason,
   type ScanUnavailable,
 } from "../../lib/barcode";
+import { useT } from "../../i18n/locale-context";
+import type { MessageKey } from "../../i18n/catalog";
 
 /**
  * §D43 — the camera, pointed at the back of a book.
@@ -41,6 +43,7 @@ export function IsbnScanner({
   onFound: (isbn: string) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const video = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<State>({ kind: "starting" });
 
@@ -166,13 +169,13 @@ export function IsbnScanner({
   return (
     <div className="space-y-2 rounded-lg border border-line bg-surface-1 p-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-ink-2">{MESSAGE[state.kind](state)}</p>
+        <p className="text-sm text-ink-2">{t(MESSAGE[state.kind](state))}</p>
         <button
           type="button"
           onClick={onClose}
           className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink"
         >
-          Închide
+          {t("common.close")}
         </button>
       </div>
 
@@ -186,7 +189,7 @@ export function IsbnScanner({
           // the form the scan is filling in.
           playsInline
           muted
-          aria-label="Imagine de la cameră"
+          aria-label={t("scan.videoLabel")}
           className="aspect-video w-full rounded-md bg-surface-3 object-cover"
         />
       )}
@@ -214,20 +217,19 @@ function failureState(error: unknown): State {
 }
 
 /**
- * Romanian, like every other user-facing string (§D21). Each of these says what
- * happened *and* leaves the manual field alone — Sprint 4's degradation rule is
- * that the typed path stays completely usable, and a scanner is the most
- * skippable convenience in the form.
+ * A catalog key per state (§D44 — it was one Romanian sentence per state before).
+ * Each of these says what happened *and* leaves the manual field alone: Sprint
+ * 4's degradation rule is that the typed path stays completely usable, and a
+ * scanner is the most skippable convenience in the form.
  */
-const MESSAGE: Record<State["kind"], (state: State) => string> = {
-  starting: () => "Se pornește camera…",
-  scanning: () => "Arată codul de bare de pe spatele cărții.",
+const MESSAGE: Record<State["kind"], (state: State) => MessageKey> = {
+  starting: () => "scan.starting",
+  scanning: () => "scan.instruction",
   unavailable: (state) =>
     state.kind === "unavailable" && state.reason === "insecure-context"
-      ? "Camera funcționează doar pe HTTPS. Scrie ISBN-ul de mână."
-      : "Browserul acesta nu dă acces la cameră. Scrie ISBN-ul de mână.",
-  denied: () =>
-    "N-am primit acces la cameră. Poți permite accesul din setările browserului, sau scrie ISBN-ul de mână.",
-  "no-camera": () => "Nu găsesc nicio cameră. Scrie ISBN-ul de mână.",
-  broken: () => "Camera n-a putut porni. Scrie ISBN-ul de mână.",
+      ? "scan.needsHttps"
+      : "scan.unsupported",
+  denied: () => "scan.denied",
+  "no-camera": () => "scan.noCamera",
+  broken: () => "scan.failed",
 };

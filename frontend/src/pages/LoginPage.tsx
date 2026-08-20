@@ -1,5 +1,7 @@
 import { Navigate, useSearchParams } from "react-router";
 import { GOOGLE_LOGIN_URL, useCurrentUser } from "../api/auth";
+import { useT } from "../i18n/locale-context";
+import type { MessageKey } from "../i18n/catalog";
 
 /**
  * The only unauthenticated screen. Google is the single way in (S0.1) — there
@@ -7,6 +9,7 @@ import { GOOGLE_LOGIN_URL, useCurrentUser } from "../api/auth";
  * decision wide.
  */
 export function LoginPage() {
+  const t = useT();
   const { data: user, isPending } = useCurrentUser();
   const [params] = useSearchParams();
 
@@ -26,8 +29,14 @@ export function LoginPage() {
         <h1 className="mt-6 font-display text-4xl text-ink">
           Bookcsi<span className="text-accent">.</span>
         </h1>
+        {/* Two keys rather than one, and the one case §D44's "sentences are
+            whole" rule bends for: the tagline is set in italic display type, so
+            it has to be its own element. Both halves are whole phrases and both
+            languages put them in this order, which is what makes the split safe
+            here — `login.headline` keeps the joined sentence for reference. */}
         <p className="mt-3 text-ink-2">
-          Biblioteca ta, <span className="font-display italic">așa cum o ții minte</span>.
+          {t("login.headlineLead")}{" "}
+          <span className="font-display italic">{t("login.tagline")}</span>.
         </p>
 
         {loginError(params.get("error")) && (
@@ -46,12 +55,11 @@ export function LoginPage() {
           className="mt-8 flex items-center justify-center gap-3 rounded-lg bg-accent px-4 py-3 text-sm font-medium text-surface-0 transition-colors duration-150 hover:bg-accent-hover"
         >
           <GoogleMark />
-          Continuă cu Google
+          {t("login.google")}
         </a>
 
         <p className="mt-6 text-xs text-ink-3">
-          Nu-ți cerem o parolă nouă și nu citim nimic din contul tău Google în
-          afară de nume, e-mail și poză.
+          {t("login.privacy")}
         </p>
       </div>
     </main>
@@ -67,12 +75,12 @@ export function LoginPage() {
  * An unrecognised code shows nothing at all rather than a generic apology —
  * arriving at a login screen is not by itself evidence anything went wrong.
  */
-function loginError(code: string | null): string | null {
+function loginError(code: string | null): MessageKey | null {
   switch (code) {
     case "auth":
-      return "Autentificarea nu a reușit. Mai încearcă o dată.";
+      return "login.failed";
     case "rate":
-      return "Prea multe încercări de autentificare. Așteaptă un minut și încearcă din nou.";
+      return "login.throttled";
     default:
       return null;
   }

@@ -19,7 +19,7 @@ export function WishlistTotal({ summary }: { summary: WishlistSummary }) {
   return (
     <div className="rounded-xl border border-line bg-surface-1 px-8 py-7">
       <p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        Cât m-ar costa tot
+        {t("budget.wishlistTotal")}
       </p>
       <p className="mt-2 font-display text-4xl text-ink tabular">
         {summary.total.toFixed(2)}{" "}

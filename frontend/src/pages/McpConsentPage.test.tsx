@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { McpConsentRequest } from "@bookcsi/shared";
-import { failWith, stubApi } from "../test/helpers";
+import { failWith, stubApi, renderWithQuery } from "../test/helpers";
 import { McpConsentPage } from "./McpConsentPage";
 
 const CONSENT: McpConsentRequest = {
@@ -36,7 +36,7 @@ function renderConsent({
   });
   const path = req === null ? "/mcp/consent" : `/mcp/consent?req=${req}`;
 
-  render(
+  renderWithQuery(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
         <McpConsentPage />

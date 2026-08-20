@@ -3,6 +3,7 @@ import { Header } from "../components/Header";
 import { LoadFailure, Note } from "../components/Note";
 import { ReadingChart } from "../components/stats/ReadingChart";
 import { ReadingStats } from "../components/stats/ReadingStats";
+import { useT } from "../i18n/locale-context";
 
 /**
  * Sprint 7 — the reading statistics.
@@ -17,6 +18,7 @@ import { ReadingStats } from "../components/stats/ReadingStats";
  * screens agree without either of them trying to.
  */
 export function StatsPage() {
+  const t = useT();
   const overview = useStatsOverview();
   const byMonth = useStatsByMonth();
 
@@ -27,18 +29,18 @@ export function StatsPage() {
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-12">
         <div>
           <h1 className="font-display text-4xl text-ink">
-            Statistici<span className="text-accent">.</span>
+            {t("nav.stats")}<span className="text-accent">.</span>
           </h1>
           <p className="mt-2 text-ink-2">
-            Cât ai citit, și când — nu câte cărți ai.
+            {t("page.stats.blurb")}
           </p>
         </div>
 
-        {overview.isPending && <Note>Se încarcă statisticile…</Note>}
+        {overview.isPending && <Note>{t("loading.stats")}</Note>}
 
         {overview.isError && (
           <LoadFailure
-            what="statisticile"
+            what={t("what.stats")}
             error={overview.error}
             onRetry={() => void overview.refetch()}
           />
@@ -46,13 +48,13 @@ export function StatsPage() {
 
         {overview.data && <ReadingStats stats={overview.data} />}
 
-        {byMonth.isPending && <Note>Se încarcă graficul…</Note>}
+        {byMonth.isPending && <Note>{t("loading.chart")}</Note>}
 
         {/* The chart failing is not the page failing: the figures above it are
             a different request and still say something useful. */}
         {byMonth.isError && (
           <LoadFailure
-            what="graficul"
+            what={t("what.chart")}
             error={byMonth.error}
             onRetry={() => void byMonth.refetch()}
           />

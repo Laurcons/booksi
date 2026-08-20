@@ -3,6 +3,8 @@ import { COVER_MIME_TYPES, type Book } from "@bookcsi/shared";
 import { useUploadCover } from "../../api/openlibrary";
 import { apiImageSrc, CREDENTIALED_IMAGE } from "../../lib/media";
 import { CoverThumb } from "./CoverThumb";
+import { useT } from "../../i18n/locale-context";
+import { CoverTooLargeError } from "../../lib/resize-cover";
 
 /**
  * S4.3 — replacing a book's cover with one of your own.
@@ -18,6 +20,7 @@ import { CoverThumb } from "./CoverThumb";
  * a phone camera produced.
  */
 export function CoverUpload({ book }: { book: Book }) {
+  const t = useT();
   const upload = useUploadCover(book.id);
   const input = useRef<HTMLInputElement>(null);
 
@@ -56,7 +59,7 @@ export function CoverUpload({ book }: { book: Book }) {
   return (
     <div className="sm:col-span-2">
       <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        Copertă
+        {t("book.cover")}
       </h3>
 
       <div className="mt-4 flex items-start gap-4">
@@ -66,7 +69,7 @@ export function CoverUpload({ book }: { book: Book }) {
           <img
             {...CREDENTIALED_IMAGE}
             src={src}
-            alt={`Coperta cărții ${book.title}`}
+            alt={t("book.coverOf", { title: book.title })}
             className="h-24 w-16 shrink-0 rounded-[2px] object-cover"
           />
         )}
@@ -77,7 +80,7 @@ export function CoverUpload({ book }: { book: Book }) {
               file or what for. */}
           <label className="block">
             <span className="mb-1.5 block text-sm text-ink-2">
-              Încarcă o imagine
+              {t("cover.upload")}
             </span>
             <input
               ref={input}
@@ -90,24 +93,28 @@ export function CoverUpload({ book }: { book: Book }) {
           </label>
 
           <p className="mt-2 text-xs text-ink-3">
-            JPEG, PNG sau WebP. Se micșorează automat înainte de încărcare.
+            {t("cover.formatHintUpload")}
           </p>
 
           {upload.isPending && (
             <p role="status" className="mt-2 text-xs text-ink-2">
-              Se încarcă…
+              {t("cover.uploading")}
             </p>
           )}
 
           {upload.isError && (
             <p role="alert" className="mt-2 text-xs text-status-abandoned">
-              {upload.error.message}
+              {/* `CoverTooLargeError` is thrown client-side and carries a key
+                  plus the size; anything else already arrived worded (§D27). */}
+              {upload.error instanceof CoverTooLargeError
+                ? t("cover.tooBigToResize", { mb: upload.error.megabytes })
+                : upload.error.message}
             </p>
           )}
 
           {upload.isSuccess && !upload.isPending && (
             <p role="status" className="mt-2 text-xs text-ink-2">
-              Coperta a fost înlocuită.
+              {t("cover.replaced")}
             </p>
           )}
         </div>

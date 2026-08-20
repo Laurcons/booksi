@@ -12,14 +12,14 @@ import { bookProfilePath, defaultOrigin, readOrigin } from "./book-origin";
  */
 describe("readOrigin", () => {
   it("reads back what useOpenBook wrote", () => {
-    expect(readOrigin({ origin: { to: "/gallery", label: "galerie" } })).toEqual({
+    expect(readOrigin({ origin: { to: "/gallery", label: "origin.gallery" } })).toEqual({
       to: "/gallery",
-      label: "galerie",
+      label: "origin.gallery",
     });
   });
 
   it("keeps the query string, since a filtered listing is a place too", () => {
-    const state = { origin: { to: "/wishlist?sort=title", label: "wishlist" } };
+    const state = { origin: { to: "/wishlist?sort=title", label: "origin.wishlist" } };
 
     expect(readOrigin(state)?.to).toBe("/wishlist?sort=title");
   });
@@ -33,8 +33,13 @@ describe("readOrigin", () => {
   it("ignores state left by something other than this app", () => {
     expect(readOrigin({ origin: "wherever" })).toBeNull();
     expect(readOrigin({ origin: { to: "/gallery" } })).toBeNull();
-    expect(readOrigin({ origin: { to: 7, label: "galerie" } })).toBeNull();
+    expect(readOrigin({ origin: { to: 7, label: "origin.gallery" } })).toBeNull();
     expect(readOrigin({ origin: { to: "/gallery", label: "" } })).toBeNull();
+    // §D44 — the label is a catalog key now, so a label that is merely a
+    // non-empty string is not enough: an unknown one would render as itself.
+    expect(
+      readOrigin({ origin: { to: "/gallery", label: "galerie" } }),
+    ).toBeNull();
   });
 
   /**
@@ -44,9 +49,9 @@ describe("readOrigin", () => {
    * path it stores for the login round trip.
    */
   it("refuses to send the user off the site", () => {
-    expect(readOrigin({ origin: { to: "https://evil.example", label: "x" } })).toBeNull();
-    expect(readOrigin({ origin: { to: "//evil.example", label: "x" } })).toBeNull();
-    expect(readOrigin({ origin: { to: "javascript:alert(1)", label: "x" } })).toBeNull();
+    expect(readOrigin({ origin: { to: "https://evil.example", label: "origin.gallery" } })).toBeNull();
+    expect(readOrigin({ origin: { to: "//evil.example", label: "origin.gallery" } })).toBeNull();
+    expect(readOrigin({ origin: { to: "javascript:alert(1)", label: "origin.gallery" } })).toBeNull();
   });
 });
 
@@ -54,7 +59,7 @@ describe("defaultOrigin", () => {
   it("sends a wishlist book back to the wishlist", () => {
     expect(defaultOrigin(makeBook({ status: "WISHLIST" }))).toEqual({
       to: "/wishlist",
-      label: "wishlist",
+      label: "origin.wishlist",
     });
   });
 
@@ -67,7 +72,7 @@ describe("defaultOrigin", () => {
   it("answers for a book that has not loaded yet", () => {
     // The profile renders its back button before the request comes back, so
     // this is a real state rather than a defensive branch.
-    expect(defaultOrigin(undefined)).toEqual({ to: "/", label: "bibliotecă" });
+    expect(defaultOrigin(undefined)).toEqual({ to: "/", label: "origin.library" });
   });
 });
 

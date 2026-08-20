@@ -30,7 +30,11 @@ export class ApiError extends Error {
 /** Distinguishable on sight, because a 401 is a routing decision, not a bug. */
 export class UnauthorizedError extends ApiError {
   constructor() {
-    super(401, "Sesiune expirată sau inexistentă", "UNAUTHENTICATED");
+    // The one message in this file, and it is never displayed: `UnauthorizedError`
+    // is a routing signal (§D27 — the client redirects on it rather than reading
+    // it), so it carries a key for the rare caller that does show it rather than
+    // a sentence in one language.
+    super(401, "api.sessionExpired", "UNAUTHENTICATED");
     this.name = "UnauthorizedError";
   }
 }

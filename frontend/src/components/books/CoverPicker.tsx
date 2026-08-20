@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { COVER_MIME_TYPES } from "@bookcsi/shared";
 import { CoverThumb } from "./CoverThumb";
+import { useT } from "../../i18n/locale-context";
 
 /**
  * The upload half of adding a book — picking and previewing a file only.
@@ -19,6 +20,7 @@ export function CoverPicker({
   file: File | null;
   onChange: (file: File | null) => void;
 }) {
+  const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -36,7 +38,7 @@ export function CoverPicker({
   return (
     <div className="sm:col-span-2">
       <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        Copertă
+        {t("book.cover")}
       </h3>
 
       <div className="mt-4 flex items-start gap-4">
@@ -45,7 +47,7 @@ export function CoverPicker({
         ) : (
           <img
             src={previewUrl}
-            alt="Previzualizarea copertei"
+            alt={t("cover.preview")}
             className="h-24 w-16 shrink-0 rounded-[2px] object-cover"
           />
         )}
@@ -53,7 +55,7 @@ export function CoverPicker({
         <div className="min-w-0">
           <label className="block">
             <span className="mb-1.5 block text-sm text-ink-2">
-              Încarcă o imagine
+              {t("cover.upload")}
             </span>
             <input
               ref={input}
@@ -65,7 +67,7 @@ export function CoverPicker({
           </label>
 
           <p className="mt-2 text-xs text-ink-3">
-            JPEG, PNG sau WebP. Se micșorează automat la salvare.
+            {t("cover.formatHintPick")}
           </p>
         </div>
       </div>
