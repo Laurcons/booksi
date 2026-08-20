@@ -1,5 +1,4 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
 import {
@@ -11,7 +10,6 @@ import {
   type AdminUserSummary,
   type AuthUser,
 } from "@bookcsi/shared";
-import type { Env } from "../config/env";
 import { PrismaService } from "../prisma/prisma.service";
 import { SESSION_TTL_DAYS } from "./session";
 
@@ -51,15 +49,20 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /**
    * First login creates the account outright (S0.1) — there is no approval step
    * and no invitation. Later logins refresh the profile, since a user can
-   * rename themselves or change their picture on Google's side. `isAdmin` is
-   * refreshed the same way, off `ADMIN_EMAILS` (§D38): editing that variable
-   * takes effect the next time the account signs in.
+   * rename themselves or change their picture on Google's side.
+   *
+   * `isAdmin` is deliberately **not** touched here (§D38). It is a persisted
+   * flag set out-of-band (directly in the row), and login is another writer
+   * that has no business overwriting it — a create takes the column's
+   * `@default(false)`, and every later login leaves whatever is stored alone.
+   * An earlier version recomputed it from an `ADMIN_EMAILS` env var on every
+   * login, which silently demoted an admin the first time they signed in after
+   * a deploy that happened to omit the variable.
    *
    * The key is `googleId`, not `email`: Google Workspace addresses can be
    * renamed while the subject id stays put.
@@ -76,8 +79,6 @@ export class AuthService {
     profile: GoogleProfileData,
     acceptLanguage?: string,
   ): Promise<User> {
-    const isAdmin = this.isAdminEmail(profile.email);
-
     return this.prisma.user.upsert({
       where: { googleId: profile.googleId },
       create: {
@@ -85,14 +86,12 @@ export class AuthService {
         email: profile.email,
         name: profile.name,
         avatarUrl: profile.avatarUrl,
-        isAdmin,
         locale: matchLocale(parseAcceptLanguage(acceptLanguage)),
       },
       update: {
         email: profile.email,
         name: profile.name,
         avatarUrl: profile.avatarUrl,
-        isAdmin,
       },
     });
   }
@@ -109,18 +108,6 @@ export class AuthService {
       where: { id: userId },
       data: { locale },
     });
-  }
-
-  private isAdminEmail(email: string): boolean {
-    const adminEmails = this.config.get("ADMIN_EMAILS", { infer: true });
-    if (!adminEmails) {
-      return false;
-    }
-    const needle = email.toLowerCase();
-    return adminEmails
-      .split(",")
-      .map((entry) => entry.trim().toLowerCase())
-      .includes(needle);
   }
 
   findById(id: string): Promise<User | null> {

@@ -78,15 +78,6 @@ export const envSchema = z.object({
    * should not block the whole authorization server from booting.
    */
   MCP_CLIENT_DISPLAY_NAME: z.string().min(1).default("Asistent AI conectat"),
-
-  /**
-   * Comma-separated, matched exactly against the Google account's email —
-   * same convention as `MCP_REDIRECT_URIS`. This is the entire admin-granting
-   * mechanism (§D38): there is no admin-management UI, and re-evaluated on
-   * every login so removing an address here takes effect the next time that
-   * person signs in.
-   */
-  ADMIN_EMAILS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

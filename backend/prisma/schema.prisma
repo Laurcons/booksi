@@ -27,8 +27,12 @@ model User {
   /// on every device — see S0.2.
   tokenVersion Int @default(0)
 
-  /// Set from `ADMIN_EMAILS` (config, not a UI) on every login — see §D38.
-  /// Gates the impersonation routes on `AuthController` and nothing else.
+  /// A persisted flag, set out-of-band directly in this row (§D38) — there is
+  /// no admin-management UI, and login deliberately does not touch it. Gates the
+  /// impersonation routes on `AuthController` and nothing else. It used to be
+  /// recomputed from an `ADMIN_EMAILS` env var on every login, which silently
+  /// demoted an admin after any deploy that dropped the variable; that recompute
+  /// is gone, so the flag now changes only when the row is edited.
   isAdmin Boolean @default(false)
 
   /// Which language this account reads the interface in (§D44). One of the
@@ -302,17 +306,16 @@ enum AuditSource {
   MCP
 }
 
-enum AuditOutcome {
-  SUCCESS
-  FAILURE
-}
-
 /// One row per action, across every surface this app has (web, Kobo device
 /// via `kobo-frontend`, MCP). No relation to `User` on purpose: an audit
 /// trail exists to answer "who did this" *after the fact*, including after
 /// the actor's own account is gone, so `userId`/`impersonatedBy` must not be
 /// caught by `User`'s `onDelete: Cascade` the way every other table's
 /// `userId` is.
+///
+/// §D46 — a row records something that **succeeded**. Failed operations are
+/// not logged at all (the trail is "what people did", not what they were
+/// refused), so there is no `outcome` column: every row is a success.
 model AuditLog {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -333,7 +336,6 @@ model AuditLog {
   method     String
   route      String
   statusCode Int
-  outcome    AuditOutcome
 
   ip        String?
   userAgent String? @db.Text

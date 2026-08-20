@@ -609,11 +609,17 @@ Identitatea adminului călătorește totuși în același token (`impersonatorId
 un al doilea SELECT pe fiecare cerere — cheltuiala aceea s-ar repeta la fiecare request cât
 durează impersonarea, nu doar o dată, la începutul ei.
 
-**`isAdmin` vine din `ADMIN_EMAILS`, nu dintr-un ecran de administrare.** Aceeași convenție ca
-`MCP_REDIRECT_URIS`: o listă separată prin virgulă, reevaluată la fiecare login. Nu există
-poveste de „primul admin cine îl numește" — a fost cerută explicit o soluție fără UI de
-gestionare a rolurilor, iar reevaluarea la login înseamnă că scoaterea unei adrese din variabilă
-își face efectul la următoarea autentificare, nu la următoarea migrare.
+**`isAdmin` e un flag persistat, setat direct în rând, nu dintr-un ecran de administrare.** A fost
+cerută explicit o soluție fără UI de gestionare a rolurilor: promovarea se face editând coloana
+în bază, iar `AuthController` o citește de acolo. Login-ul **nu** o atinge — un `create` ia
+`@default(false)`, iar orice autentificare ulterioară lasă neatins ce e stocat.
+
+O versiune anterioară o recalcula la fiecare login dintr-o variabilă de mediu `ADMIN_EMAILS`
+(listă separată prin virgulă). Asta o făcea, în practică, o stare *derivată* dar totuși
+persistată — cel mai prost din ambele lumi: primul login de după un deploy care omitea variabila
+o rescria tăcut pe `false`, demovând adminul fără nicio eroare. Sursa de adevăr fiind acum rândul,
+iar login-ul nemaifiind un al doilea scriitor, flag-ul se schimbă doar când e schimbat rândul —
+nimic din login sau deploy nu-l mai poate reseta. `ADMIN_EMAILS` a fost eliminată cu totul.
 
 **Auditul e o linie de log, nu un tabel.** `AuthController` scrie cu `Logger.warn` la începutul
 și la sfârșitul unei impersonări — cine, pe cine. Un tabel persistent ar fi fost interogabil mai

@@ -446,11 +446,7 @@ describe("AuthService", () => {
     const prisma = {
       user: { upsert: jest.fn().mockResolvedValue(storedUser) },
     } as unknown as PrismaService;
-    const service = new AuthService(
-      prisma,
-      { sign: () => "token" } as never,
-      { get: () => undefined } as never,
-    );
+    const service = new AuthService(prisma, { sign: () => "token" } as never);
 
     await service.upsertFromGoogle({
       googleId: "google-1",
