@@ -118,7 +118,7 @@ function OrderPicker({
               : "text-ink-3 hover:text-ink-2")
           }
         >
-          {ORDER_LABEL[option]}
+          {t(ORDER_LABEL[option])}
         </button>
       ))}
     </div>
