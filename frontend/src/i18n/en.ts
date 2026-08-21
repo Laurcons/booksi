@@ -152,7 +152,6 @@ export const en: Catalog<MessageKey> = {
   "common.creating": "Creating…",
   "common.approve": "Approve",
   "common.approving": "Approving…",
-  "common.optional": "Optional",
   "common.searching": "Searching…",
   "common.loading": "Loading…",
 
@@ -174,21 +173,33 @@ export const en: Catalog<MessageKey> = {
 
   /* -------------------------------------------------- the add/edit form */
   "bookForm.editTitle": "Edit book",
-  "bookForm.hint": "Only the title is required. The rest can be filled in any time.",
+  "bookForm.addTitle": "New book",
   "bookForm.fromOpenLibrary": "Filled in from Open Library. Correct any field.",
-  "bookForm.anyFieldEditable": "Every field is editable, wherever it came from.",
   "bookForm.olUnavailable":
     "Open Library is not answering. Fill the fields in by hand.",
   "bookForm.searchingIsbn": "Looking the ISBN up on Open Library…",
   "bookForm.scanBarcode": "Scan the barcode",
-  "bookForm.paidPrice": "What I paid",
-  "bookForm.estimatedPrice": "What I think it will cost",
-  "bookForm.progressAndRating": "Progress and rating",
-  "bookForm.ratingHint": "A rating belongs on a book you finished or abandoned.",
-  "bookForm.datesHint":
-    "These fill themselves in when the status changes. Correct them any time — a book read in 2019 should show up in 2019.",
   "bookForm.noCategory": "— no category —",
-  "bookForm.optionalOrClaude": "Optional — Claude can fill this in too",
+
+  /* the four tabs */
+  "bookForm.tab.book": "Book",
+  "bookForm.tab.description": "Description",
+  "bookForm.tab.reading": "Reading",
+  "bookForm.tab.verdict": "Verdict",
+  "bookForm.tabChanged": "has unsaved changes",
+  "bookForm.tabInvalid": "has a field to fix",
+
+  /* what a locked field says on hover */
+  "bookForm.lockedProgress": "Opens once the book is with you",
+  "bookForm.lockedStarted": "Opens once the book reaches you",
+  "bookForm.lockedFinished": "Opens once you start the book",
+  "bookForm.lockedPaid": "Opens after you buy it",
+  "bookForm.lockedRating": "Stars belong on “Finished” or “Abandoned”",
+
+  "bookForm.changeCover": "Change the cover",
+  "bookForm.markFinished": "I finished it",
+  "bookForm.today": "Today",
+  "bookForm.charCount": "{count} / {max}",
 
   /* -------------------------------------------------- the table */
   "table.actions": "Actions",
@@ -215,7 +226,6 @@ export const en: Catalog<MessageKey> = {
   "search.wishlist": "Search the wishlist…",
   "search.byEmail": "Search by email",
   "search.openLibrary": "Search Open Library",
-  "search.byTitleOrAuthor": "by title or author",
   "search.noCategoryMatches": "No category matches.",
   "category.searchPlaceholder": "Search categories…",
   "category.remove": "Remove {label}",
@@ -223,8 +233,14 @@ export const en: Catalog<MessageKey> = {
   "field.title": "Title",
   "field.author": "Author",
   "field.status": "Status",
+  "field.categories": "Categories",
+  "field.review": "Review",
+  "field.reviewPlaceholder": "What stayed with you from this book…",
+  "field.page": "Page",
+  "field.yearShort": "Year",
+  "field.estimated": "Estimated",
+  "field.paid": "Paid",
   "field.pages": "Page count",
-  "field.pagesHint": "May be missing",
   "field.publisher": "Publisher",
   "field.volume": "Volume",
   "field.format": "Format",
@@ -232,7 +248,6 @@ export const en: Catalog<MessageKey> = {
   "field.category": "Category",
   "field.description": "Description",
   "field.rating": "Rating",
-  "field.currentPage": "The page I have reached",
   "bookForm.duplicate": "You already have {titles} with this ISBN. You can save anyway.",
   "field.deadline": "Deadline",
   "challenge.finishTitle": "Finished it?",
@@ -275,8 +290,6 @@ export const en: Catalog<MessageKey> = {
   "openLibrary.noResults": "Nothing found. Fill it in by hand below.",
   "openLibrary.unavailable":
     "Open Library is not answering. Fill the book in by hand below.",
-  "openLibrary.orManual":
-    "Or fill it in by hand below — the fields stay editable either way.",
 
   /* -------------------------------------------------- start reading */
   "startReading.title": "How many pages?",
@@ -451,7 +464,6 @@ export const en: Catalog<MessageKey> = {
   "home.readingNow": "Reading now",
   "field.pagesShort": "Pages",
   "field.descriptionPlaceholder": "What the book is about…",
-  "bookForm.readingData": "Reading history",
   "cover.preview": "Cover preview",
   "filters.allCategories": "All categories",
   "startReading.skip": "Skip",

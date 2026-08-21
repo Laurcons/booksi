@@ -64,11 +64,11 @@ function readEnv() {
  * *excluded*, which a sum over the whole library would quietly get wrong.
  */
 const BOOKS = [
-  { title: "Solaris", author: "Stanisław Lem", genre: "FICTION", status: "WISHLIST", estimatedPrice: "42.00", totalPages: 204 },
-  { title: "Orbitor", author: "Mircea Cărtărescu", genre: "FICTION", status: "WISHLIST", estimatedPrice: "89.50", totalPages: 420 },
-  { title: "Gödel, Escher, Bach", author: "Douglas Hofstadter", genre: "EXACT_SCIENCES_MATH", status: "WISHLIST", estimatedPrice: "208.50", totalPages: 777 },
+  { title: "Solaris", author: "Stanisław Lem", category: "FICTION__GENERAL", status: "WISHLIST", estimatedPrice: "42.00", totalPages: 204 },
+  { title: "Orbitor", author: "Mircea Cărtărescu", category: "FICTION__GENERAL", status: "WISHLIST", estimatedPrice: "89.50", totalPages: 420 },
+  { title: "Gödel, Escher, Bach", author: "Douglas Hofstadter", category: "EXACT_SCIENCES_MATH__GENERAL", status: "WISHLIST", estimatedPrice: "208.50", totalPages: 777 },
   // Unpriced: counted by the coverage line, absent from the sum.
-  { title: "Cartea șoaptelor", author: "Varujan Vosganian", genre: "HISTORY", status: "WISHLIST" },
+  { title: "Cartea șoaptelor", author: "Varujan Vosganian", category: "HISTORY__GENERAL", status: "WISHLIST" },
   // The only row carrying a publisher, an ISBN and a description, and it
   // carries them for §D42: those three are searchable but appear in no column,
   // so a browser test that a search finds this book by its *publisher* is the
@@ -78,7 +78,7 @@ const BOOKS = [
   {
     title: "Maitreyi",
     author: "Mircea Eliade",
-    genre: "FICTION",
+    category: "FICTION__GENERAL",
     status: "WISHLIST",
     publisher: "Humanitas",
     isbn: "978-973-50-4471-1",
@@ -86,8 +86,8 @@ const BOOKS = [
   },
   // Not wishes. The second one carries an estimate *and* a paid price, so a
   // total that ignored the status filter would come out 65.00 too high.
-  { title: "Dune", author: "Frank Herbert", genre: "FICTION", status: "READING", pagesRead: 143, totalPages: 620, paidPrice: "59.90", estimatedPrice: "65.00", purchasedOn: new Date("2026-07-01"), startedOn: new Date("2026-07-20") },
-  { title: "Fundația", author: "Isaac Asimov", genre: "FICTION", status: "FINISHED", pagesRead: 255, totalPages: 255, rating: 5, paidPrice: "38.00", purchasedOn: new Date("2026-05-02"), finishedOn: new Date("2026-06-11") },
+  { title: "Dune", author: "Frank Herbert", category: "FICTION__GENERAL", status: "READING", pagesRead: 143, totalPages: 620, paidPrice: "59.90", estimatedPrice: "65.00", purchasedOn: new Date("2026-07-01"), startedOn: new Date("2026-07-20") },
+  { title: "Fundația", author: "Isaac Asimov", category: "FICTION__GENERAL", status: "FINISHED", pagesRead: 255, totalPages: 255, rating: 5, paidPrice: "38.00", purchasedOn: new Date("2026-05-02"), finishedOn: new Date("2026-06-11") },
 ];
 
 async function main() {
@@ -108,9 +108,26 @@ async function main() {
     });
 
     await prisma.book.deleteMany({ where: { userId: user.id } });
-    await prisma.book.createMany({
-      data: BOOKS.map((book) => ({ ...book, userId: user.id })),
-    });
+
+    /**
+     * One `create` per book rather than a single `createMany`, because §D45
+     * turned the genre into a relation: a shelf is a `BookCategory` row, and
+     * `createMany` cannot write nested rows.
+     *
+     * This script had gone on writing a `genre` column that the taxonomy
+     * migration dropped, so every e2e run died in the fixture before opening a
+     * browser. The `category` on each entry above is the `general` leaf of the
+     * group the old value named — the same mapping the data migration used.
+     */
+    for (const { category, ...book } of BOOKS) {
+      await prisma.book.create({
+        data: {
+          ...book,
+          userId: user.id,
+          categories: { create: [{ categoryCode: category }] },
+        },
+      });
+    }
 
     // `ver` is not optional: `JwtStrategy` compares it against the stored
     // `tokenVersion` and refuses a token that omits it, which is what makes

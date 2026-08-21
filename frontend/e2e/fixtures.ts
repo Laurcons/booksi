@@ -87,12 +87,24 @@ export const test = base.extend<{ seed: Seed }>({
  * thing (§D41), and it cannot appear until the page it belongs to has rendered,
  * by which time the table with its pencils is gone.
  */
-export async function openEditForm(page: Page, title: string): Promise<void> {
+export async function openEditForm(
+  page: Page,
+  title: string,
+  /**
+   * Which tab to land on. The dialog opens on "Carte", so anything about
+   * progress, dates or money needs one click first (§D48).
+   */
+  tab?: "Carte" | "Descriere" | "Lectură" | "Verdict",
+): Promise<void> {
   await page.getByRole("button", { name: title }).click();
   await page.waitForURL("**/books/*");
   // The book's page, actually on screen — not merely its URL in the bar.
   await expect(page.getByRole("link", { name: /Înapoi la/ })).toBeVisible();
   await page.getByRole("button", { name: "Editează" }).click();
+
+  if (tab !== undefined && tab !== "Carte") {
+    await page.getByRole("tab", { name: new RegExp(`^${tab}`) }).click();
+  }
 }
 
 export { expect };

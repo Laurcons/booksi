@@ -51,10 +51,16 @@ describe("OpenLibrarySearch (S4.1)", () => {
   it("does not search on a single character", async () => {
     const { calls, user } = renderSearch(() => [dune]);
 
+    // Typed one letter, then the rest. Waiting for the *second* search to land
+    // is what makes this deterministic: if the single character had also gone
+    // out, there would be two requests, and one of them would carry "d".
     await user.type(searchBox(), "d");
-    await screen.findByText(/completează manual/i);
+    await user.type(searchBox(), "une");
+    await screen.findByText("Dune");
 
-    expect(calls.filter((c) => c.url.includes("/openlibrary/search"))).toHaveLength(0);
+    const searches = calls.filter((c) => c.url.includes("/openlibrary/search"));
+    expect(searches).toHaveLength(1);
+    expect(searches[0].url).toContain("q=dune");
   });
 
   it("points thumbnails at our own API, never at Open Library", async () => {
@@ -133,8 +139,15 @@ describe("OpenLibrarySearch (S4.1)", () => {
     await user.type(searchBox(), "dune");
     await screen.findByText("nu răspunde");
 
-    // S1.1: the manual form is permanently available, including after Sprint 4.
-    expect(screen.getByText(/completează manual mai jos/i)).toBeInTheDocument();
+    /*
+      S1.1: the manual form is permanently available, including after Sprint 4.
+      The sentence that used to say so is gone (§D48 — the fields say it by
+      being fields), so what is asserted here is the part this component owns:
+      a failed search leaves its own box usable. That the fields below stay
+      editable is asserted where they exist, in
+      `BookFormDialog.sprint4.test.tsx`.
+    */
+    expect(searchBox()).toBeEnabled();
   });
 
   it("drops a result with no default edition into the list anyway", async () => {

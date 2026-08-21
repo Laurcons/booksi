@@ -75,9 +75,9 @@ test.describe("the total (S3.3)", () => {
 
   test("follows an edited price", async ({ page, seed: _seed }) => {
     await page.goto("/wishlist");
-    await openEditForm(page, "Orbitor");
+    await openEditForm(page, "Orbitor", "Lectură");
 
-    const estimate = page.getByLabel(/Cât cred că va costa/);
+    const estimate = page.getByLabel("Estimat");
     await expect(estimate).toHaveValue("89.50");
 
     // A comma, which is what a Romanian keyboard produces for a decimal.
@@ -154,8 +154,8 @@ test.describe("buying a book (S3.4)", () => {
 
     // All three fields stay editable afterwards — the click is a shortcut, not
     // a commitment.
-    await openEditForm(page, "Solaris");
-    await expect(page.getByLabel(/Cât am plătit/)).toHaveValue("42.00");
+    await openEditForm(page, "Solaris", "Lectură");
+    await expect(page.getByLabel("Plătit")).toHaveValue("42.00");
     await expect(page.getByLabel("Cumpărată")).not.toHaveValue("");
   });
 
@@ -187,10 +187,10 @@ test.describe("the estimated price (S3.2)", () => {
     // Not tied to WISHLIST: after the purchase the estimate is what the paid
     // price gets compared against.
     await page.goto("/");
-    await openEditForm(page, "Dune");
+    await openEditForm(page, "Dune", "Lectură");
 
-    await expect(page.getByLabel(/Cât cred că va costa/)).toHaveValue("65.00");
-    await expect(page.getByLabel(/Cât am plătit/)).toHaveValue("59.90");
+    await expect(page.getByLabel("Estimat")).toHaveValue("65.00");
+    await expect(page.getByLabel("Plătit")).toHaveValue("59.90");
   });
 
   test("is optional — a book sits in the wishlist without one", async ({

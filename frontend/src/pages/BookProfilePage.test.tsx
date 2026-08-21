@@ -122,7 +122,9 @@ describe("BookProfilePage — the book itself (§D40)", () => {
 
     await user.click(await screen.findByRole("button", { name: "Editează" }));
 
-    expect(await screen.findByRole("dialog")).toHaveTextContent("Editează cartea");
+    // The dialog wears the book's own title now and says what it is through
+    // its accessible name, so ask for it by name rather than by its text.
+    expect(await screen.findByRole("dialog", { name: "Editează cartea" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("Dune")).toBeInTheDocument();
   });
 });

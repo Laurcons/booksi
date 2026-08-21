@@ -92,8 +92,12 @@ describe("the two catalogs", () => {
     //   field.format  — "Format", the physical dimensions field.
     //   field.rating  — "Rating"; "notă" would be the native word, but the
     //                   interface has said "rating" since Sprint 2.
+    //   bookForm.tab.verdict — "Verdict" is the same word in both languages.
+    //   bookForm.charCount   — digits and a slash; there is nothing to translate.
     expect(shared).toEqual([
       "nav.wishlist",
+      "bookForm.tab.verdict",
+      "bookForm.charCount",
       "field.status",
       "field.format",
       "field.rating",

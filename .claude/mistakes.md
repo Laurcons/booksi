@@ -238,3 +238,59 @@ safe shape (`Array.isArray(x) ? x : []`) at each one — including server-side
 loaders, where a catch-all test mock returning `{}` will happily satisfy a
 200 and then blow up `.map`. Also: check the runtime Node version before trusting
 that "tests don't run" means "my code is broken".
+
+### A declared height on a `flex-1` item does nothing
+
+Gave the tabbed book form a constant body height — `sm:h-[27rem]` — on the same
+element that carried `flex-1`, then reported the constant-height design point as
+implemented. The user noticed the dialog still resized between tabs.
+
+**Root cause:** `flex-1` is `flex: 1 1 0%`, and that `0%` *is* the flex basis,
+which overrides `height` for the main axis. The item then sized itself from its
+content, so every tab got its own height — exactly the behaviour the fixed
+height existed to prevent. Fixed by keeping the height and moving the growth to
+the one place it is wanted: `max-sm:flex-1` for the phone sheet, plain height
+above `sm`.
+
+**Lesson:** `flex-1` and a main-axis size on the same element are a
+contradiction the height loses. And a layout rule stated as a design decision —
+"the dialog does not change size" — has to be *measured*, not eyeballed: jsdom
+has no layout, so the assertion belongs in a Playwright test
+(`frontend/e2e/book-form.spec.ts`) that reads `boundingBox()` on every tab. It
+took a human noticing to find this, which is the tell that the missing test was
+the real defect.
+
+### A wrapping `<label>` absorbs everything inside it into the field's name
+
+Put a character counter in the label row and the currency inside the money
+field, both inside `Field`'s wrapping `<label>`. Six tests failed with "Unable
+to find a label with the text of: Plătit".
+
+**Root cause:** a `<label>` that wraps its control takes its accessible name
+from *all* its text, so the fields were called "Descriere 743 / 10.000" and
+"Plătit lei". The tests were right and the markup was wrong — a screen reader
+would have read those names out too. Fixed by giving those fields an id and
+pointing the label at it, which leaves the name as the one word the field is
+called.
+
+**Lesson:** when a field grows any trailing content — a counter, a unit, a clear
+button — the wrapping-label pattern stops working. Reach for `htmlFor` + `id`
+the moment a label contains anything besides the label.
+
+### react-hook-form reports a fully disabled radio group as `null`
+
+Made the star rating *disabled* rather than hidden on statuses that cannot carry
+one (the "disabled, not hidden" rule), and the whole form became unsavable from
+every tab: `rating` failed validation with "invalid option".
+
+**Root cause:** RHF reads a radio group's value off the DOM and skips disabled
+inputs. With all five stars plus the "no rating" radio disabled, it finds
+nothing readable and reports `null` — which the form schema's
+`enum | ""` union rejected, so `handleSubmit` never ran its valid branch. Fixed
+by accepting `null` in the form schema and folding it into "nobody chose a
+star"; what actually goes out is still decided by the status gate.
+
+**Lesson:** disabling a control changes what RHF *reads*, not just what the user
+can touch. Any field whose value RHF derives from DOM state — radio groups above
+all — needs its schema to tolerate the disabled case, and a test that saves the
+form while that field is disabled.

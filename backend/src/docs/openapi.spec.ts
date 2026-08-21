@@ -170,6 +170,9 @@ describe("OpenAPI document", () => {
         "publisher",
         "purchasedOn",
         "rating",
+        // §D48 — the reader's own prose, beside the model-written description
+        // above. Writable through the same route, cap and all.
+        "review",
         "startedOn",
         "status",
         "title",

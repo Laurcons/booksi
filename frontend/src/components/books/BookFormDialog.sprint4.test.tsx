@@ -78,7 +78,7 @@ describe("BookFormDialog — searching Open Library (S4.1)", () => {
     // §D7 — the edition is where the ISBN and the page count come from, and it
     // takes the second request to get them.
     expect(screen.getByLabelText(/ISBN/)).toHaveValue("9780441013593");
-    expect(screen.getByLabelText(/Nr. de pagini/)).toHaveValue(620);
+    expect(screen.getByLabelText("Pagini")).toHaveValue(620);
   });
 
   it("sends the edition key, which is what makes the cover arrive (§D8)", async () => {
@@ -133,6 +133,30 @@ describe("BookFormDialog — searching Open Library (S4.1)", () => {
     await waitFor(() => expect(lastWrite(calls)).toMatchObject({ title: "Dune" }));
   });
 
+  it("leaves the manual form usable when the search itself fails (S1.1)", async () => {
+    // The band used to carry a sentence promising this; §D48 removed it, so the
+    // promise is kept here instead — and this is the better place for it, since
+    // the fields it is about only exist in the dialog.
+    const { calls, user } = renderForm((call) =>
+      call.url.includes("/openlibrary/search")
+        ? failWith(503, "Open Library nu răspunde", "OPEN_LIBRARY_UNAVAILABLE")
+        : defaults(call),
+    );
+
+    await user.type(screen.getByLabelText(/Caută în Open Library/), "dune");
+    expect(await screen.findByText(/nu răspunde/)).toBeInTheDocument();
+
+    // Typed by hand, over the failure, and saved.
+    await user.type(screen.getByLabelText("Titlu"), "Dune");
+    await user.click(screen.getByRole("button", { name: "Adaugă" }));
+
+    await waitFor(() =>
+      expect(calls.some((call) => call.method === "POST" && call.url.endsWith("/books"))).toBe(
+        true,
+      ),
+    );
+  });
+
   it("is not offered while editing a book", () => {
     // Editing a book is not the moment to be shown a different one.
     renderForm(defaults, makeBook());
@@ -171,7 +195,7 @@ describe("BookFormDialog — filling from an ISBN (S4.2)", () => {
     await typeIsbn(user);
 
     await waitFor(() => expect(screen.getByLabelText("Titlu")).toHaveValue("Dune"));
-    expect(screen.getByLabelText(/Nr. de pagini/)).toHaveValue(620);
+    expect(screen.getByLabelText("Pagini")).toHaveValue(620);
   });
 
   it("does not overwrite what the user already typed", async () => {
@@ -182,7 +206,7 @@ describe("BookFormDialog — filling from an ISBN (S4.2)", () => {
     await user.type(screen.getByLabelText("Titlu"), "Titlul meu");
     await typeIsbn(user);
 
-    await waitFor(() => expect(screen.getByLabelText(/Nr. de pagini/)).toHaveValue(620));
+    await waitFor(() => expect(screen.getByLabelText("Pagini")).toHaveValue(620));
     expect(screen.getByLabelText("Titlu")).toHaveValue("Titlul meu");
   });
 
@@ -236,20 +260,38 @@ describe("BookFormDialog — filling from an ISBN (S4.2)", () => {
 });
 
 describe("BookFormDialog — the cover (S4.3)", () => {
-  it("offers the upload while editing", () => {
-    renderForm(defaults, makeBook());
+  /**
+   * The cover is the control now — a picture with a file input behind it and no
+   * heading over it (`CoverWell`) — so these two used to assert on a "Copertă"
+   * label that no longer exists. They assert on the behaviour that actually
+   * differs between the two modes instead, which is the better test anyway:
+   * editing PUTs the file straight to the book, adding cannot.
+   */
+  it("offers the upload while editing", async () => {
+    const { calls, user } = renderForm(
+      (call) =>
+        call.url.includes("/cover") ? { coverUrl: "/covers/book-1?v=99" } : defaults(call),
+      makeBook(),
+    );
 
-    expect(screen.getByText("Copertă")).toBeInTheDocument();
+    const file = new File(["x"], "coperta.png", { type: "image/png" });
+    await user.upload(screen.getByLabelText(/Încarcă o imagine/), file);
+
+    await waitFor(() =>
+      expect(calls.some((call) => call.url.includes("/books/book-1/cover"))).toBe(true),
+    );
   });
 
-  it("offers a picker rather than the upload while adding, since there is no book yet to PUT to", () => {
-    renderForm(defaults);
+  it("offers a picker rather than the upload while adding, since there is no book yet to PUT to", async () => {
+    const { calls, user } = renderForm(defaults);
 
-    expect(screen.getByText("Copertă")).toBeInTheDocument();
-    // The upload's own file input carries this label too, so the distinguishing
-    // check is that nothing here is wired to `PUT /books/{id}/cover` — see
-    // `BookFormDialog.cover-on-create.test.tsx`.
-    expect(screen.queryByAltText(/Coperta cărții/)).not.toBeInTheDocument();
+    const file = new File(["x"], "coperta.png", { type: "image/png" });
+    await user.upload(screen.getByLabelText(/Încarcă o imagine/), file);
+
+    // Previewed, held, and sent only once the create request has answered with
+    // an id — see `BookFormDialog.cover-on-create.test.tsx`.
+    expect(await screen.findByAltText("Previzualizarea copertei")).toBeInTheDocument();
+    expect(calls.some((call) => call.method === "PUT")).toBe(false);
   });
 
   it("draws the stored cover when there is one", () => {

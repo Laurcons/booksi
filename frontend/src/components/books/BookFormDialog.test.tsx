@@ -5,8 +5,15 @@ import { lastWrite, makeBook, renderWithQuery, stubApi } from "../../test/helper
 import { BookFormDialog } from "./BookFormDialog";
 
 /**
- * ISBN duplicates and the author-suggestion list (`AuthorInput`'s own
- * `useBooks` call) answer with a list; everything else with a book.
+ * What the form *sends*. The shape it is arranged in is `BookFormDialog.tabs`'s
+ * subject; this file is about the payload, which is the part that survived the
+ * redesign unchanged and must go on doing so.
+ *
+ * Every field-level assertion here now begins with a tab click, and that is
+ * itself worth having in the suite: a value typed on one tab has to still be
+ * there after three others have been visited, because only the active panel is
+ * mounted (react-hook-form keeps the value of an unmounted field, and this is
+ * where we find out if that ever stops being true).
  */
 const responder = (call: { url: string }) =>
   call.url.includes("isbn-duplicates") || call.url.includes("/books?")
@@ -20,11 +27,26 @@ function renderForm(book?: Book) {
 
 const save = () => screen.getByRole("button", { name: /Salvează|Adaugă/ });
 
+/** The tab, by its name — which also carries the sr-only "has changes" note. */
+const tab = (name: string) => screen.getByRole("tab", { name: new RegExp(`^${name}`) });
+
+/**
+ * By role rather than by label: the tab *panel* is named after its tab, so
+ * `getByLabelText("Descriere")` matches both the panel and the textarea inside
+ * it. Asking for the textbox says which one is meant.
+ */
+const description = () => screen.getByRole("textbox", { name: "Descriere" });
+
+type User = ReturnType<typeof renderWithQuery>["user"];
+
+const goTo = (user: User, name: string) => user.click(tab(name));
+
 describe("BookFormDialog — pages read (S2.1)", () => {
   it("sends the page the reader has got to", async () => {
     const { calls, user } = renderForm(makeBook({ pagesRead: 143 }));
 
-    const input = screen.getByLabelText(/Pagina la care am ajuns/);
+    await goTo(user, "Lectură");
+    const input = screen.getByLabelText("Pagina");
     await user.clear(input);
     await user.type(input, "220");
     await user.click(save());
@@ -32,50 +54,60 @@ describe("BookFormDialog — pages read (S2.1)", () => {
     await waitFor(() => expect(lastWrite(calls)).toEqual({ pagesRead: 220 }));
   });
 
-  it("shows page zero as an empty box, not as a literal 0", () => {
+  it("shows page zero as an empty box, not as a literal 0", async () => {
     // "Nothing recorded yet" and "I read zero pages" are the same number but
     // not the same statement.
-    renderForm(makeBook({ pagesRead: 0 }));
+    const { user } = renderForm(makeBook({ pagesRead: 0 }));
 
-    expect(screen.getByLabelText(/Pagina la care am ajuns/)).toHaveValue(null);
+    await goTo(user, "Lectură");
+
+    expect(screen.getByLabelText("Pagina")).toHaveValue(null);
   });
 });
 
 describe("BookFormDialog — rating (S2.3)", () => {
-  it("offers the stars on a finished book", () => {
-    renderForm(makeBook({ status: "FINISHED" }));
+  it("offers the stars on a finished book", async () => {
+    const { user } = renderForm(makeBook({ status: "FINISHED" }));
 
-    expect(screen.getByRole("radiogroup", { name: "Rating" })).toBeInTheDocument();
+    await goTo(user, "Verdict");
+
+    expect(screen.getByRole("radio", { name: "4 stele" })).toBeEnabled();
   });
 
-  it("offers them on an abandoned one too (§D11)", () => {
-    renderForm(makeBook({ status: "ABANDONED" }));
+  it("offers them on an abandoned one too (§D11)", async () => {
+    const { user } = renderForm(makeBook({ status: "ABANDONED" }));
 
-    expect(screen.getByRole("radiogroup", { name: "Rating" })).toBeInTheDocument();
+    await goTo(user, "Verdict");
+
+    expect(screen.getByRole("radio", { name: "4 stele" })).toBeEnabled();
   });
 
-  it("hides them while the book is still being read", () => {
-    // The API would refuse the value; offering a control that cannot work is
-    // worse than explaining why it is not there.
-    renderForm(makeBook({ status: "READING" }));
-
-    expect(screen.queryByRole("radiogroup", { name: "Rating" })).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/Ratingul se dă cărților terminate sau abandonate/),
-    ).toBeInTheDocument();
-  });
-
-  it("reveals them as soon as the status changes to a finished one", async () => {
+  it("shows them disabled while the book is still being read, not missing", async () => {
+    // The design rule: a field that does not apply is disabled, not hidden. A
+    // control you can see and cannot use says a rule exists; a control that is
+    // absent says nothing at all.
     const { user } = renderForm(makeBook({ status: "READING" }));
 
-    await user.selectOptions(screen.getByLabelText("Status"), "FINISHED");
+    await goTo(user, "Verdict");
 
     expect(screen.getByRole("radiogroup", { name: "Rating" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "4 stele" })).toBeDisabled();
+  });
+
+  it("unlocks them as soon as the status changes to a finished one", async () => {
+    const { user } = renderForm(makeBook({ status: "READING" }));
+
+    await goTo(user, "Lectură");
+    await user.click(screen.getByRole("radio", { name: "Terminat" }));
+    await goTo(user, "Verdict");
+
+    expect(screen.getByRole("radio", { name: "4 stele" })).toBeEnabled();
   });
 
   it("sends the star that was picked", async () => {
     const { calls, user } = renderForm(makeBook({ status: "FINISHED", rating: null }));
 
+    await goTo(user, "Verdict");
     await user.click(screen.getByRole("radio", { name: "4 stele" }));
     await user.click(save());
 
@@ -85,6 +117,7 @@ describe("BookFormDialog — rating (S2.3)", () => {
   it("sends null when a rating is removed", async () => {
     const { calls, user } = renderForm(makeBook({ status: "FINISHED", rating: 5 }));
 
+    await goTo(user, "Verdict");
     await user.click(screen.getByText("fără rating"));
     await user.click(save());
 
@@ -93,10 +126,13 @@ describe("BookFormDialog — rating (S2.3)", () => {
 
   it("never clears a rating just because the book went back to READING", async () => {
     // The API refuses to discard the stars on a re-read (§D12); the form must
-    // not do from the outside what the server declined to do.
+    // not do from the outside what the server declined to do. Now that the
+    // stars are merely disabled rather than unmounted, this is the assertion
+    // that keeps `ratingFor` honest.
     const { calls, user } = renderForm(makeBook({ status: "FINISHED", rating: 5 }));
 
-    await user.selectOptions(screen.getByLabelText("Status"), "READING");
+    await goTo(user, "Lectură");
+    await user.click(screen.getByRole("radio", { name: "Citesc" }));
     await user.click(save());
 
     await waitFor(() => expect(lastWrite(calls)).toEqual({ status: "READING" }));
@@ -108,7 +144,8 @@ describe("BookFormDialog — paid price (S2.4)", () => {
   it("sends the amount as a number", async () => {
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Cât am plătit/), "59.90");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Plătit"), "59.90");
     await user.click(save());
 
     await waitFor(() => expect(lastWrite(calls)).toEqual({ paidPrice: 59.9 }));
@@ -117,7 +154,8 @@ describe("BookFormDialog — paid price (S2.4)", () => {
   it("accepts a comma, which is what a Romanian keyboard gives", async () => {
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Cât am plătit/), "59,90");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Plătit"), "59,90");
     await user.click(save());
 
     await waitFor(() => expect(lastWrite(calls)).toEqual({ paidPrice: 59.9 }));
@@ -126,7 +164,8 @@ describe("BookFormDialog — paid price (S2.4)", () => {
   it("refuses a third decimal, as the column does", async () => {
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Cât am plătit/), "12.345");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Plătit"), "12.345");
     await user.click(save());
 
     expect(await screen.findByText("Cel mult două zecimale")).toBeInTheDocument();
@@ -137,7 +176,8 @@ describe("BookFormDialog — paid price (S2.4)", () => {
   it("clears the price when the box is emptied", async () => {
     const { calls, user } = renderForm(makeBook({ paidPrice: 59.9 }));
 
-    await user.clear(screen.getByLabelText(/Cât am plătit/));
+    await goTo(user, "Lectură");
+    await user.clear(screen.getByLabelText("Plătit"));
     await user.click(save());
 
     await waitFor(() => expect(lastWrite(calls)).toEqual({ paidPrice: null }));
@@ -148,23 +188,21 @@ describe("BookFormDialog — estimated price (S3.2)", () => {
   it("sends the estimate as a number", async () => {
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59.90");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Estimat"), "59.90");
     await user.click(save());
 
-    await waitFor(() =>
-      expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }),
-    );
+    await waitFor(() => expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }));
   });
 
   it("accepts a comma here too", async () => {
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59,90");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Estimat"), "59,90");
     await user.click(save());
 
-    await waitFor(() =>
-      expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }),
-    );
+    await waitFor(() => expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }));
   });
 
   it("keeps it apart from what was paid (§D6)", async () => {
@@ -172,8 +210,9 @@ describe("BookFormDialog — estimated price (S3.2)", () => {
     // budget, which is the whole reason they are not one field.
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59.90");
-    await user.type(screen.getByLabelText(/Cât am plătit/), "45");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Estimat"), "59.90");
+    await user.type(screen.getByLabelText("Plătit"), "45");
     await user.click(save());
 
     await waitFor(() =>
@@ -184,7 +223,8 @@ describe("BookFormDialog — estimated price (S3.2)", () => {
   it("refuses a third decimal, as the column does", async () => {
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Cât cred că va costa/), "12.345");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Estimat"), "12.345");
     await user.click(save());
 
     expect(await screen.findByText("Cel mult două zecimale")).toBeInTheDocument();
@@ -194,27 +234,25 @@ describe("BookFormDialog — estimated price (S3.2)", () => {
   it("clears the estimate when the box is emptied", async () => {
     const { calls, user } = renderForm(makeBook({ estimatedPrice: 59.9 }));
 
-    await user.clear(screen.getByLabelText(/Cât cred că va costa/));
+    await goTo(user, "Lectură");
+    await user.clear(screen.getByLabelText("Estimat"));
     await user.click(save());
 
-    await waitFor(() =>
-      expect(lastWrite(calls)).toEqual({ estimatedPrice: null }),
-    );
+    await waitFor(() => expect(lastWrite(calls)).toEqual({ estimatedPrice: null }));
   });
 
   it("stays editable on a book that is no longer a wish", async () => {
     // Not tied to WISHLIST: after the purchase the estimate is what the paid
-    // price gets compared against.
+    // price gets compared against. It is the one money field with no lock.
     const { calls, user } = renderForm(
       makeBook({ status: "FINISHED", estimatedPrice: null }),
     );
 
-    await user.type(screen.getByLabelText(/Cât cred că va costa/), "59.90");
+    await goTo(user, "Lectură");
+    await user.type(screen.getByLabelText("Estimat"), "59.90");
     await user.click(save());
 
-    await waitFor(() =>
-      expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }),
-    );
+    await waitFor(() => expect(lastWrite(calls)).toEqual({ estimatedPrice: 59.9 }));
   });
 });
 
@@ -223,9 +261,11 @@ describe("BookFormDialog — creating with Sprint 2 fields", () => {
     const { calls, user } = renderForm();
 
     await user.type(screen.getByLabelText("Titlu"), "Dune");
-    await user.selectOptions(screen.getByLabelText("Status"), "FINISHED");
-    await user.type(screen.getByLabelText(/Pagina la care am ajuns/), "620");
-    await user.type(screen.getByLabelText(/Cât am plătit/), "59.90");
+    await goTo(user, "Lectură");
+    await user.click(screen.getByRole("radio", { name: "Terminat" }));
+    await user.type(screen.getByLabelText("Pagina"), "620");
+    await user.type(screen.getByLabelText("Plătit"), "59.90");
+    await goTo(user, "Verdict");
     await user.click(screen.getByRole("radio", { name: "5 stele" }));
     await user.click(save());
 
@@ -261,17 +301,18 @@ describe("BookFormDialog — creating with Sprint 2 fields", () => {
 });
 
 /**
- * §D40 — the description is the one prose field on the form, and the one an
- * assistant is expected to have written before the user ever opens this
- * dialog. So what matters here is that editing does not disturb it: a form
- * that sent the field on every save would overwrite a synopsis whenever
- * someone came in to fix the page count.
+ * §D40 — the description is the one prose field on the form that is *about* the
+ * book, and the one an assistant is expected to have written before the user
+ * ever opens this dialog. So what matters here is that editing does not disturb
+ * it: a form that sent the field on every save would overwrite a synopsis
+ * whenever someone came in to fix the page count.
  */
 describe("BookFormDialog — description (§D40)", () => {
   it("sends what was typed", async () => {
     const { calls, user } = renderForm(makeBook());
 
-    await user.type(screen.getByLabelText(/Descriere/), "Despre Arrakis.");
+    await goTo(user, "Descriere");
+    await user.type(description(), "Despre Arrakis.");
     await user.click(save());
 
     await waitFor(() =>
@@ -279,29 +320,34 @@ describe("BookFormDialog — description (§D40)", () => {
     );
   });
 
-  it("shows the one already on the book", () => {
-    renderForm(makeBook({ description: "Scrisă de Claude." }));
+  it("shows the one already on the book", async () => {
+    const { user } = renderForm(makeBook({ description: "Scrisă de Claude." }));
 
-    expect(screen.getByLabelText(/Descriere/)).toHaveValue("Scrisă de Claude.");
+    await goTo(user, "Descriere");
+
+    expect(description()).toHaveValue("Scrisă de Claude.");
   });
 
   it("leaves an untouched description out of the payload entirely", async () => {
     const { calls, user } = renderForm(makeBook({ description: "Scrisă de Claude." }));
 
-    const pages = screen.getByLabelText(/Pagina la care am ajuns/);
+    await goTo(user, "Lectură");
+    const pages = screen.getByLabelText("Pagina");
     await user.clear(pages);
     await user.type(pages, "300");
     await user.click(save());
 
     // Not `description: "Scrisă de Claude."` sent back unchanged, and above all
-    // not `null`: only what the user actually edited travels (`onlyDirty`).
+    // not `null`: only what the user actually edited travels (`onlyDirty`) —
+    // including across a tab the request never visited.
     await waitFor(() => expect(lastWrite(calls)).toEqual({ pagesRead: 300 }));
   });
 
   it("clears it when the textarea is emptied", async () => {
     const { calls, user } = renderForm(makeBook({ description: "Scrisă de Claude." }));
 
-    await user.clear(screen.getByLabelText(/Descriere/));
+    await goTo(user, "Descriere");
+    await user.clear(description());
     await user.click(save());
 
     // `null`, not `""` — and the form owns no rule of its own that says so:

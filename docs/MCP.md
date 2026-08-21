@@ -237,9 +237,9 @@ REST-ul.
 | Unealtă | Serviciu |
 |---|---|
 | `search_library` | `BooksService.list` — filtre pe status, gen, favorite, text; rând subțire, **fără** `description` |
-| `get_book` | `BooksService.findOne` — cartea întreagă, inclusiv `description` |
+| `get_book` | `BooksService.findOne` — cartea întreagă, inclusiv `description` și `review` |
 | `add_book` | `BooksService.create` |
-| `update_book` | `BooksService.update` — inclusiv status, progres și `description` (§D40) |
+| `update_book` | `BooksService.update` — inclusiv status, progres, `description` (§D40) și `review` (§D48) |
 | `delete_book` | `BooksService.remove` |
 | `get_reading_stats` | `StatsService` |
 | `get_budget` | `BudgetService` |
@@ -275,6 +275,11 @@ de caractere, și e singurul câmp al cărții care poate fi mai lung decât tot
 loc — deci `get_book` o întoarce, iar `search_library` n-o întoarce. Tot §D40: descrierea nu se
 aduce de nicăieri de către bookcsi. Modelul e sursa, `update_book` e drumul, iar descrierea acelei
 unelte îi spune explicit că poate căuta despre carte și în ce ton să scrie.
+
+**`review` e a doua proză de pe carte și se comportă altfel** (§D48). E scrisă de cititor, nu de
+model: unealta o expune (același `updateBookSchema.shape` ca restul câmpurilor), iar descrierea ei
+spune explicit că modelul ia dictare și nu inventează. Diferența față de `description` e cine e
+autorul, nu cât e de lungă — de-aia `get_book` întoarce ambele, iar `search_library` niciuna.
 
 Limba în care o scrie s-a schimbat însă la §D44: unealta cerea un rezumat **în română**, iar acum
 cere unul în limba în care utilizatorul îi scrie. Descrierea e datele lui, nu interfața noastră —

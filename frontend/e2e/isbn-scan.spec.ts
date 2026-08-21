@@ -76,7 +76,7 @@ test.describe("scanning an ISBN from the camera (§D43)", () => {
     // The point of the feature: one barcode, a filled-in book.
     await expect(page.getByLabel(/Titlu/)).toHaveValue("Dune");
     await expect(page.getByLabel(/Autor/)).toHaveValue("Frank Herbert");
-    await expect(page.getByLabel(/Nr. de pagini/)).toHaveValue("620");
+    await expect(page.getByLabel("Pagini")).toHaveValue("620");
   });
 
   test("switches the camera off once it has the answer", async ({
@@ -107,6 +107,12 @@ test.describe("scanning an ISBN from the camera (§D43)", () => {
     await page.getByRole("button", { name: openDialog }).first().click();
     await page.getByRole("button", { name: scanButton }).click();
     await expect(page.getByLabel(/ISBN/)).toHaveValue(SCAN_ISBN, { timeout: 30_000 });
+
+    // S4.2's ordering, waited for rather than assumed: the scan fills the ISBN,
+    // the lookup fills the rest, and saving in between would post a book with
+    // no title. The old version of this test raced the fill and passed on
+    // timing alone.
+    await expect(page.getByLabel(/^Titlu/)).toHaveValue("Dune");
 
     // Scoped to the dialog and exact: the header's own "Adaugă o carte" button
     // is still on the page behind it, and a loose name matches both.

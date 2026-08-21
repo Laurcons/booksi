@@ -104,7 +104,7 @@ export function ChallengeEditDialog({
         </label>
 
         {update.error && (
-          <p role="alert" className="text-sm text-status-abandoned">
+          <p role="alert" className="text-sm text-error">
             Nu am putut salva: {update.error.message}
           </p>
         )}

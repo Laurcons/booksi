@@ -173,6 +173,23 @@ describe("what the tools say (§D44)", () => {
     expect(proseOf("search_library")).toContain(COLLATION_EXAMPLE);
   });
 
+  /**
+   * §D48 — the review is the reader's prose, and the only thing stopping a model
+   * from writing one on their behalf is the sentence in the tool description.
+   * That makes the sentence a feature, so it gets a test: the field is exposed
+   * (it rides in on `updateBookSchema.shape`), and the instruction that it is
+   * dictation rather than authorship has to ride in with it.
+   */
+  it("tells the model the review is the reader's, not its own", () => {
+    const prose = proseOf("update_book");
+
+    expect(prose).toContain("review");
+    expect(prose).toMatch(/never invent one/i);
+    // And it must not be confused with the description, which the model *is*
+    // expected to write (§D40).
+    expect(prose).toMatch(/that is `description`/i);
+  });
+
   it("gives every tool a title and a description saying when to call it", () => {
     // The property docs/MCP.md §8 asks for: a description that says *when*,
     // not just *what*, because the model picks the tool from it.

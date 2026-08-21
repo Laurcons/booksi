@@ -28,11 +28,23 @@ import { useLocale, useT } from "../../i18n/locale-context";
 export function CategoryPicker({
   value,
   ariaLabel,
+  inputId,
   className,
+  chipsInside = false,
   onChange,
 }: {
   value: string[];
   ariaLabel?: string;
+  /** So a visible `<label>` outside this component can point at the search box. */
+  inputId?: string;
+  /**
+   * Draw the chips *inside* the field's own border, with the search box as the
+   * last thing on the line — the book form's shape (§D48), where the picker has
+   * to read as one control among several rather than as a list with a box under
+   * it. The gallery filter keeps the stacked arrangement, where the chips are a
+   * summary of what is being filtered and belong above the control.
+   */
+  chipsInside?: boolean;
   /** Applied to the search input. */
   className: string;
   onChange: (codes: string[]) => void;
@@ -76,10 +88,8 @@ export function CategoryPicker({
     );
   };
 
-  return (
-    <div className="relative">
-      {value.length > 0 && (
-        <ul className="mb-2 flex flex-wrap gap-1.5">
+  const chips = value.length === 0 ? null : (
+    <ul className={chipsInside ? "flex flex-wrap gap-1.5" : "mb-2 flex flex-wrap gap-1.5"}>
           {value.map((code) => {
             const node = index.get(code);
             const label = node ? categoryLabel(node.category, locale) : code;
@@ -99,25 +109,46 @@ export function CategoryPicker({
                 </span>
               </li>
             );
-          })}
-        </ul>
-      )}
+      })}
+    </ul>
+  );
 
-      <input
-        value={query}
+  const field = (
+    <input
+      value={query}
         autoComplete="off"
-        placeholder={t("category.searchPlaceholder")}
-        aria-label={ariaLabel}
-        className={className}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        // Fires after any dropdown click has been handled (the buttons preventDefault
-        // their mousedown), so a pick is never lost to the box closing first.
-        onBlur={() => setOpen(false)}
-      />
+      placeholder={t("category.searchPlaceholder")}
+      id={inputId}
+      aria-label={ariaLabel}
+      className={
+        chipsInside
+          ? "min-w-24 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
+          : className
+      }
+      onChange={(event) => {
+        setQuery(event.target.value);
+        setOpen(true);
+      }}
+      onFocus={() => setOpen(true)}
+      // Fires after any dropdown click has been handled (the buttons preventDefault
+      // their mousedown), so a pick is never lost to the box closing first.
+      onBlur={() => setOpen(false)}
+    />
+  );
+
+  return (
+    <div className="relative">
+      {chipsInside ? (
+        <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border border-line bg-surface-1 px-2 py-1.5 focus-within:border-accent">
+          {chips}
+          {field}
+        </div>
+      ) : (
+        <>
+          {chips}
+          {field}
+        </>
+      )}
 
       {open && (
         <div className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-line bg-surface-1 shadow-lg">

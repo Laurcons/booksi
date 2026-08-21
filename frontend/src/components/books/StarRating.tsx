@@ -60,6 +60,7 @@ export function StarRatingInput({
   name,
   value,
   disabled = false,
+  clear = "label",
   onChange,
   onBlur,
   inputRef,
@@ -67,6 +68,14 @@ export function StarRatingInput({
   name: string;
   value: string;
   disabled?: boolean;
+  /**
+   * How "no rating" offers itself. `label` writes the words, which is right in
+   * the finish-a-challenge dialog where the whole screen is one question.
+   * `compact` is a ✕ next to the stars, for the book form, where every field
+   * that explains itself in words is a field competing with three others
+   * (§D48).
+   */
+  clear?: "label" | "compact";
   onChange: React.ChangeEventHandler<HTMLInputElement>;
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
   inputRef?: React.Ref<HTMLInputElement>;
@@ -108,9 +117,11 @@ export function StarRatingInput({
       {/* Un-rating a book has to be reachable. The API takes `null` for it at
           any status, so this is never the thing that blocks a save. */}
       <label
+        title={clear === "compact" ? t("book.noRating") : undefined}
         className={
           "text-xs text-ink-3 transition-colors duration-150 " +
-          (disabled ? "opacity-50" : "hover:text-ink-2")
+          (disabled ? "opacity-50" : "hover:text-ink-2") +
+          (clear === "compact" ? " leading-none" : "")
         }
       >
         <input
@@ -124,7 +135,17 @@ export function StarRatingInput({
           ref={inputRef}
           className="sr-only"
         />
-        <span className={value === "" ? "text-ink-2" : ""}>{t("book.noRating")}</span>
+        {clear === "compact" ? (
+          <>
+            <span aria-hidden className={value === "" ? "text-ink-2" : ""}>
+              ✕
+            </span>
+            {/* The words still exist for anyone not reading the glyph. */}
+            <span className="sr-only">{t("book.noRating")}</span>
+          </>
+        ) : (
+          <span className={value === "" ? "text-ink-2" : ""}>{t("book.noRating")}</span>
+        )}
       </label>
     </div>
   );

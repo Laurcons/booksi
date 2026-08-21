@@ -134,6 +134,7 @@ export const bookSchema = z.object({
   volume: z.number().int().nullable(),
   format: z.string().nullable(),
   description: z.string().nullable(),
+  review: z.string().nullable(),
 
   status: statusSchema,
   favorite: z.boolean(),
@@ -222,6 +223,30 @@ export const createBookSchema = z.strictObject({
    * model's context the way an unbounded column could.
    */
   description: nullableText(5000).optional(),
+
+  /**
+   * The reader's own verdict, in prose — the long half of a rating.
+   *
+   * Deliberately *not* gated on status the way `rating` is. Five stars are a
+   * judgement on a finished book, so the server refuses them anywhere else
+   * (`backend/src/books/rating.ts`); a written note is not the same act. Half
+   * of what is worth writing about a book gets written while reading it, and a
+   * reader who abandons one at page forty has a review to write and no stars
+   * to give. So this column accepts text at any status, which also means it
+   * carries no cross-field rule and needs nothing from the service.
+   *
+   * 10 000 characters: twice the description's cap, because this one is not a
+   * synopsis. §D40 sized `description` against what a *model* would have to
+   * read back through `get_book`; the same argument applies here and lands
+   * differently — a review is written once and read by its author, so the
+   * ceiling is set by what a person might write in one sitting rather than by
+   * what is cheap to pour into a context window. Still inside TEXT's 64KB.
+   *
+   * Writable over MCP like every other field, and the tool description is
+   * where that gets qualified: an assistant may take dictation, but the
+   * sentences are the user's (docs/MCP.md §1).
+   */
+  review: nullableText(10_000).optional(),
 
   status: statusSchema.optional(),
 

@@ -198,7 +198,6 @@ export const ro = {
   "common.creating": "Se creează…",
   "common.approve": "Aprobă",
   "common.approving": "Se aprobă…",
-  "common.optional": "Opțional",
   "common.searching": "Se caută…",
   "common.loading": "Se încarcă…",
 
@@ -220,21 +219,33 @@ export const ro = {
 
   /* -------------------------------------------------- the add/edit form */
   "bookForm.editTitle": "Editează cartea",
-  "bookForm.hint": "Doar titlul e obligatoriu. Restul se poate completa oricând.",
+  "bookForm.addTitle": "Carte nouă",
   "bookForm.fromOpenLibrary": "Completat din Open Library. Corectează orice câmp.",
-  "bookForm.anyFieldEditable": "Orice câmp e editabil, indiferent de unde a venit.",
   "bookForm.olUnavailable":
     "Open Library nu răspunde acum. Completează câmpurile manual.",
   "bookForm.searchingIsbn": "Se caută ISBN-ul în Open Library…",
   "bookForm.scanBarcode": "Scanează codul de bare",
-  "bookForm.paidPrice": "Cât am plătit",
-  "bookForm.estimatedPrice": "Cât cred că va costa",
-  "bookForm.progressAndRating": "Progres și evaluare",
-  "bookForm.ratingHint": "Ratingul se dă cărților terminate sau abandonate.",
-  "bookForm.datesHint":
-    "Se completează singure la schimbarea statusului. Corectează-le oricând — o carte citită în 2019 trebuie să apară în 2019.",
   "bookForm.noCategory": "— fără categorie —",
-  "bookForm.optionalOrClaude": "Opțional — o poate completa și Claude",
+
+  /* the four tabs */
+  "bookForm.tab.book": "Carte",
+  "bookForm.tab.description": "Descriere",
+  "bookForm.tab.reading": "Lectură",
+  "bookForm.tab.verdict": "Verdict",
+  "bookForm.tabChanged": "are modificări nesalvate",
+  "bookForm.tabInvalid": "are un câmp de corectat",
+
+  /* what a locked field says on hover */
+  "bookForm.lockedProgress": "Se deschide când cartea e la tine",
+  "bookForm.lockedStarted": "Se deschide după ce cartea ajunge la tine",
+  "bookForm.lockedFinished": "Se deschide după ce începi cartea",
+  "bookForm.lockedPaid": "Se deschide după cumpărare",
+  "bookForm.lockedRating": "Stelele se dau la „Terminat” sau „Abandonat”",
+
+  "bookForm.changeCover": "Schimbă coperta",
+  "bookForm.markFinished": "Am terminat-o",
+  "bookForm.today": "Azi",
+  "bookForm.charCount": "{count} / {max}",
 
   /* -------------------------------------------------- the table */
   "table.actions": "Acțiuni",
@@ -261,7 +272,6 @@ export const ro = {
   "search.wishlist": "Caută în wishlist…",
   "search.byEmail": "Caută după email",
   "search.openLibrary": "Caută în Open Library",
-  "search.byTitleOrAuthor": "după titlu sau autor",
   "search.noCategoryMatches": "Nicio categorie nu se potrivește.",
   "category.searchPlaceholder": "Caută categorii…",
   "category.remove": "Elimină {label}",
@@ -270,15 +280,20 @@ export const ro = {
   "field.author": "Autor",
   "field.status": "Status",
   "field.pages": "Nr. de pagini",
-  "field.pagesHint": "Poate lipsi",
   "field.publisher": "Editura",
   "field.volume": "Volum",
   "field.format": "Format",
   "field.formatHint": "ex. 13x20 cm",
   "field.category": "Categorie",
+  "field.categories": "Categorii",
   "field.description": "Descriere",
+  "field.review": "Recenzie",
+  "field.reviewPlaceholder": "Ce ți-a rămas din cartea asta…",
   "field.rating": "Rating",
-  "field.currentPage": "Pagina la care am ajuns",
+  "field.page": "Pagina",
+  "field.yearShort": "An",
+  "field.estimated": "Estimat",
+  "field.paid": "Plătit",
   "bookForm.duplicate": "Ai deja {titles} cu acest ISBN. Poți salva oricum.",
   "field.deadline": "Termen",
   "challenge.finishTitle": "Ai terminat-o?",
@@ -321,8 +336,6 @@ export const ro = {
   "openLibrary.noResults": "Niciun rezultat. Completează manual mai jos.",
   "openLibrary.unavailable":
     "Open Library nu răspunde acum. Completează cartea manual mai jos.",
-  "openLibrary.orManual":
-    "Sau completează manual mai jos — câmpurile rămân editabile oricum.",
 
   /* -------------------------------------------------- start reading */
   "startReading.title": "Câte pagini are?",
@@ -498,7 +511,6 @@ export const ro = {
   "home.readingNow": "Citesc acum",
   "field.pagesShort": "Pagini",
   "field.descriptionPlaceholder": "Despre ce e cartea…",
-  "bookForm.readingData": "Datele lecturii",
   "cover.preview": "Previzualizarea copertei",
   "filters.allCategories": "Toate categoriile",
   "startReading.skip": "Sari peste",

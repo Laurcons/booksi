@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { focusable, trapTab } from "../lib/focus-trap";
+import { useT } from "../i18n/locale-context";
 
 /**
  * The only place in the app that gets a shadow: docs/DESIGN.md puts elevation
@@ -30,13 +31,46 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  header,
+  sheet = false,
+  dismissible = false,
+  autoFocus = true,
 }: {
   title: string;
   description?: string;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  /**
+   * A header of the dialog's own making, in place of the title block.
+   *
+   * `title` is still required and still names the dialog — it moves from
+   * `aria-labelledby` to `aria-label`, so a custom header is free to be a
+   * layout (a cover, a status pill, a truncated title) rather than a heading
+   * this component can point at.
+   */
+  header?: ReactNode;
+  /**
+   * Below `sm`, sit on the bottom edge and fill the screen instead of floating
+   * in the middle of it. The dialog that edits a book is tall enough that a
+   * centred card on a phone is a card with its own scrollbar inside the page's
+   * scrollbar; a sheet has one, and its footer stays where the thumb is.
+   */
+  sheet?: boolean;
+  /**
+   * Draw the close button. Escape and the backdrop already close every dialog,
+   * but neither is visible — and on a phone there is no Escape key and no
+   * backdrop worth aiming at once the panel fills the screen.
+   */
+  dismissible?: boolean;
+  /**
+   * Whether to put the keyboard on the first control. Turned off by dialogs
+   * that want a different landing place: with tabs, the first focusable thing
+   * is a tab button, and the field the user came to change is further down.
+   */
+  autoFocus?: boolean;
 }) {
+  const t = useT();
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
@@ -70,13 +104,22 @@ export function Modal({
   }, [onClose]);
 
   useEffect(() => {
+    if (!autoFocus) {
+      return;
+    }
+
     // Focus the first control, so the keyboard lands inside the dialog.
     focusable(panelRef.current)[0]?.focus();
-  }, []);
+  }, [autoFocus]);
 
   return createPortal(
     <div
-      className="fixed inset-0 z-40 grid place-items-start overflow-y-auto bg-black/60 p-4 sm:place-items-center"
+      className={
+        "fixed inset-0 z-40 grid overflow-y-auto bg-black/60 sm:place-items-center " +
+        (sheet
+          ? "place-items-end p-0 sm:p-4"
+          : "place-items-start p-4")
+      }
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -87,20 +130,41 @@ export function Modal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-label={header ? title : undefined}
+        aria-labelledby={header ? undefined : titleId}
         className={
-          "w-full rounded-xl border border-line bg-surface-2 shadow-lg shadow-black/50 " +
-          (wide ? "max-w-2xl" : "max-w-md")
+          "relative flex w-full flex-col border border-line bg-surface-2 shadow-lg shadow-black/50 " +
+          // 45rem is the book form's measured width (docs/DESIGN.md §Dialogul de editare).
+          (wide ? "max-w-[45rem] " : "max-w-md ") +
+          // A sheet is as tall as the phone, minus a strip of the page behind
+          // it: enough to see that the library is still there, and to have
+          // somewhere to tap that is not the dialog.
+          (sheet
+            ? "h-[94dvh] rounded-t-2xl sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-xl"
+            : "rounded-xl")
         }
       >
-        <div className="border-b border-line px-6 py-4">
-          <h2 id={titleId} className="font-display text-xl text-ink">
-            {title}
-          </h2>
-          {description && (
-            <p className="mt-1 text-sm text-ink-3">{description}</p>
-          )}
-        </div>
+        {dismissible && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+            className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-lg border border-line text-ink-3 transition-colors duration-150 hover:border-accent-quiet hover:text-ink"
+          >
+            <span aria-hidden>✕</span>
+          </button>
+        )}
+
+        {header ?? (
+          <div className="border-b border-line px-6 py-4">
+            <h2 id={titleId} className="font-display text-xl text-ink">
+              {title}
+            </h2>
+            {description && (
+              <p className="mt-1 text-sm text-ink-3">{description}</p>
+            )}
+          </div>
+        )}
         {children}
       </div>
     </div>,

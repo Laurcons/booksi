@@ -47,7 +47,7 @@ function ConsentPrompt({ req }: { req: string }) {
   if (consent.isError) {
     return (
       <ConsentShell>
-        <p role="alert" className="text-sm text-status-abandoned">
+        <p role="alert" className="text-sm text-error">
           {errorMessage(
             consent.error,
             t("consent.requestInvalid"),
@@ -78,7 +78,7 @@ function ConsentPrompt({ req }: { req: string }) {
       </p>
 
       {approve.error && (
-        <p role="alert" className="mt-4 text-sm text-status-abandoned">
+        <p role="alert" className="mt-4 text-sm text-error">
           {t("consent.failed", {
             message: errorMessage(approve.error, t("common.retry")),
           })}

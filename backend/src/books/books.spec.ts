@@ -38,6 +38,7 @@ const storedBook = {
   totalPages: 620,
   // §D45 — categories are a relation now; Prisma returns them as join rows.
   categories: [{ categoryCode: "FICTION__GENERAL" }],
+  review: null,
   olEditionKey: null,
   status: "READING" as const,
   favorite: false,
@@ -191,6 +192,9 @@ describe("books routes (Sprints 1–3)", () => {
         favorite: false,
         pagesRead: 143,
         rating: null,
+        // §D48 — the review rides along on every read, like the description:
+        // one column, no separate route.
+        review: null,
         // Decimal crosses the wire as a number, not as an object.
         estimatedPrice: 59.9,
         paidPrice: null,
@@ -522,6 +526,79 @@ describe("books routes (Sprints 1–3)", () => {
       await as("patch", "/books/book-1")
         .send({ description: "a".repeat(5000) })
         .expect(200);
+    });
+  });
+
+  /**
+   * §D48 — the reader's own review. The same plumbing as the description one
+   * block up, and deliberately so: it is `nullableText` on an ordinary column,
+   * written through the same `PATCH`.
+   *
+   * What is worth asserting is the one place the two prose fields differ. The
+   * rating beside it is refused on a status that cannot hold one
+   * (`rating.ts`); the review is not, because a book abandoned at page forty
+   * is worth writing about and cannot be given stars.
+   */
+  describe("review (§D48)", () => {
+    const REVIEW = "Am citit-o a doua oară la doisprezece ani distanță și e altă carte.";
+
+    beforeEach(() => {
+      prisma.book.findFirst.mockResolvedValue(storedBook);
+      prisma.book.update.mockResolvedValue({ ...storedBook, review: REVIEW });
+      prisma.book.create.mockResolvedValue({ ...storedBook, review: REVIEW });
+    });
+
+    it("stores a review sent on its own", async () => {
+      await as("patch", "/books/book-1").send({ review: REVIEW }).expect(200);
+
+      expect(writtenData(prisma.book.update).review).toBe(REVIEW);
+    });
+
+    it("returns it on the book", async () => {
+      const res = await as("patch", "/books/book-1").send({ review: REVIEW }).expect(200);
+
+      expect(res.body.review).toBe(REVIEW);
+    });
+
+    it("takes one at creation too", async () => {
+      await as("post", "/books").send({ title: "Dune", review: REVIEW }).expect(201);
+
+      expect(writtenData(prisma.book.create).review).toBe(REVIEW);
+    });
+
+    it("lets it be cleared, and turns a blanked-out textarea into NULL", async () => {
+      await as("patch", "/books/book-1").send({ review: null }).expect(200);
+      expect(writtenData(prisma.book.update).review).toBeNull();
+
+      await as("patch", "/books/book-1").send({ review: "   " }).expect(200);
+      expect(writtenData(prisma.book.update).review).toBeNull();
+    });
+
+    it("leaves it alone when the request does not mention it", async () => {
+      await as("patch", "/books/book-1").send({ pagesRead: 200 }).expect(200);
+
+      expect(writtenData(prisma.book.update).review).toBeUndefined();
+    });
+
+    it("accepts one on a book that is still being read", async () => {
+      // `storedBook` is READING, and a rating would be refused on it (see the
+      // rating tests). The review is not a verdict that waits for the last page.
+      await as("patch", "/books/book-1").send({ review: REVIEW }).expect(200);
+
+      expect(writtenData(prisma.book.update).review).toBe(REVIEW);
+    });
+
+    it("takes twice the description's room, and no more", async () => {
+      // 10 000 rather than 5000 because the audience is different: a synopsis is
+      // read back by a model through `get_book`, a review by the person who
+      // wrote it (docs/DECISIONS.md §D48).
+      await as("patch", "/books/book-1").send({ review: "a".repeat(10_000) }).expect(200);
+
+      const res = await as("patch", "/books/book-1")
+        .send({ review: "a".repeat(10_001) })
+        .expect(400);
+
+      expect(String(res.body.message)).toContain("review");
     });
   });
 

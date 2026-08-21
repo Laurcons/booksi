@@ -104,6 +104,7 @@ export function createMockApi(): Express {
       volume: null,
       format: null,
       description: null,
+      review: null,
       status: "WISHLIST",
       favorite: false,
       pagesRead: 0,

@@ -975,6 +975,62 @@ stabil al codului de *grup* într-o bandă pastel (frontend/src/lib/shelf.ts): c
 grup rămân înrudite vizual, fără mapă de întreținut, iar un grup adăugat de o migrare viitoare e
 colorat gratis. Decorativ, deci „prima categorie a cărții" e suficient (docs/DESIGN.md §Raftul).
 
+
+### D48 — Formularul cărții se rupe în patru taburi, iar cartea capătă o recenzie
+
+`BookFormDialog` era un singur ecran cu nouăsprezece câmpuri, iar §D40 i-a dat al douăzecilea —
+descrierea, proză de câteva paragrafe într-un `textarea` de cinci rânduri, între ISBN și numărul
+de pagini. Cererea de a adăuga **o recenzie lungă** lângă stele l-ar fi rupt de tot: două câmpuri
+de proză într-o grilă de valori.
+
+**Decizie: patru taburi — Carte · Descriere · Lectură · Verdict — și un singur Salvează.**
+Taburile *nu* sunt pași. Nu există „Înainte", nu există ordine impusă, iar orice tab se atinge
+dintr-un clic din oricare altul: majoritatea vizitelor în dialog schimbă exact un câmp și nu e
+niciodată același. Ce cumpără împărțirea e că fiecare din cele două câmpuri de proză primește un
+tab întreg, iar „unde a ajuns cartea" nu se mai citește în treacăt pe drum spre titlu.
+
+Gruparea nu urmează cererea la literă (progres+rating într-un tab, istoric în altul), ci axa care
+s-a dovedit adevărată: **Lectură** ține tot ce se schimbă în viața cărții (status, pagină,
+cronologie, bani), **Verdict** ține actul de evaluare (stele + recenzie). Datele și progresul sunt
+aceeași întrebare — cât de departe e cartea; nota și recenzia sunt același gest.
+
+**Recenzia e a doua proză de pe carte, și e a cititorului.** Coloană `TEXT`, plafon 10 000 de
+caractere — dublul descrierii, fiindcă publicul e altul: sinopsisul e recitit de un model prin
+`get_book`, recenzia de omul care a scris-o. Se scrie **la orice status**, spre deosebire de
+rating: jumătate din ce merită spus se scrie înainte de ultima pagină, iar o carte abandonată la
+pagina patruzeci are recenzie de scris și n-are stele de dat (§D11 dă verdict, nu notă). Uneltele
+MCP o expun ca pe orice câmp (`updateBookSchema.shape`), iar descrierea uneltei spune explicit ce
+n-are voie modelul: să inventeze una sau să bage sinopsisul în ea.
+
+**Trei reguli de interfață ies din decizia asta și se aplică peste tot în dialog:**
+
+1. **Dezactivat, nu ascuns.** Un câmp care nu se aplică — pagina la o carte din wishlist, stelele
+   la una în curs de citit — rămâne la locul lui, adâncit și inert, cu motivul în `title`. Vechiul
+   formular ascundea stelele; un control care lipsește nu spune nimic, unul pe care-l vezi și nu-l
+   poți folosi spune că există o regulă. Regulile stau în `form/locks.ts`, iar cea a ratingului e
+   singura pe care o ține și serverul.
+2. **Etichetă și valoare, nimic altceva.** Cele opt rânduri de „hint" au dispărut („Poate lipsi",
+   „Opțional", „ex. 13x20 cm"): explicațiile trăiesc în `title`, unde nu ocupă spațiu. Singura
+   excepție e contorul de caractere de sub cele două câmpuri cu plafon — `743 / 10.000`, cifre,
+   fără propoziție.
+3. **Ce nu se vede se marchează pe tab.** Un punct alamă = modificări nesalvate acolo; unul roșu
+   = câmp invalid acolo. Fără el, un titlu șters în „Carte" în timp ce te uiți la „Verdict" e un
+   buton Salvează care nu face nimic — `shouldFocusError` nu poate focaliza un input nemontat, deci
+   ramura de eroare a lui `handleSubmit` comută tabul.
+
+**Titlul din capul dialogului e cel salvat, nu ce se tastează.** O bară care oglindește câmpul de
+dedesubt scrie același șir de două ori, tremură la fiecare tastă și se golește exact când titlul
+vechi e cel mai util — când îl rescrii. Pastila de status, dimpotrivă, urmărește selecția: o
+alegere care se confirmă nu e zgomot.
+
+**S-a adăugat un roșu în paletă.** Erorile foloseau `status-abandoned`, care e gri: un mesaj pe
+care nu-l vede nimeni. `--color-error: #E0674A` (5.4:1 pe `surface-1`), deliberat diferit de
+slotul 2 al paletei de grafice (`#D95926`), ca un mesaj de validare să nu poată fi citit ca serie
+de date (docs/DESIGN.md §Eroare).
+
+**Kobo nu primește nimic din asta** (§D37): recenzia e o coloană pe care o poartă și tipul lui,
+dar hârtia electronică citește un raft, nu editează proză.
+
 ---
 
 ## Ce a fost eliminat din backlogul inițial

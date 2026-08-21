@@ -97,6 +97,16 @@ pastilă poartă întotdeauna și textul, deci starea nu e transmisă doar prin 
 | Terminat | `#199E70` | `rgba(25,158,112,.14)` |
 | Abandonat | `#8C8177` | `rgba(140,129,119,.14)` |
 
+### Eroare
+
+Un singur roșu, `#E0674A` (5.4:1 pe `surface-1`), pentru mesaje de validare, contururi de câmp
+invalid și punctul de pe tabul care are ceva de corectat.
+
+Până la §D48 erorile împrumutau `--color-status-abandoned`, care e gri — adică un mesaj pe care
+nu-l vede nimeni. Nuanța e alegerea deliberat *diferită* de slotul 2 al paletei de grafice
+(`#D95926`), ca un mesaj de validare să nu poată fi citit vreodată ca serie de date. Nu e culoare
+de status și nu intră în grafice.
+
 ### Paleta categorială pentru grafice
 
 Ordine **fixă**, atribuită în ordinea de mai jos și niciodată ciclată. Validată integral pe
@@ -177,6 +187,33 @@ de metadate cu stelele și pastila de status.
   întunecat ca să rămână lizibilă indiferent de copertă.
 - Bara de progres apare **doar** pe cărțile cu status `Citesc`.
 - Hover: `translateY(-2px)` și conturul devine `--accent-quiet`. Atât.
+
+### Dialogul de editare (§D48)
+
+Patru taburi — Carte · Descriere · Lectură · Verdict — un singur „Salvează", și trei reguli care
+se aplică fiecărui câmp:
+
+- **Înălțime constantă.** Corpul dialogului are aceeași înălțime pe toate taburile (`27rem` la
+  editare, `31rem` la adăugare, unde încape și căutarea Open Library). Comutarea unui tab nu
+  redimensionează fereastra sub cursor; taburile de proză se întind în spațiul liber, iar ce nu
+  încape derulează.
+- **Dezactivat, nu ascuns.** Un câmp care nu se aplică rămâne pe loc, ca o adâncitură în panou —
+  `bg-surface-0/60`, contur `line/70`, umbră interioară de 1px — cu eticheta în `ink-3` și motivul
+  în `title`. „Gri deschis" nu funcționează pe fundal cald-închis: se citește ca nimic.
+- **Etichetă și valoare.** Fără rânduri de explicații. Singurul text în plus e contorul de
+  caractere de sub cele două câmpuri cu plafon, cifre tabulare în `ink-3`.
+
+Statusul e un rând de cinci pastile, nu un `select`: cinci stări încap pe ecran, iar fiecare vine
+cu culoarea ei din §Statusuri, deci „unde e cartea" costă o privire, nu un clic. Cronologia
+(cumpărată → începută → terminată) e o linie cu trei perle — plină când data e știută, goală când
+nu — orizontală peste `sm`, verticală dedesubt.
+
+Punctele de pe taburi: alamă pentru modificări nesalvate pe tabul respectiv, roșu (§Eroare) pentru
+un câmp de corectat. Ambele sunt și scrise pentru cititorul de ecran.
+
+Pe telefon dialogul e o **foaie ancorată jos** (`94dvh`, colțuri rotunjite doar sus), cu footerul
+lipit unde ajunge degetul. Coperta e propriul buton — o insignă cu creion în colț deschide
+încărcarea, fără titlu de secțiune și fără control separat lângă ea.
 
 ### Placeholderul de copertă (S5.5)
 

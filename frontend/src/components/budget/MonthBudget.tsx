@@ -170,11 +170,11 @@ function BudgetField({ budget }: { budget: number | null }) {
         {save.isPending ? t("common.saving") : t("common.save")}
       </button>
 
-      {problem !== null && <p className="text-sm text-status-abandoned">{problem}</p>}
+      {problem !== null && <p className="text-sm text-error">{problem}</p>}
 
       {/* §D27 — the API's sentence, verbatim, whatever the status was. */}
       {save.isError && (
-        <p className="text-sm text-status-abandoned">
+        <p className="text-sm text-error">
           {errorMessage(save.error, "N-am putut salva bugetul.")}
         </p>
       )}

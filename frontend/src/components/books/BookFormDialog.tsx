@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
 import {
-  CURRENCY,
-  STATUS_VALUES,
-  createBookSchema,
-  isRatable,
   normalizeIsbn,
-  statusLabel,
-  statusSchema,
   type Book,
   type BookSuggestion,
   type CreateBookInput,
@@ -23,147 +22,56 @@ import {
 } from "../../api/openlibrary";
 import { errorMessage } from "../../lib/api";
 import { useDebounced } from "../../lib/use-debounced";
+import { focusable } from "../../lib/focus-trap";
 import { Modal } from "../Modal";
-import { AuthorInput } from "./AuthorInput";
-import { CategoryPicker } from "./CategoryPicker";
+import { StatusPill } from "../StatusPill";
 import { CoverPicker } from "./CoverPicker";
-import { IsbnScanner } from "./IsbnScanner";
+import { CoverThumb } from "./CoverThumb";
 import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
-import { StarRatingInput } from "./StarRating";
-import { useLocale, useT } from "../../i18n/locale-context";
+import { BookTab } from "./form/BookTab";
+import { DescriptionTab } from "./form/DescriptionTab";
+import { ReadingTab } from "./form/ReadingTab";
+import { VerdictTab } from "./form/VerdictTab";
+import { BUTTON_PRIMARY, BUTTON_QUIET } from "./form/styles";
+import {
+  bookFormSchema,
+  EMPTY,
+  onlyDirty,
+  onlyFilled,
+  TABS,
+  tabsOf,
+  toFormValues,
+  type BookFormValues,
+  type TabId,
+} from "./form/schema";
+import { useT } from "../../i18n/locale-context";
+import type { MessageKey } from "../../i18n/catalog";
 import { useLocalizedResolver } from "../../i18n/zod-resolver";
 
 /**
- * S1.1 (add) and S1.3 (edit) are the same form: every field is editable at any
- * time, whatever populated it. The manual form is permanent — Sprint 4 adds
- * Open Library beside it, never in place of it.
+ * S1.1 (add) and S1.3 (edit) are the same form, and every field is still
+ * editable at any time, whatever populated it. What changed is the shape: one
+ * scroll of nineteen fields became four tabs.
  *
- * Inputs speak strings; the API speaks numbers, nulls and calendar days. The
- * schema below is only that translation, and it ends in `createBookSchema`
- * from `shared/` — the same object the API validates with, so a rule cannot
- * drift between the two sides.
- */
-const bookFormSchema = z
-  .object({
-    title: z.string(),
-    author: z.string(),
-    isbn: z.string(),
-    totalPages: z.string(),
-    categories: z.array(z.string()),
-    publisher: z.string(),
-    publicationYear: z.string(),
-    volume: z.string(),
-    format: z.string(),
-    description: z.string(),
-    status: statusSchema,
-    pagesRead: z.string(),
-    rating: z.union([z.enum(["1", "2", "3", "4", "5"]), z.literal("")]),
-    estimatedPrice: z.string(),
-    paidPrice: z.string(),
-    purchasedOn: z.string(),
-    startedOn: z.string(),
-    finishedOn: z.string(),
-  })
-  // The annotation is load-bearing: `.pipe` matches the two types exactly, so
-  // the transform has to declare that it produces the API schema's *input*.
-  .transform((values): z.input<typeof createBookSchema> => ({
-    title: values.title,
-    author: values.author,
-    isbn: values.isbn,
-    totalPages: values.totalPages.trim() === "" ? null : Number(values.totalPages),
-    categories: values.categories,
-    publisher: values.publisher,
-    publicationYear:
-      values.publicationYear.trim() === "" ? null : Number(values.publicationYear),
-    volume: values.volume.trim() === "" ? null : Number(values.volume),
-    format: values.format,
-    // §D40 — plain text either way; `nullableText` on the API side is what
-    // turns a textarea the user emptied back into a NULL column.
-    description: values.description,
-    status: values.status,
-    // S2.1. Blank is 0, not null: the column has no null to store, and "I
-    // haven't opened it yet" is genuinely page zero.
-    pagesRead: values.pagesRead.trim() === "" ? 0 : Number(values.pagesRead),
-    rating: ratingFor(values.status, values.rating),
-    // S3.2 — the user's own guess; Open Library publishes no prices. A separate
-    // field from what was paid, and §D6 is the reason: only the second one
-    // feeds the Sprint 6 budget.
-    estimatedPrice: toMoney(values.estimatedPrice),
-    // S2.4.
-    paidPrice: toMoney(values.paidPrice),
-    purchasedOn: blankToNull(values.purchasedOn),
-    startedOn: blankToNull(values.startedOn),
-    finishedOn: blankToNull(values.finishedOn),
-  }))
-  .pipe(createBookSchema);
-
-/**
- * Both prices, in and out of the same box. Comma is what a Romanian keyboard
- * produces for a decimal; the API wants a JSON number either way, and an empty
- * field is a price nobody has decided on rather than a zero.
- */
-function toMoney(value: string): number | null {
-  return value.trim() === "" ? null : Number(value.replace(",", "."));
-}
-
-/**
- * S2.3. The stars are only offered on a status that can hold a rating, so on
- * any other status the field must go out as `undefined` — *absent*, not `null`.
+ * The tabs are not steps. There is one Save, it saves everything, and any tab
+ * can be reached from any other in one click — a wizard would be wrong here,
+ * because most visits to this dialog change exactly one field and it is never
+ * the same one twice. What the tabs buy is that the two prose fields
+ * (description, and now the review) get a box the size of a page instead of
+ * five rows wedged between the ISBN and the page count, and that "where is this
+ * book" stops being read past on the way to the title.
  *
- * The difference is the whole rule. `null` would clear a rating the user never
- * touched, which is exactly what the API refuses to do on its own when a
- * finished book goes back to `Citesc` for a re-read; sending it from here would
- * undo that decision from the outside.
+ * Three rules run through the whole thing, and each one is somewhere else in
+ * this directory:
+ *
+ * - **A field that does not apply is disabled, not hidden** (`form/locks.ts`).
+ * - **Labels and values, nothing else** — explanations live in `title`
+ *   attributes, not in rows of hint text (`form/fields.tsx`).
+ * - **A change or an error on a tab you cannot see is marked on the tab**
+ *   (`TAB_OF_FIELD` in `form/schema.ts`), because the alternative is a Save
+ *   button that appears to do nothing.
  */
-function ratingFor(
-  status: z.infer<typeof statusSchema>,
-  rating: string,
-): number | null | undefined {
-  if (!isRatable(status)) {
-    return undefined;
-  }
-
-  return rating === "" ? null : Number(rating);
-}
-
-type BookFormValues = z.input<typeof bookFormSchema>;
-
-/**
- * The fields Open Library can speak to (S4.1, S4.2). Everything else on
- * the form is the user's own — a status, a rating, what they paid — and no
- * external source has an opinion worth pouring into them.
- */
-type FillableField =
-  | "title"
-  | "author"
-  | "isbn"
-  | "totalPages"
-  | "publisher"
-  | "publicationYear"
-  | "format";
-
-const EMPTY: BookFormValues = {
-  title: "",
-  author: "",
-  isbn: "",
-  totalPages: "",
-  categories: [],
-  publisher: "",
-  publicationYear: "",
-  volume: "",
-  format: "",
-  description: "",
-  status: "WISHLIST",
-  pagesRead: "",
-  rating: "",
-  estimatedPrice: "",
-  paidPrice: "",
-  purchasedOn: "",
-  startedOn: "",
-  finishedOn: "",
-};
-
 export function BookFormDialog({
   book,
   onClose,
@@ -173,11 +81,12 @@ export function BookFormDialog({
   onClose: () => void;
 }) {
   const t = useT();
-  const { locale } = useLocale();
   const create = useCreateBook();
   const update = useUpdateBook();
   const editing = book !== undefined;
   const queryClient = useQueryClient();
+
+  const [tab, setTab] = useState<TabId>("book");
 
   /**
    * A cover picked before the book exists — there's no id yet for the upload
@@ -186,18 +95,19 @@ export function BookFormDialog({
    */
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null);
 
+  const form = useForm<BookFormValues, unknown, CreateBookInput>({
+    // §D44 — the schema carries keys, so the resolver has to word them.
+    resolver: useLocalizedResolver(bookFormSchema),
+    defaultValues: book ? toFormValues(book) : EMPTY,
+  });
+
   const {
-    register,
     handleSubmit,
     watch,
     setValue,
     getValues,
     formState: { errors, dirtyFields, isSubmitting },
-  } = useForm<BookFormValues, unknown, CreateBookInput>({
-    // §D44 — the schema carries keys, so the resolver has to word them.
-    resolver: useLocalizedResolver(bookFormSchema),
-    defaultValues: book ? toFormValues(book) : EMPTY,
-  });
+  } = form;
 
   const isbn = useDebounced(watch("isbn"), 300);
   const duplicates = useIsbnDuplicates(isbn, book?.id);
@@ -211,13 +121,6 @@ export function BookFormDialog({
    * create request only.
    */
   const [olEditionKey, setOlEditionKey] = useState<string | null>(null);
-
-  /**
-   * §D43 — whether the camera is on. Mounting `IsbnScanner` is what opens it and
-   * unmounting is what releases it, so this flag is the camera's on/off switch
-   * rather than merely a visibility toggle.
-   */
-  const [scanning, setScanning] = useState(false);
 
   const edition = useEditionSuggestion();
 
@@ -254,10 +157,6 @@ export function BookFormDialog({
    * title and then adds the ISBN wants the gaps filled, not their own words
    * replaced. Filling blanks only is the behaviour that can never destroy what
    * the user wrote, which is why it is the one that runs unprompted.
-   *
-   * Memoised, and declared above the effect that uses it, because it *is* one
-   * of that effect's dependencies — react-hook-form's setters are stable, so
-   * this identity never changes and the effect stays keyed on the answer alone.
    */
   const fill = useCallback(
     (suggestion: BookSuggestion, { overwrite }: { overwrite: boolean }) => {
@@ -269,16 +168,19 @@ export function BookFormDialog({
         // `shouldDirty` is what makes the value survive an edit: `onlyDirty`
         // sends the fields the user changed, and a silently-set field is one
         // the form would drop on the way out.
-        setValue(field, value, { shouldDirty: true });
+        //
+        // `shouldValidate` clears the error the fill has just answered. Without
+        // it, someone who scans a barcode and hits Save before the lookup lands
+        // is left looking at "Titlul e obligatoriu" *under a filled-in title* —
+        // the message is stale, but nothing on screen says so, and the only way
+        // out is to touch the field.
+        setValue(field, value, { shouldDirty: true, shouldValidate: true });
       };
 
       set("title", suggestion.title);
       set("author", suggestion.author ?? "");
       set("isbn", suggestion.isbn ?? "");
-      set(
-        "totalPages",
-        suggestion.totalPages === null ? "" : String(suggestion.totalPages),
-      );
+      set("totalPages", suggestion.totalPages === null ? "" : String(suggestion.totalPages));
       set("publisher", suggestion.publisher ?? "");
       set(
         "publicationYear",
@@ -342,358 +244,323 @@ export function BookFormDialog({
     }
   };
 
-  // The stars appear and disappear with the status, so the form has to follow
-  // the select rather than read the stored value once.
-  const status = watch("status");
-  const ratingValue = watch("rating");
-  const ratingField = register("rating");
-  const authorValue = watch("author");
-  const authorField = register("author");
-  const categoriesValue = watch("categories");
+  const submit = handleSubmit(
+    async (payload) => {
+      if (editing) {
+        // Only what the user actually touched. Sending an untouched empty date
+        // would read as "clear it", and would stop the API from stamping the
+        // transition date this very request just triggered (S1.5).
+        const changed = onlyDirty(payload, dirtyFields);
 
-  const submit = handleSubmit(async (payload) => {
-    if (editing) {
-      // Only what the user actually touched. Sending an untouched empty date
-      // would read as "clear it", and would stop the API from stamping the
-      // transition date this very request just triggered (S1.5).
-      const changed = onlyDirty(payload, dirtyFields);
+        if (Object.keys(changed).length > 0) {
+          await update.mutateAsync({ id: book.id, input: changed });
+        }
+      } else {
+        // §D8: given the edition, the server downloads and stores the cover as
+        // part of creating the book. Nothing else on the client knows about it.
+        const created = await create.mutateAsync({
+          ...onlyFilled(payload),
+          ...(olEditionKey === null ? {} : { olEditionKey }),
+        });
 
-      if (Object.keys(changed).length > 0) {
-        await update.mutateAsync({ id: book.id, input: changed });
+        // A manually picked file goes up once the id it needs exists — after
+        // the dialog is already gone, on the same best-effort footing as the
+        // Open Library fetch above: a failure here costs the cover, not the
+        // book, and Edit is the way back to it.
+        if (pendingCoverFile !== null) {
+          void uploadCoverImage(created.id, pendingCoverFile)
+            .then(() => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }))
+            .catch(() => {});
+        }
       }
-    } else {
-      // §D8: given the edition, the server downloads and stores the cover as
-      // part of creating the book. Nothing else on the client knows about it.
-      const created = await create.mutateAsync({
-        ...onlyFilled(payload),
-        ...(olEditionKey === null ? {} : { olEditionKey }),
-      });
 
-      // A manually picked file goes up once the id it needs exists — after
-      // the dialog is already gone, on the same best-effort footing as the
-      // Open Library fetch above: a failure here costs the cover, not the
-      // book, and Edit is the way back to it.
-      if (pendingCoverFile !== null) {
-        void uploadCoverImage(created.id, pendingCoverFile)
-          .then(() => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }))
-          .catch(() => {});
+      onClose();
+    },
+    /**
+     * The invalid branch, and the one piece of plumbing tabs make compulsory.
+     *
+     * `shouldFocusError` cannot focus an input that is not mounted, so without
+     * this a title cleared on the "Carte" tab would fail validation while the
+     * user is looking at "Verdict" — and Save would do nothing, visibly. So
+     * the first tab holding an error becomes the visible one, and the red dot
+     * on the strip says where the rest are.
+     */
+    (invalid) => {
+      const [first] = tabsOf(Object.keys(invalid));
+
+      if (first !== undefined) {
+        setTab(first);
       }
-    }
-
-    onClose();
-  });
+    },
+  );
 
   const failure = create.error ?? update.error;
+  const status = watch("status");
+
+  const dirtyTabs = tabsOf(Object.keys(dirtyFields));
+  const invalidTabs = tabsOf(Object.keys(errors));
+
+  /**
+   * The keyboard's first stop, and it is not the tab strip.
+   *
+   * `Modal` focuses the first control it finds, which with tabs is the "Carte"
+   * button — a control nobody opened this dialog to press. Mount only: switching
+   * tabs deliberately leaves focus on the tab, which is what a tablist is
+   * supposed to do.
+   */
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    focusable(panelRef.current)[0]?.focus();
+  }, []);
 
   return (
     <Modal
       wide
-      title={editing ? t("bookForm.editTitle") : t("nav.addBook")}
-      description={
-        editing
-          ? t("bookForm.anyFieldEditable")
-          : t("bookForm.hint")
-      }
+      sheet
+      dismissible
+      autoFocus={false}
+      title={editing ? t("bookForm.editTitle") : t("bookForm.addTitle")}
       onClose={onClose}
-    >
-      <form onSubmit={(event) => void submit(event)} noValidate>
-        {/* S4.1 — above the fields, not in front of them. Only when adding:
-            editing a book is not the moment to be offered a different one. */}
-        {!editing && (
-          <OpenLibrarySearch
-            onSelect={(result) => void selectResult(result)}
-            busy={edition.isPending}
-          />
-        )}
+      header={
+        <div className="flex items-start gap-3 border-b border-line px-5 py-4 pr-16">
+          {editing && <CoverThumb title={book.title} coverUrl={book.coverUrl} />}
 
-        <div className="grid gap-5 px-6 py-5 sm:grid-cols-2">
-          <Field className="sm:col-span-2" label={t("field.title")} error={errors.title}>
-            <input {...register("title")} className={INPUT} autoComplete="off" />
-          </Field>
+          <div className="min-w-0 flex-1">
+            {/*
+              The stored title, not `watch("title")`.
 
-          <Field label={t("field.author")} error={errors.author}>
-            <AuthorInput
-              name={authorField.name}
-              value={authorValue}
-              className={INPUT}
-              onChange={authorField.onChange}
-              onBlur={authorField.onBlur}
-              inputRef={authorField.ref}
-              onSelect={(author) => setValue("author", author, { shouldDirty: true })}
-            />
-          </Field>
+              A header that mirrors the field two rows below it says the same
+              string twice, jitters on every keystroke, and goes blank at the
+              exact moment it is most useful — when the title is being
+              select-all-retyped and the old one is the thing worth still
+              seeing. It updates when the save lands.
+            */}
+            <h2 className="line-clamp-2 font-display text-lg text-ink sm:text-xl">
+              {editing ? book.title : t("bookForm.addTitle")}
+            </h2>
 
-          <Field label={t("field.pages")} error={errors.totalPages} hint={t("field.pagesHint")}>
-            <input
-              {...register("totalPages")}
-              type="number"
-              min={1}
-              className={INPUT}
-              inputMode="numeric"
-            />
-          </Field>
-
-          <Field label="ISBN" error={errors.isbn} hint={t("common.optional")}>
-            <div className="flex items-center gap-2">
-              <input
-                {...register("isbn")}
-                className={INPUT}
-                autoComplete="off"
-                inputMode="numeric"
-              />
-              <button
-                type="button"
-                onClick={() => setScanning((on) => !on)}
-                aria-pressed={scanning}
-                title={t("bookForm.scanBarcode")}
-                className="shrink-0 rounded-lg border border-line px-3 py-2 text-sm text-ink-2 transition-colors duration-150 hover:border-accent-quiet hover:text-ink"
-              >
-                {/* The label carries the meaning; the glyph is decoration, so it
-                    is hidden rather than read out as punctuation. */}
-                <span aria-hidden>▥</span>
-                <span className="sr-only">{t("bookForm.scanBarcode")}</span>
-              </button>
-            </div>
-
-            {scanning && (
-              <div className="mt-2">
-                <IsbnScanner
-                  onFound={(scanned) => {
-                    /**
-                     * §D43 — `shouldDirty` is the whole integration, and it is
-                     * the one line that would silently do nothing if it were
-                     * left out: S4.2's lookup is gated on `dirtyFields.isbn`,
-                     * so a value set quietly here would fill the field and then
-                     * fetch nothing, which looks exactly like Open Library
-                     * being down.
-                     */
-                    setValue("isbn", scanned, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-                    // One scan, one close. Leaving the camera running after a
-                    // hit invites a second book being scanned into a form that
-                    // is already about the first.
-                    setScanning(false);
-                  }}
-                  onClose={() => setScanning(false)}
-                />
-              </div>
-            )}
-          </Field>
-
-          <Field label={t("field.category")} error={errors.categories}>
-            <CategoryPicker
-              ariaLabel={t("field.category")}
-              value={categoriesValue}
-              className={INPUT}
-              onChange={(categories) =>
-                setValue("categories", categories, { shouldDirty: true })
-              }
-            />
-          </Field>
-
-          <Field label={t("field.publisher")} error={errors.publisher} hint={t("common.optional")}>
-            <input {...register("publisher")} className={INPUT} autoComplete="off" />
-          </Field>
-
-          <Field
-            label={t("book.publicationYear")}
-            error={errors.publicationYear}
-            hint={t("common.optional")}
-          >
-            <input
-              {...register("publicationYear")}
-              type="number"
-              min={1400}
-              className={INPUT}
-              inputMode="numeric"
-            />
-          </Field>
-
-          <Field label={t("field.volume")} error={errors.volume} hint={t("common.optional")}>
-            <input
-              {...register("volume")}
-              type="number"
-              min={1}
-              className={INPUT}
-              inputMode="numeric"
-            />
-          </Field>
-
-          <Field label={t("field.format")} error={errors.format} hint={t("field.formatHint")}>
-            <input {...register("format")} className={INPUT} autoComplete="off" />
-          </Field>
-
-          {/* §D40 — the only field here that is prose rather than a value, so
-              it spans the grid and gets room to be read while it is written.
-              The hint says where else it can come from: bookcsi fetches no
-              descriptions itself, and an assistant connected over MCP writing
-              this field is the feature, not a workaround. */}
-          <Field
-            className="sm:col-span-2"
-            label={t("field.description")}
-            error={errors.description}
-            hint={t("bookForm.optionalOrClaude")}
-          >
-            <textarea
-              {...register("description")}
-              rows={5}
-              className={`${INPUT} resize-y leading-relaxed`}
-              placeholder={t("field.descriptionPlaceholder")}
-            />
-          </Field>
-
-          {/* The duplicate warning comes first, and it comes first on screen
-              too: S4.2's fill is the convenience, this is the answer. */}
-          {duplicates.data && duplicates.data.length > 0 && (
-            <DuplicateWarning titles={duplicates.data.map((d) => d.title)} />
-          )}
-
-          <IsbnLookupNote
-            pending={isbnSuggestion.isFetching}
-            found={isbnSuggestion.isSuccess}
-            error={isbnSuggestion.error}
-          />
-
-          {/* §D12: any status, in any order — the row button only ever
-              proposes the next natural step. */}
-          <Field label={t("field.status")} error={errors.status}>
-            <select {...register("status")} className={INPUT}>
-              {STATUS_VALUES.map((status) => (
-                <option key={status} value={status}>
-                  {statusLabel(status, locale)}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          {/* Sprint 2 — where the book has got to, what it was worth, what it
-              cost. Grouped away from the identity fields above because these
-              change over a book's life while the title and the ISBN do not.
-              Sprint 3 puts the estimate beside the paid price rather than off
-              on a wishlist-only screen: §D6's two numbers only mean anything
-              next to each other. */}
-          <div className="sm:col-span-2">
-            <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-              {t("bookForm.progressAndRating")}
-            </h3>
-
-            <div className="mt-4 grid gap-5 sm:grid-cols-3">
-              <Field label={t("field.currentPage")} error={errors.pagesRead}>
-                <input
-                  {...register("pagesRead")}
-                  type="number"
-                  min={0}
-                  className={INPUT}
-                  inputMode="numeric"
-                />
-              </Field>
-
-              {/* S3.2 — optional, and it stays visible after the purchase: it
-                  is what the paid price gets compared against. */}
-              <Field
-                label={t("bookForm.estimatedPrice")}
-                error={errors.estimatedPrice}
-                hint={CURRENCY}
-              >
-                <input
-                  {...register("estimatedPrice")}
-                  type="text"
-                  className={INPUT}
-                  inputMode="decimal"
-                  autoComplete="off"
-                />
-              </Field>
-
-              <Field label={t("bookForm.paidPrice")} error={errors.paidPrice} hint={CURRENCY}>
-                <input
-                  {...register("paidPrice")}
-                  type="text"
-                  className={INPUT}
-                  inputMode="decimal"
-                  autoComplete="off"
-                />
-              </Field>
-            </div>
-
-            {/* S2.3 — offered only where a rating may live. The alternative,
-                showing disabled stars everywhere, invites a click that cannot
-                do anything. */}
-            {isRatable(status) ? (
-              <div className="mt-5">
-                <span className="mb-1.5 block text-sm text-ink-2">{t("field.rating")}</span>
-                <StarRatingInput
-                  name={ratingField.name}
-                  value={ratingValue}
-                  onChange={ratingField.onChange}
-                  onBlur={ratingField.onBlur}
-                  inputRef={ratingField.ref}
-                />
-                {errors.rating?.message && (
-                  <span className="mt-1 block text-xs text-status-abandoned">
-                    {errors.rating.message}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <p className="mt-5 text-xs text-ink-3">
-                {t("bookForm.ratingHint")}
+            {editing && (
+              <p className="mt-1 truncate text-xs text-ink-3">
+                {[book.author, book.publisher, book.publicationYear]
+                  .filter((part) => part !== null && part !== "")
+                  .join(" · ")}
               </p>
             )}
           </div>
 
-          <div className="sm:col-span-2">
-            <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-              {t("bookForm.readingData")}
-            </h3>
-            <p className="mt-1 text-xs text-ink-3">
-              {t("bookForm.datesHint")}
-            </p>
-
-            <div className="mt-4 grid gap-5 sm:grid-cols-3">
-              <Field label={t("book.purchasedOn")} error={errors.purchasedOn}>
-                <input {...register("purchasedOn")} type="date" className={INPUT} />
-              </Field>
-              <Field label={t("book.startedOn")} error={errors.startedOn}>
-                <input {...register("startedOn")} type="date" className={INPUT} />
-              </Field>
-              <Field label={t("book.finishedOn")} error={errors.finishedOn}>
-                <input {...register("finishedOn")} type="date" className={INPUT} />
-              </Field>
+          {/* Live, unlike the title: the pill follows the selection on the
+              reading tab, because a choice being confirmed is not the same
+              thing as a field jittering under the keyboard. */}
+          {editing && (
+            <div className="shrink-0 pt-0.5">
+              <StatusPill status={status} />
             </div>
-          </div>
+          )}
+        </div>
+      }
+    >
+      <form
+        onSubmit={(event) => void submit(event)}
+        noValidate
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <TabStrip active={tab} onSelect={setTab} dirty={dirtyTabs} invalid={invalidTabs} />
 
-          {/* S4.3 while editing; a picker instead while adding, since the
-              upload route addresses a book by id and this one has not got
-              one yet (see `CoverPicker`). */}
-          {editing ? (
-            <CoverUpload book={book} />
-          ) : (
-            <CoverPicker
-              title={watch("title")}
-              file={pendingCoverFile}
-              onChange={setPendingCoverFile}
+        {/*
+          One height for every tab.
+
+          The panel is as tall as the tallest tab needs and stays that way, so
+          switching tabs does not resize the dialog under the pointer — the
+          failure that makes tabbed forms feel unstable. Prose tabs stretch
+          into the space instead of leaving it empty; anything taller scrolls.
+        */}
+        <div
+          ref={panelRef}
+          role="tabpanel"
+          id={`book-form-panel-${tab}`}
+          aria-labelledby={`book-form-tab-${tab}`}
+          className={
+            /*
+              `max-sm:flex-1` and *not* `flex-1`, which is the whole fix for a
+              bug this comment exists to prevent coming back: `flex: 1 1 0%`
+              sets the flex basis to zero, so a height on the same element is
+              ignored and the panel ends up sized by its content — the dialog
+              then changed height on every tab switch, which is exactly what a
+              constant body height is here to stop. On a phone the sheet has a
+              height of its own, so there the body may take what is left.
+            */
+            "flex min-h-0 flex-col overflow-y-auto px-5 py-5 max-sm:flex-1 " +
+            (editing ? "sm:h-[27rem]" : "sm:h-[31rem]")
+          }
+        >
+          {tab === "book" && (
+            <BookTab
+              form={form}
+              cover={
+                editing ? (
+                  <CoverUpload book={book} />
+                ) : (
+                  <CoverPicker
+                    title={watch("title")}
+                    file={pendingCoverFile}
+                    onChange={setPendingCoverFile}
+                  />
+                )
+              }
+              openLibrary={
+                editing ? undefined : (
+                  <OpenLibrarySearch
+                    onSelect={(result) => void selectResult(result)}
+                    busy={edition.isPending}
+                  />
+                )
+              }
+              notes={
+                <>
+                  {/* The duplicate warning comes first, and it comes first on
+                      screen too: S4.2's fill is the convenience, this is the
+                      answer. */}
+                  {duplicates.data && duplicates.data.length > 0 && (
+                    <DuplicateWarning titles={duplicates.data.map((d) => d.title)} />
+                  )}
+
+                  <IsbnLookupNote
+                    pending={isbnSuggestion.isFetching}
+                    found={isbnSuggestion.isSuccess}
+                    error={isbnSuggestion.error}
+                  />
+                </>
+              }
+            />
+          )}
+
+          {tab === "description" && <DescriptionTab form={form} />}
+
+          {tab === "reading" && <ReadingTab form={form} />}
+
+          {tab === "verdict" && (
+            <VerdictTab
+              form={form}
+              onFinish={() =>
+                setValue("status", "FINISHED", { shouldDirty: true, shouldValidate: true })
+              }
             />
           )}
         </div>
 
         {failure && (
-          <p role="alert" className="px-6 pb-2 text-sm text-status-abandoned">
-            Nu am putut salva: {failure.message}
+          <p role="alert" className="px-5 pb-2 text-sm text-error">
+            {errorMessage(failure, failure.message)}
           </p>
         )}
 
-        <div className="flex justify-end gap-3 border-t border-line px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-line px-5 py-3">
           <button type="button" onClick={onClose} className={BUTTON_QUIET}>
             {t("common.cancel")}
           </button>
           <button type="submit" disabled={isSubmitting} className={BUTTON_PRIMARY}>
-            {isSubmitting ? t("common.saving") : editing ? t("common.save") : t("common.add")}
+            {isSubmitting
+              ? t("common.saving")
+              : editing
+                ? t("common.save")
+                : t("common.add")}
           </button>
         </div>
       </form>
     </Modal>
+  );
+}
+
+/**
+ * The four tabs, as a real tablist.
+ *
+ * Arrow keys move between them because that is what a tablist does, and the
+ * dots are the reason the strip carries any state at all: brass for "you have
+ * unsaved changes over there", the app's one red for "there is something to fix
+ * over there". Both are announced as well as drawn — a dot nobody can hear is
+ * half a signal.
+ */
+function TabStrip({
+  active,
+  onSelect,
+  dirty,
+  invalid,
+}: {
+  active: TabId;
+  onSelect: (tab: TabId) => void;
+  dirty: TabId[];
+  invalid: TabId[];
+}) {
+  const t = useT();
+
+  const LABEL: Record<TabId, MessageKey> = {
+    book: "bookForm.tab.book",
+    description: "bookForm.tab.description",
+    reading: "bookForm.tab.reading",
+    verdict: "bookForm.tab.verdict",
+  };
+
+  const move = (from: TabId, step: number) => {
+    const next = TABS[(TABS.indexOf(from) + step + TABS.length) % TABS.length];
+    onSelect(next);
+  };
+
+  return (
+    <div
+      role="tablist"
+      aria-label={t("bookForm.editTitle")}
+      className="flex gap-1 overflow-x-auto border-b border-line px-2 sm:gap-6 sm:px-5"
+    >
+      {TABS.map((tab) => {
+        const selected = tab === active;
+        const isInvalid = invalid.includes(tab);
+        const isDirty = !isInvalid && dirty.includes(tab);
+
+        return (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            id={`book-form-tab-${tab}`}
+            aria-selected={selected}
+            aria-controls={`book-form-panel-${tab}`}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onSelect(tab)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowRight") {
+                move(tab, 1);
+              } else if (event.key === "ArrowLeft") {
+                move(tab, -1);
+              }
+            }}
+            className={
+              "relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-2 py-3 text-sm transition-colors duration-150 sm:flex-none sm:justify-start " +
+              (selected
+                ? "text-ink after:absolute after:inset-x-1 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-accent sm:after:inset-x-0"
+                : "text-ink-3 hover:text-ink-2")
+            }
+          >
+            {t(LABEL[tab])}
+
+            {(isDirty || isInvalid) && (
+              <>
+                <span
+                  aria-hidden
+                  className={
+                    "size-1.5 shrink-0 rounded-full " +
+                    (isInvalid ? "bg-error" : "bg-accent")
+                  }
+                />
+                <span className="sr-only">
+                  {t(isInvalid ? "bookForm.tabInvalid" : "bookForm.tabChanged")}
+                </span>
+              </>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -704,7 +571,7 @@ export function BookFormDialog({
 function DuplicateWarning({ titles }: { titles: string[] }) {
   const t = useT();
   return (
-    <p className="rounded-lg border border-accent-quiet bg-accent-quiet/30 px-3 py-2 text-xs text-accent sm:col-span-2">
+    <p className="rounded-lg border border-accent-quiet bg-accent-quiet/30 px-3 py-2 text-xs text-accent">
       {t("bookForm.duplicate", {
         titles: titles.map((title) => `„${title}"`).join(", "),
       })}
@@ -719,11 +586,6 @@ function DuplicateWarning({ titles }: { titles: string[] }) {
  * Open Library, the story asks for a clear message, and the sentence says the
  * form still works rather than implying something broke. Nothing here blocks
  * anything — the same posture as the duplicate warning above it.
- *
- * There is no branching on status any more. "Not in Open Library" (404) and
- * "Open Library is down" (503) are different sentences, but the server wrote
- * both and §D27's code is what carries them here intact; this only has to
- * cover the failure that has no sentence at all.
  */
 function IsbnLookupNote({
   pending,
@@ -735,16 +597,13 @@ function IsbnLookupNote({
   error: Error | null;
 }) {
   const t = useT();
+
   if (pending) {
     return <Note>{t("bookForm.searchingIsbn")}</Note>;
   }
 
   if (error !== null) {
-    return (
-      <Note>
-        {errorMessage(error, t("bookForm.olUnavailable"))}
-      </Note>
-    );
+    return <Note>{errorMessage(error, t("bookForm.olUnavailable"))}</Note>;
   }
 
   if (found) {
@@ -756,145 +615,22 @@ function IsbnLookupNote({
 
 function Note({ children }: { children: ReactNode }) {
   return (
-    <p role="status" className="text-xs text-ink-3 sm:col-span-2">
+    <p role="status" className="text-xs text-ink-3">
       {children}
     </p>
   );
 }
 
-const INPUT =
-  "w-full rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 focus:border-accent";
-
-const BUTTON_QUIET =
-  "rounded-lg px-4 py-2 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-3 hover:text-ink";
-
-const BUTTON_PRIMARY =
-  "rounded-lg border border-accent-quiet bg-accent-quiet/40 px-4 py-2 text-sm font-medium text-accent transition-colors duration-150 hover:bg-accent-quiet disabled:opacity-60";
-
-function Field({
-  label,
-  hint,
-  error,
-  className = "",
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: { message?: string };
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className={`block ${className}`}>
-      <span className="mb-1.5 flex items-baseline justify-between">
-        <span className="text-sm text-ink-2">{label}</span>
-        {hint && <span className="text-xs text-ink-3">{hint}</span>}
-      </span>
-      {children}
-      {error?.message && (
-        <span className="mt-1 block text-xs text-status-abandoned">
-          {error.message}
-        </span>
-      )}
-    </label>
-  );
-}
-
-function blankToNull(value: string): string | null {
-  return value.trim() === "" ? null : value;
-}
-
-function toFormValues(book: Book): BookFormValues {
-  return {
-    title: book.title,
-    author: book.author ?? "",
-    isbn: book.isbn ?? "",
-    totalPages: book.totalPages === null ? "" : String(book.totalPages),
-    categories: book.categories,
-    publisher: book.publisher ?? "",
-    publicationYear: book.publicationYear === null ? "" : String(book.publicationYear),
-    volume: book.volume === null ? "" : String(book.volume),
-    format: book.format ?? "",
-    description: book.description ?? "",
-    status: book.status,
-    // Page zero shows as an empty box rather than a literal "0", so the field
-    // reads as "nothing recorded yet" instead of as a measurement.
-    pagesRead: book.pagesRead === 0 ? "" : String(book.pagesRead),
-    rating: book.rating === null ? "" : (String(book.rating) as RatingValue),
-    estimatedPrice:
-      book.estimatedPrice === null ? "" : book.estimatedPrice.toFixed(2),
-    paidPrice: book.paidPrice === null ? "" : book.paidPrice.toFixed(2),
-    purchasedOn: book.purchasedOn ?? "",
-    startedOn: book.startedOn ?? "",
-    finishedOn: book.finishedOn ?? "",
-  };
-}
-
-type RatingValue = BookFormValues["rating"];
-
 /**
- * The fields this dialog renders, which is the list both payload builders walk.
- *
- * Reading it off `EMPTY` rather than writing it twice means a field cannot be
- * added to the form and forgotten here. Walking *this* rather than the
- * payload's own keys is also what lets the two functions below drop a runtime
- * type guard they used to need: the API's type runs ahead of the form — Sprint
- * 2 opened `pagesRead`, `rating` and `paidPrice` for writing before there were
- * inputs for them — so `Object.keys(payload)` was a `string[]` that had to be
- * narrowed back down before it could index anything.
+ * The fields Open Library can speak to (S4.1, S4.2). Everything else on
+ * the form is the user's own — a status, a rating, a review, what they paid —
+ * and no external source has an opinion worth pouring into them.
  */
-type FormField = keyof BookFormValues & keyof CreateBookInput;
-
-const FORM_FIELDS = Object.keys(EMPTY) as FormField[];
-
-/** The edit payload: exactly the fields the user changed, nothing else. */
-function onlyDirty(
-  payload: CreateBookInput,
-  // `unknown` rather than `boolean`: react-hook-form tracks a *set* field like
-  // `categories` element-by-element, so its entry is a `boolean[]`, not a
-  // `boolean`. Either way it is truthy once touched, which is all this reads.
-  dirtyFields: Partial<Readonly<Record<keyof BookFormValues, unknown>>>,
-): Partial<CreateBookInput> {
-  const changed: Record<string, unknown> = {};
-
-  for (const key of FORM_FIELDS) {
-    if (dirtyFields[key]) {
-      changed[key] = payload[key];
-    }
-  }
-
-  return changed;
-}
-
-/**
- * The create payload drops every empty field instead of sending `null`. The
- * difference matters for the three dates: an explicit `null` tells the API the
- * user cleared the field on purpose, which would suppress the automatic stamp
- * that S1.5 asks for.
- *
- * Deliberately *not* the same rule as `onlyDirty`. Dropping everything
- * untouched would work too — the API defaults a new book to `WISHLIST` on page
- * zero, so the row would come out identical — but a create request that names
- * the status and the page count says on the wire what the book is, instead of
- * leaving a reader to go and look up what the server would have assumed.
- */
-function onlyFilled(payload: CreateBookInput): CreateBookInput {
-  const filled: Record<string, unknown> = {};
-
-  for (const key of FORM_FIELDS) {
-    const value = payload[key];
-    // §D45 — an empty `categories` array is "no shelves", the default, so it is
-    // dropped like any other empty field rather than sent as `[]`.
-    const empty =
-      value === null ||
-      value === undefined ||
-      value === "" ||
-      (Array.isArray(value) && value.length === 0);
-
-    if (!empty) {
-      filled[key] = value;
-    }
-  }
-
-  return filled as CreateBookInput;
-}
+type FillableField =
+  | "title"
+  | "author"
+  | "isbn"
+  | "totalPages"
+  | "publisher"
+  | "publicationYear"
+  | "format";

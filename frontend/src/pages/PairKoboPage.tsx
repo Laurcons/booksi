@@ -65,7 +65,7 @@ export function PairKoboPage() {
         </label>
 
         {approve.isError && (
-          <p role="alert" className="mt-3 text-sm text-status-abandoned">
+          <p role="alert" className="mt-3 text-sm text-error">
             {errorMessage(approve.error, t("pair.failed"))}
           </p>
         )}

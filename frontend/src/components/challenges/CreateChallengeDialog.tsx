@@ -79,7 +79,7 @@ export function CreateChallengeDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {create.error && (
-          <p role="alert" className="px-6 pb-2 text-sm text-status-abandoned">
+          <p role="alert" className="px-6 pb-2 text-sm text-error">
             Nu am putut salva: {create.error.message}
           </p>
         )}

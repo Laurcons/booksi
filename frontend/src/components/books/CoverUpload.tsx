@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
-import { COVER_MIME_TYPES, type Book } from "@bookcsi/shared";
+import { useState } from "react";
+import type { Book } from "@bookcsi/shared";
 import { useUploadCover } from "../../api/openlibrary";
-import { apiImageSrc, CREDENTIALED_IMAGE } from "../../lib/media";
-import { CoverThumb } from "./CoverThumb";
+import { apiImageSrc } from "../../lib/media";
+import { CoverWell } from "./CoverWell";
 import { useT } from "../../i18n/locale-context";
 import { CoverTooLargeError } from "../../lib/resize-cover";
 
@@ -18,11 +18,14 @@ import { CoverTooLargeError } from "../../lib/resize-cover";
  * The image is resized in the browser before it goes (see `resizeCover`), so
  * what leaves is typically a couple of hundred kilobytes rather than whatever
  * a phone camera produced.
+ *
+ * The visible half moved into `CoverWell` at the tabbed-form redesign: the
+ * cover became the button. What stayed here is everything that is not layout —
+ * the upload, and the three things that can come back from it.
  */
 export function CoverUpload({ book }: { book: Book }) {
   const t = useT();
   const upload = useUploadCover(book.id);
-  const input = useRef<HTMLInputElement>(null);
 
   /**
    * The URL the *upload* answered with, preferred over the book's own for as
@@ -35,8 +38,7 @@ export function CoverUpload({ book }: { book: Book }) {
    */
   const [uploaded, setUploaded] = useState<string | null>(null);
 
-  const coverUrl = uploaded ?? book.coverUrl;
-  const src = apiImageSrc(coverUrl);
+  const src = apiImageSrc(uploaded ?? book.coverUrl);
 
   const choose = async (file: File | undefined) => {
     if (file === undefined) {
@@ -48,77 +50,38 @@ export function CoverUpload({ book }: { book: Book }) {
     if (result !== null) {
       setUploaded(result.coverUrl);
     }
-
-    // Cleared so that picking the same file twice — after a failure, say —
-    // still fires a change event.
-    if (input.current !== null) {
-      input.current.value = "";
-    }
   };
 
   return (
-    <div className="sm:col-span-2">
-      <h3 className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-3">
-        {t("book.cover")}
-      </h3>
+    <CoverWell
+      title={book.title}
+      src={src}
+      disabled={upload.isPending}
+      onPick={(file) => void choose(file)}
+    >
+      {/* Only ever one of these, and only while it is true. A cover that
+          uploaded fine says so for a moment and then gets out of the way. */}
+      {upload.isPending && (
+        <p role="status" className="text-xs text-ink-3">
+          {t("cover.uploading")}
+        </p>
+      )}
 
-      <div className="mt-4 flex items-start gap-4">
-        {src === null ? (
-          <CoverThumb title={book.title} />
-        ) : (
-          <img
-            {...CREDENTIALED_IMAGE}
-            src={src}
-            alt={t("book.coverOf", { title: book.title })}
-            className="h-24 w-16 shrink-0 rounded-[2px] object-cover"
-          />
-        )}
+      {upload.isError && (
+        <p role="alert" className="text-xs text-error">
+          {/* `CoverTooLargeError` is thrown client-side and carries a key
+              plus the size; anything else already arrived worded (§D27). */}
+          {upload.error instanceof CoverTooLargeError
+            ? t("cover.tooBigToResize", { mb: upload.error.megabytes })
+            : upload.error.message}
+        </p>
+      )}
 
-        <div className="min-w-0">
-          {/* A labelled input rather than a bare one: the native control
-              announces itself as "Choose file", which says nothing about what
-              file or what for. */}
-          <label className="block">
-            <span className="mb-1.5 block text-sm text-ink-2">
-              {t("cover.upload")}
-            </span>
-            <input
-              ref={input}
-              type="file"
-              accept={COVER_MIME_TYPES.join(",")}
-              disabled={upload.isPending}
-              onChange={(event) => void choose(event.target.files?.[0])}
-              className="block w-full text-sm text-ink-2 file:mr-3 file:rounded-lg file:border file:border-accent-quiet file:bg-accent-quiet/40 file:px-3 file:py-1.5 file:text-sm file:text-accent hover:file:bg-accent-quiet disabled:opacity-60"
-            />
-          </label>
-
-          <p className="mt-2 text-xs text-ink-3">
-            {t("cover.formatHintUpload")}
-          </p>
-
-          {upload.isPending && (
-            <p role="status" className="mt-2 text-xs text-ink-2">
-              {t("cover.uploading")}
-            </p>
-          )}
-
-          {upload.isError && (
-            <p role="alert" className="mt-2 text-xs text-status-abandoned">
-              {/* `CoverTooLargeError` is thrown client-side and carries a key
-                  plus the size; anything else already arrived worded (§D27). */}
-              {upload.error instanceof CoverTooLargeError
-                ? t("cover.tooBigToResize", { mb: upload.error.megabytes })
-                : upload.error.message}
-            </p>
-          )}
-
-          {upload.isSuccess && !upload.isPending && (
-            <p role="status" className="mt-2 text-xs text-ink-2">
-              {t("cover.replaced")}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+      {upload.isSuccess && !upload.isPending && (
+        <p role="status" className="text-xs text-ink-3">
+          {t("cover.replaced")}
+        </p>
+      )}
+    </CoverWell>
   );
 }

@@ -42,7 +42,7 @@ export function DeleteBookDialog({
         </p>
 
         {remove.error && (
-          <p role="alert" className="mt-4 text-sm text-status-abandoned">
+          <p role="alert" className="mt-4 text-sm text-error">
             {t("deleteBook.failed", { message: remove.error.message })}
           </p>
         )}

@@ -68,7 +68,7 @@ export function BookSelector({
 
       {isPending && <p className="text-sm text-ink-3">{t("loading.library")}</p>}
       {isError && (
-        <p className="text-sm text-status-abandoned">{t("page.selector.loadFailed")}</p>
+        <p className="text-sm text-error">{t("page.selector.loadFailed")}</p>
       )}
 
       {!isPending && !isError && found.length === 0 && (

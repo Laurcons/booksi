@@ -23,6 +23,12 @@
   --color-accent-hover: #f0c468;
   --color-accent-quiet: #4a3a1e;
 
+  /* docs/DESIGN.md §Eroare — the one red in the app. Errors used to borrow
+     status-abandoned, which is grey: a message nobody sees is a message that
+     is not there. Kept out of the chart palette on purpose (slot 2 is the
+     nearby #D95926), so a validation message can never read as a data series. */
+  --color-error: #e0674a;
+
   /* Status colors are reserved — never reused as chart series */
   --color-status-wishlist: #9085e9;
   --color-status-purchased: #3987e5;

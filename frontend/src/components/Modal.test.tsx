@@ -1,8 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Modal } from "./Modal";
+import { renderWithQuery } from "../test/helpers";
+
+/**
+ * Rendered through `renderWithQuery` rather than bare `render`: the dialog
+ * words its own close button now, so it reads the catalog like any other
+ * component. Those are the same providers every screen in the app runs inside.
+ */
 
 /**
  * A dialog that says `aria-modal="true"` is promising that nothing behind it
@@ -26,14 +33,14 @@ function Fixture({ onClose = () => {} }: { onClose?: () => void }) {
 
 describe("Modal", () => {
   it("puts focus on the first control when it opens", () => {
-    render(<Fixture />);
+    renderWithQuery(<Fixture />);
 
     expect(screen.getByLabelText("first")).toHaveFocus();
   });
 
   it("wraps Tab from the last control back to the first", async () => {
     const user = userEvent.setup();
-    render(<Fixture />);
+    renderWithQuery(<Fixture />);
 
     await user.tab();
     await user.tab();
@@ -45,7 +52,7 @@ describe("Modal", () => {
 
   it("wraps Shift+Tab from the first control round to the last", async () => {
     const user = userEvent.setup();
-    render(<Fixture />);
+    renderWithQuery(<Fixture />);
 
     await user.tab({ shift: true });
 
@@ -54,7 +61,7 @@ describe("Modal", () => {
 
   it("never lets focus reach the page behind it", async () => {
     const user = userEvent.setup();
-    render(<Fixture />);
+    renderWithQuery(<Fixture />);
 
     const behind = screen.getByRole("button", { name: "behind the dialog" });
 
@@ -67,7 +74,7 @@ describe("Modal", () => {
   it("closes on Escape", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<Fixture onClose={onClose} />);
+    renderWithQuery(<Fixture onClose={onClose} />);
 
     await user.keyboard("{Escape}");
 
@@ -99,7 +106,7 @@ describe("Modal", () => {
       );
     }
 
-    render(<Host />);
+    renderWithQuery(<Host />);
 
     const opener = screen.getByRole("button", { name: "Editează" });
     await user.click(opener);

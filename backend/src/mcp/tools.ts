@@ -229,9 +229,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       title: "One book in full",
       description:
         "Call this when the user asks about one particular book and you already know its id — " +
-        "usually from search_library's answer. Returns every field, including the description if it " +
-        "has one. This is NOT a search tool: given a title or an ISBN but no id, call search_library " +
-        "first.",
+        "usually from search_library's answer. Returns every field, including the description and " +
+        "the user's own review if they wrote one. This is NOT a search tool: given a title or an " +
+        "ISBN but no id, call search_library first.",
       inputSchema: {
         id: z.string().min(1).describe("The book's id, as returned by search_library."),
       },
@@ -278,7 +278,13 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         "fill it in, find out what the book is about and write a summary in **the language the user " +
         "is writing to you in**, in the third person, with no spoilers — bookcsi fetches " +
         "descriptions from nowhere, you are the source. Send only the fields that change; the rest " +
-        "are left untouched. You need the id, from search_library or get_book.",
+        "are left untouched. You need the id, from search_library or get_book.\n\n" +
+        "`review` is a different kind of field and the difference matters: it is what the *reader* " +
+        "thought of the book, in their own voice, and you are not its author. Write it when the " +
+        "user dictates or asks you to tidy up their own words, at any status — a book abandoned " +
+        "halfway is worth a review and cannot take a rating. Never invent one, never summarise the " +
+        "book into it (that is `description`), and never write about a book on the user\'s behalf " +
+        "because it seems like something they would say.",
       inputSchema: { id: z.string().min(1).describe("The book's id."), ...updateBookSchema.shape },
     },
     async (args) => {

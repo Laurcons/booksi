@@ -20,7 +20,7 @@ export function RevokeGrantDialog({ grant, onClose }: { grant: McpGrant; onClose
         </p>
 
         {revoke.error && (
-          <p role="alert" className="mt-4 text-sm text-status-abandoned">
+          <p role="alert" className="mt-4 text-sm text-error">
             {t("revoke.failed", { message: revoke.error.message })}
           </p>
         )}

@@ -47,12 +47,20 @@ export function OpenLibrarySearch({
   };
 
   return (
-    <div className="border-b border-line bg-surface-2/40 px-6 py-4">
+    /*
+      §D48 — a field, not a band.
+      
+      This used to be a shaded strip across the top of the dialog carrying a
+      label, a hint and a sentence explaining that the fields below stay
+      editable. All three are gone: the placeholder says what the box is for,
+      and the fields underneath are visibly fields. What is left is the search
+      itself, with its results laid *over* the form rather than pushing it down
+      — a dropdown behaves like a dropdown, and the fields do not jump every
+      time a result list appears.
+    */
+    <div className="relative">
       <label className="block">
-        <span className="mb-1.5 flex items-baseline justify-between">
-          <span className="text-sm text-ink-2">{t("search.openLibrary")}</span>
-          <span className="text-xs text-ink-3">{t("search.byTitleOrAuthor")}</span>
-        </span>
+        <span className="sr-only">{t("search.openLibrary")}</span>
         <input
           type="search"
           value={query}
@@ -66,16 +74,12 @@ export function OpenLibrarySearch({
         />
       </label>
 
-      <p className="mt-2 text-xs text-ink-3">
-        {t("openLibrary.orManual")}
-      </p>
-
       {open && (
-        <div className="mt-3">
+        <div className="absolute inset-x-0 top-full z-20 mt-1 rounded-lg border border-line bg-surface-3 p-1 shadow-lg shadow-black/50">
           {/* A pending fetch and a pause not yet elapsed look the same to
               someone waiting, so they read the same. */}
           {(search.isPending || typing) && (
-            <p className="text-sm text-ink-3">{t("common.searching")}</p>
+            <p className="px-2 py-1.5 text-sm text-ink-3">{t("common.searching")}</p>
           )}
 
           {/* The degradation criterion, on screen.
@@ -86,20 +90,20 @@ export function OpenLibrarySearch({
               the case with nothing to say — a network error that never reached
               the API at all. */}
           {search.isError && (
-            <p role="status" className="text-sm text-ink-2">
+            <p role="status" className="px-2 py-1.5 text-sm text-ink-2">
               {/* Only for a failure with no words of its own — §D27. */}
               {errorMessage(search.error, t("openLibrary.unavailable"))}
             </p>
           )}
 
           {search.isSuccess && search.data.length === 0 && (
-            <p className="text-sm text-ink-2">
+            <p className="px-2 py-1.5 text-sm text-ink-2">
               {t("openLibrary.noResults")}
             </p>
           )}
 
           {search.isSuccess && search.data.length > 0 && (
-            <ul className="max-h-64 divide-y divide-line overflow-y-auto rounded-lg border border-line bg-surface-1">
+            <ul className="max-h-64 divide-y divide-line overflow-y-auto rounded-md">
               {search.data.map((result) => (
                 <li key={`${result.workKey}-${result.editionKey ?? "none"}`}>
                   <button

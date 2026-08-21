@@ -136,6 +136,15 @@ model Book {
   /// for, and the only one (docs/MCP.md §1).
   description String? @db.Text
 
+  /// The reader's own review, in prose — the long half of the rating below.
+  /// `TEXT` for the same reason as `description`, and capped at 10 000
+  /// characters by the schema rather than by the column.
+  ///
+  /// Unlike `rating`, it is not tied to a status: a book abandoned at page
+  /// forty is worth writing about and cannot be given stars (see
+  /// `shared/src/book.ts`).
+  review String? @db.Text
+
   // state (user-input)
   status    Status  @default(WISHLIST)
   favorite  Boolean @default(false)
