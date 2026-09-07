@@ -54,12 +54,18 @@ export function ReadingTab({
 
   return (
     /*
-      `flex-1` and `justify-between`: the tab fills the panel's constant height
-      and spreads its four groups down it, which is how the design lays this
-      one out — status at the top, money at the bottom, and the hairlines doing
-      the dividing. Anything taller than the panel scrolls instead.
+      One rhythm down the tab, and the leftover height collects at the bottom.
+
+      This used to be `justify-between`, spreading the four groups across the
+      panel's constant height (§D48). It reads as composed on a book being read
+      — a page count, a bar, three dates — and falls apart on a new one, where
+      the progress group collapses to a bare box and the panel's 31rem has
+      ~150px of slack to push into the gaps instead. A fixed `gap` cannot tell
+      the two cases apart, which is the whole reason to prefer it: the spacing
+      between two fields should not be a function of how much else is on the
+      tab. Anything taller than the panel scrolls, as before.
     */
-    <div className="flex min-h-0 flex-1 flex-col justify-between gap-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
       <StatusChooser
         name={statusField.name}
         value={status}
@@ -70,57 +76,67 @@ export function ReadingTab({
 
       {/* S2.2 — the percentage is derived on display and never stored (§D4).
           A book with no page count gets the number alone and no bar, because
-          half a bar standing in for an unknown is a lie. */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-28">
-            <input
-              {...register("pagesRead")}
-              type="number"
-              min={0}
-              disabled={pagesLock !== null}
-              aria-label={t("field.page")}
-              className={`${inputClass({ locked: pagesLock !== null, invalid: errors.pagesRead !== undefined })} tabular`}
-              inputMode="numeric"
-              {...lockProps(pagesLock, t)}
-            />
+          half a bar standing in for an unknown is a lie.
+
+          The label is `micro` and sits above the whole row rather than beside
+          the box: it names the group the way the timeline's does, and it keeps
+          the `/ 620` and the percentage centred on the input instead of on a
+          label stacked over one of them. It had none at all before, which made
+          a new book's Reading tab open on an unexplained empty box — the
+          "label and value" rule (§D48) took out the *hints*, not the names. */}
+      <Field
+        label={t("field.page")}
+        htmlFor="book-form-pages-read"
+        error={errors.pagesRead}
+        micro
+      >
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-28">
+              <input
+                {...register("pagesRead")}
+                id="book-form-pages-read"
+                type="number"
+                min={0}
+                disabled={pagesLock !== null}
+                className={`${inputClass({ locked: pagesLock !== null, invalid: errors.pagesRead !== undefined })} tabular`}
+                inputMode="numeric"
+                {...lockProps(pagesLock, t)}
+              />
+            </div>
+
+            {totalPages !== null && (
+              <span className="tabular text-sm text-ink-3">/ {totalPages}</span>
+            )}
+
+            <span className="flex-1" />
+
+            {percent !== null && (
+              <span
+                className={`tabular font-display text-[22px] leading-none ${pagesLock === null ? "text-ink" : "text-ink-3"}`}
+              >
+                {percent}%
+              </span>
+            )}
           </div>
-
-          {totalPages !== null && (
-            <span className="tabular text-sm text-ink-3">/ {totalPages}</span>
-          )}
-
-          <span className="flex-1" />
 
           {percent !== null && (
             <span
-              className={`tabular font-display text-[22px] leading-none ${pagesLock === null ? "text-ink" : "text-ink-3"}`}
+              className={`block h-1.5 w-full overflow-hidden rounded-full bg-surface-3 ${pagesLock === null ? "" : "opacity-60"}`}
+              role="progressbar"
+              aria-valuenow={percent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={progressLabel({ totalPages, pagesRead })}
             >
-              {percent}%
+              <span
+                className="block h-full rounded-full bg-accent"
+                style={{ width: `${percent}%` }}
+              />
             </span>
           )}
         </div>
-
-        {errors.pagesRead?.message && (
-          <span className="text-xs text-error">{errors.pagesRead.message}</span>
-        )}
-
-        {percent !== null && (
-          <span
-            className={`block h-1.5 w-full overflow-hidden rounded-full bg-surface-3 ${pagesLock === null ? "" : "opacity-60"}`}
-            role="progressbar"
-            aria-valuenow={percent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={progressLabel({ totalPages, pagesRead })}
-          >
-            <span
-              className="block h-full rounded-full bg-accent"
-              style={{ width: `${percent}%` }}
-            />
-          </span>
-        )}
-      </div>
+      </Field>
 
       <hr className="border-line" />
 

@@ -297,6 +297,18 @@ export function BookFormDialog({
   const failure = create.error ?? update.error;
   const status = watch("status");
 
+  /**
+   * §D49 — whether closing the dialog would throw anything away.
+   *
+   * `pendingCoverFile` counts because a cover chosen before the book exists is
+   * a change the form itself knows nothing about: it lives in state, not in a
+   * field, and it is the one thing here that would be silently lost.
+   *
+   * `olEditionKey` does not need adding — every path that sets it also fills
+   * fields with `shouldDirty`, so the form is already dirty by then.
+   */
+  const unsaved = Object.keys(dirtyFields).length > 0 || pendingCoverFile !== null;
+
   const dirtyTabs = tabsOf(Object.keys(dirtyFields));
   const invalidTabs = tabsOf(Object.keys(errors));
 
@@ -322,6 +334,7 @@ export function BookFormDialog({
       autoFocus={false}
       title={editing ? t("bookForm.editTitle") : t("bookForm.addTitle")}
       onClose={onClose}
+      unsaved={unsaved}
       header={
         <div className="flex items-start gap-3 border-b border-line px-5 py-4 pr-16">
           {editing && <CoverThumb title={book.title} coverUrl={book.coverUrl} />}
@@ -455,17 +468,45 @@ export function BookFormDialog({
           </p>
         )}
 
+        {/*
+          §D49 — the footer says what the dialog is currently for, and the two
+          dialogs are here for different things.
+
+          **Adding** is only ever going somewhere: Renunță and Adaugă, from the
+          first render to the last, because a form opened to create a book is
+          never a form someone came to read. A footer that grew its Adaugă on
+          the first keystroke would move the target while it is being aimed at.
+
+          **Editing** starts as a dialog someone opened to *look* at a book —
+          most visits change nothing — so it offers the one thing that can
+          happen, and becomes a decision the moment a field moves. A decision
+          needs both of its answers on screen, which is also what earns the
+          dialog the right to stop closing on Escape and on a stray click.
+
+          The "disabled, not hidden" rule does not reach the swap: it is about
+          fields, whose absence hides what a book can even record. A greyed
+          Salvează would say "you could be saving" to someone who has changed
+          nothing, which is the opposite of what it is for.
+        */}
         <div className="flex items-center justify-end gap-3 border-t border-line px-5 py-3">
-          <button type="button" onClick={onClose} className={BUTTON_QUIET}>
-            {t("common.cancel")}
-          </button>
-          <button type="submit" disabled={isSubmitting} className={BUTTON_PRIMARY}>
-            {isSubmitting
-              ? t("common.saving")
-              : editing
-                ? t("common.save")
-                : t("common.add")}
-          </button>
+          {editing && !unsaved ? (
+            <button type="button" onClick={onClose} className={BUTTON_QUIET}>
+              {t("common.close")}
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={onClose} className={BUTTON_QUIET}>
+                {t("common.cancel")}
+              </button>
+              <button type="submit" disabled={isSubmitting} className={BUTTON_PRIMARY}>
+                {isSubmitting
+                  ? t("common.saving")
+                  : editing
+                    ? t("common.save")
+                    : t("common.add")}
+              </button>
+            </>
+          )}
         </div>
       </form>
     </Modal>
@@ -510,7 +551,14 @@ function TabStrip({
     <div
       role="tablist"
       aria-label={t("bookForm.editTitle")}
-      className="flex gap-1 overflow-x-auto border-b border-line px-2 sm:gap-6 sm:px-5"
+      /*
+        `overflow-y-hidden` is not redundant with `overflow-x-auto`, it is the
+        fix for it: CSS computes `overflow-y: visible` to `auto` the moment the
+        other axis is not visible, so a strip that only ever wanted to scroll
+        sideways grew a vertical scrollbar over the 1px the active tab's
+        underline used to stick out below it (see `after:bottom-0` below).
+      */
+      className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line px-2 sm:gap-6 sm:px-5"
     >
       {TABS.map((tab) => {
         const selected = tab === active;
@@ -537,7 +585,7 @@ function TabStrip({
             className={
               "relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-2 py-3 text-sm transition-colors duration-150 sm:flex-none sm:justify-start " +
               (selected
-                ? "text-ink after:absolute after:inset-x-1 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-accent sm:after:inset-x-0"
+                ? "text-ink after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent sm:after:inset-x-0"
                 : "text-ink-3 hover:text-ink-2")
             }
           >

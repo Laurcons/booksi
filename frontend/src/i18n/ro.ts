@@ -190,6 +190,10 @@ export const ro = {
 
   /* -------------------------------------------------- common */
   "common.close": "Închide",
+  /* §D49 — și tooltipul butonului ✕ inert, și ce se anunță când dialogul refuză
+     să se închidă. O propoziție, nu un avertisment: butoanele din josul
+     dialogului spun deja ce se poate face. */
+  "common.unsaved": "Modificări nesalvate — renunți sau salvezi.",
   "common.delete": "Șterge",
   "common.deleting": "Se șterge…",
   "common.edit": "Editează",

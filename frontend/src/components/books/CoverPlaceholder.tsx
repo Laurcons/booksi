@@ -43,7 +43,17 @@ export function CoverPlaceholder({
         {thumb ? (
           <span className="font-display text-sm text-ink-2">{initial(title)}</span>
         ) : (
-          <span className="flex flex-col gap-1.5">
+          // `wrap-anywhere` and *not* `break-words`, which is the whole fix
+          // and was worth an e2e test to find: a title is not guaranteed to
+          // have a space in it, `line-clamp` caps lines but cannot break a
+          // word, and `overflow-wrap: break-word` is ignored while a box's
+          // intrinsic size is being computed — which this one's is, being a
+          // grid item under `place-items-center`. So the unbroken word made
+          // the box itself 300px wide and it spilled out of the cover on both
+          // sides. `overflow-wrap: anywhere` counts for intrinsic sizing, so
+          // the box stays inside the brass rule and the word breaks. Set on
+          // the column, since the property inherits.
+          <span className="flex flex-col gap-1.5 wrap-anywhere">
             {/* Playfair here and Inter for the card's real title below is not
                 an inconsistency: this is standing in for a printed jacket. */}
             <span className="line-clamp-4 font-display text-lg leading-snug text-ink-2">

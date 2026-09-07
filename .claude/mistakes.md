@@ -294,3 +294,58 @@ star"; what actually goes out is still decided by the status gate.
 can touch. Any field whose value RHF derives from DOM state — radio groups above
 all — needs its schema to tolerate the disabled case, and a test that saves the
 form while that field is disabled.
+
+### Subscribing to `formState.isDirty` changed what the form *sent*
+
+Needed "has anything changed" for §D49 and reached for the obvious API:
+destructured `isDirty` out of `formState` alongside `dirtyFields`. A test that
+had nothing to do with the feature failed — a save that should have posted
+`{status: "FINISHED"}` posted `{status: "FINISHED", rating: null}`.
+
+**Root cause:** RHF's `formState` is a Proxy, and *reading* a key subscribes to
+it, which makes RHF compute that piece of state where it previously skipped it.
+Computing whole-form dirtiness reads the all-disabled star radio group as `null`
+(the mistake two entries up), compares it against the `""` default, and writes
+`dirtyFields.rating` — so `onlyDirty` started including a field the user never
+touched. `Object.keys(dirtyFields).length > 0` answers the same question off
+state that was already subscribed, and does not.
+
+**Lesson:** in react-hook-form, adding a field to the `formState` destructure is
+not a read — it is a behaviour change. When one appears to fix nothing and break
+something elsewhere, check whether an existing subscription already answers the
+question.
+
+### A signal that arrives with a transition has to leave with one
+
+Shipped §D49's refusal ring as a class toggled on for 600ms and then off. It
+appeared correctly and then vanished between two frames, which the user read as
+a rendering glitch rather than as a signal that had finished.
+
+**Root cause:** nothing on the panel declared `transition-*`, so both edges of
+the class change were instantaneous. The fix is not one duration but two —
+`duration-0` while the ring is on, `duration-500` once it comes off — because
+the eye wants a state like this to arrive with the click and leave on its own
+time. It interpolates at all only because Tailwind v4 composes `ring` and
+`shadow` into one `box-shadow` with fixed slots.
+
+**Lesson:** when a class is added and removed by a timer to *say* something,
+decide the two edges separately and write both down. "It looked right when it
+appeared" tests half of it.
+
+### `break-words` does nothing when the box is sized by its own content
+
+Fixed a long title spilling out of the drawn cover with `break-words`, said so
+in a comment, and it did not work — the e2e test I wrote afterwards measured
+176px of spill on each side.
+
+**Root cause:** `overflow-wrap: break-word` is ignored while a box's *intrinsic*
+size is being computed, and the lettering is a grid item under
+`place-items-center`, so its width is max-content. The unbreakable word made the
+box itself ~300px wide and it overflowed the 96px cover on both sides rather
+than wrapping inside it. `overflow-wrap: anywhere` (`wrap-anywhere`) is the one
+that counts for intrinsic sizing.
+
+**Lesson:** reach for `wrap-anywhere` when the element's width comes from its
+content, and keep `break-words` for text in a box whose width is already
+decided. And a CSS fix asserted only by reading the diff is not a fix — this one
+looked right in the comment and was wrong on screen.

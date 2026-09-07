@@ -41,6 +41,28 @@
   --color-wood-edge: #b0906a;
   --color-wood-deep: #8a6d4d;
 
+  /**
+   * §D49 — the nudge a dialog gives when it refuses to be dismissed with
+   * unsaved changes inside it. It grows a hair and settles back: enough to
+   * catch the eye that just clicked outside, small enough not to read as a
+   * glitch. Suppressed by the reduced-motion rule at the bottom of this file,
+   * which is why the panel also takes an accent ring for the same moment —
+   * that half of the signal survives with the motion turned off.
+   */
+  --animate-nudge: nudge 260ms ease-out;
+
+  @keyframes nudge {
+    0% {
+      transform: scale(1);
+    }
+    45% {
+      transform: scale(1.02);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
   --font-display: "Playfair Display", ui-serif, Georgia, serif;
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 }

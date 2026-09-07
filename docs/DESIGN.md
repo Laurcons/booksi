@@ -211,6 +211,18 @@ nu — orizontală peste `sm`, verticală dedesubt.
 Punctele de pe taburi: alamă pentru modificări nesalvate pe tabul respectiv, roșu (§Eroare) pentru
 un câmp de corectat. Ambele sunt și scrise pentru cititorul de ecran.
 
+**Footerul spune la ce e dialogul acum (§D49).** La editare, curat: un singur `Închide`. La prima
+modificare: `Renunță` + `Salvează`. La adăugare: `Renunță` + `Adaugă`, de la început. Cât timp are
+modificări nesalvate, dialogul nu se închide nici la Escape, nici la clic pe fundal, nici la ✕ —
+crește cu 2% și revine (§Mișcare), iar decizia rămâne la footer.
+
+**Spațierea nu depinde de cât e pe tab.** Grupurile din „Lectură" stau la un `gap` fix, iar
+înălțimea rămasă se strânge jos — nu se împarte între ele. Un `justify-between` pe o înălțime
+constantă arată compus pe o carte în curs de citit și se destramă pe una nouă, unde grupul de
+progres e o casetă goală și cei ~150px liberi intră în goluri. Și fiecare câmp de acolo își spune
+numele: numărul de pagini îl are ca marcaj `micro` deasupra rândului, ca datele — regula
+„etichetă și valoare" a scos explicațiile, nu numele.
+
 Pe telefon dialogul e o **foaie ancorată jos** (`94dvh`, colțuri rotunjite doar sus), cu footerul
 lipit unde ajunge degetul. Coperta e propriul buton — o insignă cu creion în colț deschide
 încărcarea, fără titlu de secțiune și fără control separat lângă ea.
@@ -337,6 +349,14 @@ Discretă și scurtă: 150ms pentru hover, 200ms pentru intrarea unui panou, `ea
 animații de intrare pentru grila de coperți — 40 de carduri care apar în cascadă la fiecare
 încărcare devin enervante după a treia vizită. Se respectă `prefers-reduced-motion`.
 
+Singura mișcare din aplicație care *spune* ceva e pulsul de refuz al dialogului (§D49):
+`scale(1) → 1.02 → 1` în 260ms, la fiecare încercare de închidere care ar arunca modificări
+nesalvate. Fiindcă `prefers-reduced-motion` o taie de tot, semnalul nu poate sta doar în ea —
+merge dublat de un inel `accent/40` și de o propoziție `role="status"`. Inelul **apare instant și
+pleacă în 500ms** (`duration-0` la intrare, `duration-500` la ieșire, după 600ms de ținut): un
+contur care dispare dintr-un cadru se citește ca o eroare de randare, nu ca un semnal care s-a
+încheiat. **Orice mișcare care duce singură o informație are nevoie de al doilea canal.**
+
 ---
 
 ## Anti-tipare
@@ -354,3 +374,12 @@ Lucruri care par pe direcția bună și nu sunt:
 - **Umbre colorate sub coperți.**
 - **Culoare generată programatic pentru genul al 7-lea** într-un grafic.
 - **Cifre proporționale într-o coloană de bani.**
+- **`break-words` pe un text a cărui casetă e dimensionată de propriul conținut.** `overflow-wrap:
+  break-word` e ignorat la calculul dimensiunii intrinseci, deci un cuvânt lung dintr-un element
+  centrat cu `place-items-center` face caseta lată și iese pe ambele laturi, netăiat. Se scrie
+  `wrap-anywhere` (`overflow-wrap: anywhere`), care contează la dimensionare.
+- **`overflow-x: auto` singur, pe o bandă care doar derulează lateral.** Nu există: CSS calculează
+  `overflow-y: visible` ca `auto` de îndată ce celălalt ax nu e `visible`, deci orice depășire
+  verticală de 1px — o subliniere absolută pusă la `bottom-[-1px]`, o umbră, un `ring` — scoate o
+  bară de derulare verticală întreagă. Se scrie `overflow-x-auto overflow-y-hidden`, și ce trebuia
+  să iasă 1px în jos se mută înăuntru.

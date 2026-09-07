@@ -144,6 +144,7 @@ export const en: Catalog<MessageKey> = {
 
   /* -------------------------------------------------- common */
   "common.close": "Close",
+  "common.unsaved": "Unsaved changes — cancel or save.",
   "common.delete": "Delete",
   "common.deleting": "Deleting…",
   "common.edit": "Edit",

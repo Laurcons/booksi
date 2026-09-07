@@ -54,6 +54,17 @@ describe("BookFormDialog — pages read (S2.1)", () => {
     await waitFor(() => expect(lastWrite(calls)).toEqual({ pagesRead: 220 }));
   });
 
+  it("names the page field on screen, not only for the screen reader", async () => {
+    // It had an `aria-label` and no visible label, so a new book's Reading tab
+    // opened on an unexplained empty box. `getByLabelText` cannot catch that —
+    // it is satisfied by either — so this asks for the words on screen.
+    const { user } = renderForm(makeBook());
+
+    await goTo(user, "Lectură");
+
+    expect(screen.getByText("Pagina")).toBeVisible();
+  });
+
   it("shows page zero as an empty box, not as a literal 0", async () => {
     // "Nothing recorded yet" and "I read zero pages" are the same number but
     // not the same statement.

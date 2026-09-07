@@ -1033,6 +1033,52 @@ dar hârtia electronică citește un raft, nu editează proză.
 
 ---
 
+### D49 — Un dialog cu modificări nesalvate nu se închide din greșeală, iar footerul spune la ce e
+
+Dialogul cărții se închidea instantaneu la un clic în afara panoului. Cu douăzeci de câmpuri și
+două câmpuri de proză înăuntru (§D48), asta însemna că un clic ratat cu un centimetru arunca zece
+minute de scris, fără o vorbă. Escape făcea la fel, și ✕ tot la fel.
+
+**Alternativa evidentă — un „Renunți la modificări?" — a fost respinsă:** e un al doilea dialog
+care pune o întrebare la care primul putea răspunde singur. Dialogul *are* deja locul unde se dau
+cele două răspunsuri, și e footerul lui.
+
+**Deci footerul spune la ce e dialogul chiar acum**, iar cele două dialoguri nu sunt la fel:
+
+- **La editare**, curat, e un dialog deschis ca să *te uiți* la o carte — majoritatea vizitelor nu
+  schimbă nimic — deci un singur buton: `Închide`. La prima modificare devine o decizie, și o
+  decizie își arată ambele răspunsuri: `Renunță` + `Salvează`.
+- **La adăugare**, `Renunță` + `Adaugă` de la primul render până la ultimul. Un formular deschis
+  ca să creezi o carte nu e niciodată un formular la care ai venit să citești, iar un `Adaugă` care
+  ar apărea la prima tastă mută ținta chiar când e ochită.
+
+**Iar schimbul de butoane e ce dă dreptul de a refuza închiderea.** Cele trei ieșiri pe care
+dialogul nu le deține — Escape, clicul pe fundal, propriul ✕ — nu pot spune care dintre „renunț" și
+„salvez" s-a vrut, iar două din trei se apasă din greșeală. Toate trei fac același lucru: **panoul
+crește cu 2% și revine** (260ms, `ease-out`), și întrebarea rămâne la footer. ✕ intră în listă
+fiindcă e cea mai la îndemână după un clic refuzat: un ✕ care ar închide în timp ce fundalul refuză
+ar fi exact scăparea despre care pulsul tocmai a avertizat. Motivul lui stă în `title`, deci ajunge
+*înainte* de clic, nu după.
+
+**Refuzul se desenează de două ori, fiindcă o dată nu ajunge.** Regula globală de
+`prefers-reduced-motion` din `index.css` taie orice `animation-duration` la 0.01ms — pentru cine a
+cerut mai puțină mișcare, un puls e literal nimic, adică mai rău decât înainte. Deci panoul ia și
+un inel `accent/40` ținut 600ms (o clasă, nu o tranziție, deci supraviețuiește tăierii) și stins
+apoi în 500ms — instant la intrare, lent la ieșire, fiindcă un contur care dispare dintr-un cadru
+se citește ca o eroare de randare — plus o propoziție `role="status"` pentru cine nu vede
+niciunul. Inelul e deliberat palid: mișcarea e ce
+duce semnalul, iar un contur auriu aprins s-ar citi ca eroare când nimic nu e greșit.
+
+**„Nesalvat" nu e `formState.isDirty`.** Nu doar fiindcă o copertă alesă înainte ca cartea să
+existe (S4.3) stă în state și nu într-un câmp — ci fiindcă simpla *abonare* la `isDirty` schimbă
+ce trimite formularul. Vezi `.claude/mistakes.md`.
+
+**Regula „dezactivat, nu ascuns" (§D48) nu se aplică schimbului.** Ea e despre câmpuri, a căror
+absență ascunde ce poate înregistra o carte. Un `Salvează` gri-închis i-ar spune „ai ce salva"
+cuiva care n-a schimbat nimic.
+
+---
+
 ## Ce a fost eliminat din backlogul inițial
 
 - **Cele două story-uri „ca developer"** (cache pe Covers API, fallback Google Books). Primul

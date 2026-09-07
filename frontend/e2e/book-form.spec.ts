@@ -102,4 +102,129 @@ test.describe("the book form's tabs (§D48)", () => {
     // Still open, nothing sent: the book keeps its title.
     await expect(page.getByRole("dialog")).toBeVisible();
   });
+
+  /**
+   * The tab strip scrolls sideways when four tabs do not fit, and never
+   * downwards. It had a full vertical scrollbar for a while over the 1px the
+   * active tab's underline stuck out below the strip — because `overflow-x`
+   * alone does not exist (docs/DESIGN.md §Anti-tipare), and because a scrollbar
+   * is layout, so nothing in the unit suite could see it.
+   */
+  test("gives the tab strip no vertical scrollbar to have", async ({
+    page,
+    seed: _seed,
+  }) => {
+    await page.goto("/");
+    await openEditForm(page, "Dune");
+
+    const strip = page.getByRole("tablist");
+    const overflow = await strip.evaluate((el) => el.scrollHeight - el.clientHeight);
+
+    expect(overflow).toBe(0);
+  });
+});
+
+/**
+ * The drawn cover has to hold whatever the title turns out to be.
+ *
+ * `line-clamp` caps the number of lines and cannot break a word, so a title
+ * with no spaces in it ran through the brass rule and out of the placeholder.
+ * Layout again: jsdom would report every box as zero.
+ */
+test.describe("the cover placeholder's lettering", () => {
+  test("keeps a title with no spaces in it inside the cover", async ({
+    page,
+    seed: _seed,
+  }) => {
+    const unbreakable = "Asdfdasfsaasdfdasfsaasdfdasfsa";
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Adaugă o carte" }).click();
+    await page.getByLabel(/^Titlu/).fill(unbreakable);
+
+    // The lettering is `aria-hidden` — the title is a field two rows away — so
+    // it is found by its text rather than by a role.
+    const lettering = page.getByText(unbreakable, { exact: true });
+    await expect(lettering).toBeVisible();
+
+    const spill = await lettering.evaluate((el) => {
+      const well = el.closest("label");
+      if (well === null) {
+        throw new Error("the lettering is no longer inside the cover's label");
+      }
+
+      const text = el.getBoundingClientRect();
+      const cover = well.getBoundingClientRect();
+
+      return Math.max(text.right - cover.right, cover.left - text.left);
+    });
+
+    expect(spill).toBeLessThanOrEqual(0);
+  });
+});
+
+/**
+ * §D49 — the dialog that will not be dismissed by accident.
+ *
+ * Here rather than in the unit suite for the same reason as the tab heights
+ * above: the pulse is a transform, jsdom has no layout, and the half of the
+ * behaviour worth guarding is that the dialog ends up **exactly** where it
+ * started. A nudge that leaves the panel a fraction larger, or that shifts it
+ * a pixel up the screen, is a bug no class-name assertion can see.
+ */
+test.describe("leaving the book form with unsaved changes (§D49)", () => {
+  /** Top-left corner of the viewport: inside the backdrop, well clear of the panel. */
+  const clickOutside = (page: Parameters<typeof openEditForm>[0]) =>
+    page.mouse.click(5, 5);
+
+  test("closes on a click outside while nothing has been changed", async ({
+    page,
+    seed: _seed,
+  }) => {
+    await page.goto("/");
+    await openEditForm(page, "Dune");
+
+    // One button, because there is only one thing that can happen.
+    await expect(page.getByRole("button", { name: "Salvează" })).toBeHidden();
+
+    await clickOutside(page);
+
+    await expect(page.getByRole("dialog")).toBeHidden();
+  });
+
+  test("pulses back to exactly its own size instead of closing once a field has changed", async ({
+    page,
+    seed: _seed,
+  }) => {
+    await page.goto("/");
+    await openEditForm(page, "Dune", "Verdict");
+    await page.getByRole("textbox", { name: "Recenzie" }).fill("Prea mult deșert.");
+
+    // The footer has become a decision, and both answers are on screen.
+    const dialog = page.getByRole("dialog");
+    await expect(page.getByRole("button", { name: "Renunță" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Salvează" })).toBeVisible();
+
+    const before = await dialog.boundingBox();
+
+    await clickOutside(page);
+
+    await expect(dialog).toBeVisible();
+    // Grew, and settled back: the animation is 260ms, so by the time the ring
+    // has gone the panel must measure what it measured before the click.
+    await expect(dialog).not.toHaveClass(/animate-nudge/);
+    expect(await dialog.boundingBox()).toEqual(before);
+
+    // Escape and the ✕ are the same refusal, and the review is still there.
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Închide" }).click();
+    await expect(dialog).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Recenzie" })).toHaveValue(
+      "Prea mult deșert.",
+    );
+
+    // The way out is the footer, and it still works.
+    await page.getByRole("button", { name: "Renunță" }).click();
+    await expect(dialog).toBeHidden();
+  });
 });
