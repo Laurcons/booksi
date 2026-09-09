@@ -39,6 +39,30 @@ describe("spineWidth (S8.2, §D33)", () => {
     expect(spineWidth(100)).toBeLessThanOrEqual(SPINE_TITLE_WIDTH);
     expect(spineWidth(700)).toBeGreaterThan(SPINE_TITLE_WIDTH);
   });
+
+  it("leaves the title threshold to novellas, not to ordinary novels (§D50)", () => {
+    // The reported bug: at 20px the cut fell at 258 pages, so a 250-page novel
+    // went bare. Both ends of a normal library keep their names.
+    expect(spineWidth(250)).toBeGreaterThan(SPINE_TITLE_WIDTH);
+    expect(spineWidth(150)).toBeGreaterThan(SPINE_TITLE_WIDTH);
+    expect(spineWidth(90)).toBeLessThanOrEqual(SPINE_TITLE_WIDTH);
+  });
+
+  it("never lets a real page count cost a book the title a missing one keeps", () => {
+    // §D50's actual invariant, and the one worth a test: a book with no page
+    // count takes `DEFAULT_WIDTH` and is titled, so a threshold above that
+    // width means *filling in* the pages removes a title. Which is how this
+    // reached a user report.
+    expect(SPINE_TITLE_WIDTH).toBeLessThan(spineWidth(null));
+  });
+
+  it("cuts the title at 149 pages — stated in pages, where it is read", () => {
+    // The threshold is in px and the ramp translates it; nobody reading either
+    // one alone can see where it lands. §D33 moved the ramp without checking,
+    // and left the cut at 258 pages.
+    expect(spineWidth(148)).toBeLessThanOrEqual(SPINE_TITLE_WIDTH);
+    expect(spineWidth(149)).toBeGreaterThan(SPINE_TITLE_WIDTH);
+  });
 });
 
 describe("spineColor (§D45)", () => {

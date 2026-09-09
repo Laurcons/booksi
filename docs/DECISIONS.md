@@ -1079,6 +1079,54 @@ cuiva care n-a schimbat nimic.
 
 ---
 
+### D50 — Titlul de pe cotor: pragul se citește în pagini, iar centrarea se scrie fizic
+
+Un raport de utilizator („*Portretul lui Dorian Gray* nu apare cu titlu pe raft, și mai multe
+cărți au problema asta") a scos la iveală două defecte suprapuse în același element, unul de
+regulă și unul de CSS.
+
+**Pragul era corect în px și greșit în pagini.** §D33 a mutat rampa la `[80, 900] pagini →
+[14, 44]px` și a păstrat „titlul peste 20px" din spec, verificând doar că pragul cade *înăuntrul*
+intervalului. Cade — dar citit prin rampă, 20px înseamnă **258 de pagini**, iar sub asta stă o
+bună parte dintr-o bibliotecă obișnuită, nu broșurile pentru care fusese scrisă regula. Mai rău,
+o carte *fără* număr de pagini primește `DEFAULT_WIDTH` (24px, §D4) și **își păstrează** titlul:
+completarea unui câmp real ștergea numele de pe cotor. Date mai bune, mai puțină informație.
+
+**Decizie: pragul scade la 16px, adică 149 de pagini.** Nuvela chiar rămâne fără titlu, romanul
+de 250 de pagini nu. Regula rămâne o regulă (o carte de 90 de pagini e tot goală), rampa nu se
+atinge — deci nici împachetarea rândurilor — și invariantul care lipsea intră în teste, formulat
+unde se citește: **pragul stă sub grosimea implicită**, ca datele reale să nu poată costa un
+titlu, plus punctul de tăiere exprimat în pagini.
+
+**Centrarea orizontală nu funcționase niciodată.** Banda titlului era poziționată cu
+`inset-x-0 … mx-auto`, iar Tailwind v4 le compilează logic — `inset-inline` și `margin-inline`.
+Proprietățile logice se rezolvă după *writing mode-ul elementului însuși*, și exact acel element
+poartă `writing-mode: vertical-rl`: axa lui inline e verticală, deci ambele utilitare vizau
+verticala, `left` și `right` nu se setau niciodată, iar cutia absolută își lua poziția statică și
+se strângea pe un singur rând de text de 12,5px lipit de muchia din stânga a cotorului.
+`items-center` nu mai avea ce să centreze. Eroarea creștea cu grosimea — 4,25px pe un cotor de
+21px, 15,75px pe unul de 44px — deci se vedea cel mai bine pe cărțile groase.
+
+**Decizie: `left-0 right-0`, fizic.** Se scot ambele utilitare logice; `mx-auto` era oricum
+inoperant acolo (`margin-block: auto` cu `top`, `bottom` și `height` rezolvabile dă 0). Se scoate
+și o a doua capcană din aceeași listă de clase: `inset-inline: 0` *chiar* seta `top`/`bottom` pe
+acest element și pierdea în fața lui `top-[24%]`/`bottom-[24%]` doar prin ordinea declarațiilor
+din foaia generată — dacă ordinea s-ar fi schimbat, banda ar fi devenit silențios toată înălțimea
+cotorului.
+
+**Nu există test unitar pentru asta, și nu poate exista:** jsdom nu face layout, deci
+`Shelf.test.tsx` poate afirma doar că textul e prezent. Măsurătoarea (`getBoundingClientRect` al
+benzii față de cotor) aparține suitei Playwright, care cere API-ul și baza pornite — aceeași
+lecție ca la dimensiunea dialogului din §D48: ce se vede cu ochiul se testează cu layout adevărat.
+
+**Regula generală, fiindcă e ușor de repetat:** pe orice element cu `writing-mode` vertical,
+utilitarele logice ale Tailwind (`inset-x`, `inset-y`, `mx`, `my`, `ps`, `pe`, `text-start`…) își
+schimbă axa. Este singurul element cu writing mode vertical din tot codul, iar bulina de
+„preferată" de dedesubt folosește același `inset-x-0 mx-auto` fără probleme — exact pentru că nu
+are writing mode.
+
+---
+
 ## Ce a fost eliminat din backlogul inițial
 
 - **Cele două story-uri „ca developer"** (cache pe Covers API, fallback Google Books). Primul

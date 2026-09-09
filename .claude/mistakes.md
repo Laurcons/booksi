@@ -349,3 +349,24 @@ that counts for intrinsic sizing.
 content, and keep `break-words` for text in a box whose width is already
 decided. And a CSS fix asserted only by reading the diff is not a fix — this one
 looked right in the comment and was wrong on screen.
+### Tailwind's `inset-x`/`mx` are logical, and a vertical writing mode rotates them
+
+Spent three rounds "confirming" the shelf's rotated spine titles were centred —
+a hand-written CSS repro of `Shelf.tsx` measured dead-centre on both axes, so I
+kept looking for the offset inside the line box (font metrics, sideways-Latin
+baselines, descenders) instead of at the box itself. The user's screenshot was
+right and my repro was wrong.
+
+**Root cause of the miss:** I reimplemented `inset-x-0 mx-auto` as
+`left:0; right:0; margin-inline:auto` from memory. Tailwind v4 compiles them to
+`inset-inline: 0` and `margin-inline: auto` — *logical* properties, resolved
+against the element's own `writing-mode: vertical-rl`, so on that element they
+address the vertical axis and `left`/`right` are never set at all. My repro
+quietly fixed the bug I was hunting.
+
+**Lesson:** never hand-translate utility classes into a CSS repro — that throws
+away the exact thing under test. Get the real compiled stylesheet
+(`npm run build --workspace frontend`, then load `dist/assets/*.css` in a scratch
+page with the class strings copied verbatim) and read the *used* values with
+`getComputedStyle`. `left: 0px; right: 9.5px; width: 12.5px` on a 22px spine said
+in one line what three rounds of ink measurement could not.

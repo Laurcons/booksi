@@ -130,12 +130,21 @@ function Spine({ book, onOpen }: { book: Book; onOpen: () => void }) {
         <span className="absolute inset-x-0 bottom-[13%] h-px bg-[#3a2e24]/25" />
         <span className="absolute inset-x-0 bottom-[17%] h-px bg-[#3a2e24]/25" />
 
-        {/* §D33 — a threshold that now falls inside the range, so a thin book
-            really does go untitled rather than the rule never applying. */}
+        {/* §D33/§D50 — a threshold that falls inside the range, so a thin book
+            really does go untitled rather than the rule never applying — but
+            low enough that a 250-page novel is not "thin".
+
+            `left-0 right-0`, not `inset-x-0 mx-auto`, and that is load-bearing
+            (§D50). Tailwind compiles those to `inset-inline`/`margin-inline`,
+            which are *logical* — resolved against this element's own
+            `writing-mode: vertical-rl`, so both addressed the vertical axis and
+            neither `left` nor `right` was ever set. The box then took its static
+            position and shrink-wrapped to one 12.5px line box against the
+            spine's left edge, `items-center` having nothing left to centre. */}
         {width > SPINE_TITLE_WIDTH && (
           <span
             aria-hidden
-            className="absolute inset-x-0 top-[24%] bottom-[24%] mx-auto flex items-center justify-center overflow-hidden text-center text-[10px] leading-tight font-medium text-[#3a2e24]"
+            className="absolute top-[24%] bottom-[24%] left-0 right-0 flex items-center justify-center overflow-hidden text-center text-[10px] leading-tight font-medium text-[#3a2e24]"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
             <span className="truncate">{book.title}</span>

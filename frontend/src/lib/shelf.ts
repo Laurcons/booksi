@@ -73,8 +73,15 @@ const THICKEST_PAGES = 900;
  * the component draws the text and this file owns the geometry — and because a
  * threshold that lives beside the range it has to fall inside is a threshold
  * somebody will notice when the range moves (§D33).
+ *
+ * §D50 — 16px, not the 20px §D33 inherited from the spec. Read against the
+ * ramp above, 20px meant "fewer than 258 pages", which is a large share of an
+ * ordinary library rather than the pamphlets the rule was written for: a
+ * reader's 250-page novel went bare, while the same book with its page count
+ * *missing* took `DEFAULT_WIDTH` and kept its title. 16px puts the cut at 149
+ * pages, so entering real data can no longer cost a book its name.
  */
-export const SPINE_TITLE_WIDTH = 20;
+export const SPINE_TITLE_WIDTH = 16;
 
 export function spineWidth(totalPages: number | null): number {
   if (!totalPages) {

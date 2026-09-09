@@ -245,8 +245,12 @@ prin contrast cu restul.
   zero, capătul de jos n-ar fi atins de nicio carte reală (§D33).
 - Culoarea cotorului derivă din gen, dintr-o rampă pastel **decorativă**, separată de paleta de
   grafice — aici nu se citesc valori, deci nu se aplică regulile de dataviz.
-- Cotoarele au titlul rotit la 90°, afișat doar când grosimea depășește 20px — prag care cade
-  înăuntrul intervalului, deci se aplică efectiv (§D33).
+- Cotoarele au titlul rotit la 90°, afișat doar când grosimea depășește 16px — prag care cade
+  înăuntrul intervalului, deci se aplică efectiv (§D33), dar destul de jos încât citit prin rampă
+  să însemne „sub 149 de pagini", adică nuvela, nu romanul obișnuit (§D50).
+- Titlul e centrat pe cotor pe ambele axe. Poziționarea orizontală se scrie fizic (`left`/`right`),
+  nu logic (`inset-x`/`mx-auto`): pe un element cu `writing-mode: vertical-rl` proprietățile
+  logice se rotesc cu 90° și nu mai centrează nimic (§D50).
 - Cotorul e un buton, nu un dreptunghi: se ajunge la el cu tastatura, iar detaliile cărții se
   deschid și la `Enter`, nu doar la hover cu mausul.
 - Raftul are o umbră subtilă sub muchie și o linie de lemn dedesubt. Fără texturi fotografice.
