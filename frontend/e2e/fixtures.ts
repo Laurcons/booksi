@@ -91,10 +91,10 @@ export async function openEditForm(
   page: Page,
   title: string,
   /**
-   * Which tab to land on. The dialog opens on "Carte", so anything about
-   * progress, dates or money needs one click first (§D48).
+   * Which tab to land on. The dialog opens on "Carte", so anything about the
+   * author (§D51), progress, dates or money needs one click first (§D48).
    */
-  tab?: "Carte" | "Descriere" | "Lectură" | "Verdict",
+  tab?: "Carte" | "Autor" | "Descriere" | "Lectură" | "Verdict",
 ): Promise<void> {
   await page.getByRole("button", { name: title }).click();
   await page.waitForURL("**/books/*");

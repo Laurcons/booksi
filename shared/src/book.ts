@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { authorSchema } from "./author.js";
 import { categoryCodeSchema } from "./category.js";
 import { statusSchema, type Status } from "./enums.js";
 import { olEditionKeySchema } from "./openlibrary.js";
@@ -118,7 +119,23 @@ export const bookSchema = z.object({
   id: z.string(),
 
   title: z.string(),
-  author: z.string().nullable(),
+  /**
+   * §D51 — the author as a row of its own, embedded whole: id, name and the
+   * biography.
+   *
+   * Embedded rather than left as an `authorId` for the client to resolve,
+   * because every surface that draws a book draws the author's *name* beside
+   * the title (the card, the table, the shelf, the cover placeholder), and a
+   * second request per book to learn it would be absurd. The biography rides
+   * along for the same reason it is capped at 5000 characters rather than
+   * 10 000: it is short enough to carry, and carrying it means the book's page
+   * and the edit form both have it without asking again.
+   *
+   * `null` for the books nobody has named an author for, which is most of them
+   * at first (§D4) and stays legitimate forever — the author is optional, and
+   * deleting one leaves the books that pointed at it here.
+   */
+  author: authorSchema.nullable(),
   isbn: z.string().nullable(),
   totalPages: z.number().int().nullable(),
   /**
@@ -182,7 +199,24 @@ export type Book = z.infer<typeof bookSchema>;
  */
 export const createBookSchema = z.strictObject({
   title: z.string().trim().min(1, "validation.title.required").max(255),
-  author: nullableText(255).optional(),
+  /**
+   * §D51 — which author, by id. **Never a name.**
+   *
+   * This is the field that makes "a misspelled author is not silently created"
+   * true rather than merely intended. A `author: string` write would have to
+   * resolve the name to a row, and resolving means creating when there is no
+   * match — so every typo in the box would mint a person. There is exactly one
+   * route that creates an author (`POST /authors`), it is reached by clicking a
+   * row that says so, and this field can only ever point at what already
+   * exists.
+   *
+   * `null` clears the author; absent leaves it alone. The id is checked for
+   * *ownership* server-side, not merely existence: pointing at another
+   * account's author would leak a name across users, so it answers the same
+   * 404 an unknown id does (S0.3's rule, that absent and someone else's are
+   * indistinguishable).
+   */
+  authorId: z.string().min(1).nullable().optional(),
   isbn: nullableText(20).optional(),
   totalPages: z.number().int().positive().max(100_000).nullable().optional(),
   /**
@@ -497,6 +531,16 @@ export type IsbnDuplicatesQuery = z.infer<typeof isbnDuplicatesQuerySchema>;
 export const isbnDuplicateSchema = z.object({
   id: z.string(),
   title: z.string(),
+  /**
+   * The author's **name**, flattened, and this is the one place §D51 leaves a
+   * bare string where a book carries an object.
+   *
+   * Not an oversight and not denormalised storage: this schema describes a
+   * one-line answer to "do you already own this?", the row is drawn as
+   * "„Dune" — Frank Herbert", and neither an id nor a biography has any part in
+   * that sentence. Carrying the whole author here would mean carrying a
+   * biography into a duplicate warning.
+   */
   author: z.string().nullable(),
 });
 

@@ -36,6 +36,7 @@ bookcsi/
 │   │   └── migrations/       # versionat în git
 │   └── src/
 │       ├── auth/             # Sprint 0
+│       ├── authors/          # §D51 (entitate, fără ecran propriu)
 │       ├── books/            # Sprint 1-2
 │       ├── covers/           # Sprint 4
 │       ├── openlibrary/      # Sprint 4
@@ -282,6 +283,26 @@ stocată, iar D18 o pune în baza de date — ambele se pot face doar server-sid
 | `PUT /books/:id/cover` | upload manual: body brut `image/*`, max 5MB (S4.3) |
 | `GET /covers/:bookId` | servește blob-ul, cu `Cache-Control: max-age=31536000, immutable` |
 
+### Autorii (§D51)
+
+Autorul e o entitate, nu un câmp, iar rutele de mai jos există **exclusiv** pentru caseta „Autor"
+din formularul de carte: nu există ecran de administrare a autorilor, prin decizie. Pe sârmă,
+cartea poartă `authorId` — niciodată un nume, fiindcă a rezolva un nume înseamnă a-l crea când nu
+există potrivire, iar atunci fiecare greșeală de tastare ar produce o persoană.
+
+| Rută | Ce face |
+|---|---|
+| `GET /authors?q=` | dropdown-ul, cu numărul de cărți al fiecăruia. `q` absent = toată lista (așa se ajunge la un autor nefolosit, ca să fie șters). Fără biografie: are până la 5000 de caractere și un dropdown n-o arată |
+| `GET /authors/:id` | un autor cu biografie **și** `bookCount` — ruta pe care formularul o cheamă când cititorul *schimbă* autorul. Deschiderea nu are nevoie de ea: autorul vine deja pe carte |
+| `POST /authors` | singurul mod în care apare un autor, și e un clic deliberat. **Idempotentă după nume:** un nume existent întoarce rândul existent, fiindcă o coliziune înseamnă două taburi, nu o eroare de citit |
+| `PATCH /authors/:id` | biografia, și numai ea — numele nu se poate edita (§D51). Se aplică tuturor cărților autorului |
+| `DELETE /authors/:id` | cărțile rămân, fără autor (`SetNull`). Răspunde cu câte cărți și-au pierdut autorul |
+
+Autorul călătorește **întreg** pe fiecare carte (`id`, `name`, `biography`), nu ca `authorId` de
+rezolvat: fiecare suprafață care desenează o carte desenează numele lângă titlu, iar o a doua
+cerere per carte ar fi absurdă. `bookCount` e singura excepție — ar fi un `COUNT` per rând al
+oricărei listări, pentru o cifră pe care doar formularul o arată.
+
 **Scanarea codului de bare (Sprint 11) nu adaugă nimic aici.** Camera produce un ISBN, îl scrie în
 câmpul din formular și cu asta se termină rolul ei: mai departe pleacă exact `GET
 /openlibrary/isbn/:isbn` de mai sus, cu tot cu verificarea de duplicat dinaintea lui. Singurul cod
@@ -411,6 +432,13 @@ nu se recalculează în JavaScript peste toată biblioteca.
 | `GET /budget/summary` | S6.1 (`total`) **și** S6.3 (`month`), într-un singur răspuns |
 | `GET /budget/by-month` | S6.2, grupare pe `purchasedOn`, serie densă |
 | `GET /settings` · `PUT /settings` | S6.3 — bugetul lunar, singurul câmp (§D31) |
+
+**Sortarea și căutarea după autor trec prin relație, fără coloană denormalizată** (§D51).
+`?sort=author` devine `{ author: { name: order } }` (`books/sort.ts`, fiindcă `{ author: "asc" }`
+nu e o formă acceptată pentru o relație), iar `?q=` capătă un al cincilea braț
+`{ author: { name: { contains } } }`. Costul nu se schimbă: `contains` e `LIKE '%…%'` și deci
+neindexabil pe toate câmpurile clauzei, așa că era deja un scan. Biografia **nu** se caută — vezi
+§D51 pentru motiv.
 
 Regula de agregare a paginilor (S7.1) trăiește într-un singur loc, în modulul `stats`.
 Dashboard-ul consumă același endpoint ca pagina de statistici — altfel cele două ecrane ajung

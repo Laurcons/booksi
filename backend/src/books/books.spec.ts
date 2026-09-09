@@ -12,6 +12,7 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { AuditModule } from "../audit/audit.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { PrismaService } from "../prisma/prisma.service";
+import { AuthorsModule } from "../authors/authors.module";
 import { BooksModule } from "./books.module";
 import { todayCalendarDate } from "./calendar-date";
 
@@ -33,7 +34,10 @@ const storedBook = {
   id: "book-1",
   userId: "user-1",
   title: "Dune",
-  author: "Frank Herbert",
+  // §D51 — the author is a relation, and `WITH_COVER` selects it whole. Prisma
+  // hands over the joined row (or `null`), not a string.
+  authorId: "author-1",
+  author: { id: "author-1", name: "Frank Herbert", biography: null },
   isbn: "978-606-4-00000-0",
   totalPages: 620,
   // §D45 — categories are a relation now; Prisma returns them as join rows.
@@ -72,6 +76,10 @@ describe("books routes (Sprints 1–3)", () => {
       deleteMany: jest.fn(),
       aggregate: jest.fn(),
     },
+    // §D51 — AuthorsService checks that an `authorId` on a write belongs to
+    // the reader. Defaults to "found", so the tests that are not about the
+    // author do not have to say so; the ownership tests override it.
+    author: { findFirst: jest.fn().mockResolvedValue({ id: "author-1" }) },
     // §D45 — CategoriesService validates a write's codes against this.
     category: { findMany: jest.fn().mockResolvedValue([]) },
     categoryGroup: { findMany: jest.fn().mockResolvedValue([]) },
@@ -100,6 +108,7 @@ describe("books routes (Sprints 1–3)", () => {
         AuditModule,
         AuthModule,
         BooksModule,
+        AuthorsModule,
       ],
       providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
     })
@@ -121,6 +130,7 @@ describe("books routes (Sprints 1–3)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.user.findUnique.mockResolvedValue(storedUser);
+    prisma.author.findFirst.mockResolvedValue({ id: "author-1" });
   });
 
   const session = () =>
@@ -184,7 +194,10 @@ describe("books routes (Sprints 1–3)", () => {
       expect(res.body[0]).toEqual({
         id: "book-1",
         title: "Dune",
-        author: "Frank Herbert",
+        // §D51 — the whole author, biography included, so that every surface
+        // that draws a book has the name and the book's page has the prose
+        // without a second request.
+        author: { id: "author-1", name: "Frank Herbert", biography: null },
         isbn: "978-606-4-00000-0",
         totalPages: 620,
         categories: ["FICTION__GENERAL"],
@@ -206,11 +219,13 @@ describe("books routes (Sprints 1–3)", () => {
         createdAt: "2026-06-30T10:00:00.000Z",
         updatedAt: "2026-07-20T10:00:00.000Z",
       });
-      // The foreign key is internal, and so is the cover's blob: §D18 keeps it
-      // one route away precisely so that listing a library does not carry one
-      // image per row.
+      // The foreign keys are internal, and so is the cover's blob: §D18 keeps
+      // it one route away precisely so that listing a library does not carry
+      // one image per row. §D51 adds `authorId` to the list — it is the join's
+      // own column, and the author it names is already embedded above.
       expect(res.body[0].userId).toBeUndefined();
       expect(res.body[0].cover).toBeUndefined();
+      expect(res.body[0].authorId).toBeUndefined();
     });
 
     it("defaults to newest first", async () => {
@@ -224,15 +239,37 @@ describe("books routes (Sprints 1–3)", () => {
       ]);
     });
 
-    it("sorts by the four documented columns", async () => {
+    it("sorts by the documented scalar columns", async () => {
       prisma.book.findMany.mockResolvedValue([]);
 
-      for (const sort of ["title", "author", "status", "createdAt"]) {
+      for (const sort of ["title", "status", "createdAt", "purchasedOn"]) {
         prisma.book.findMany.mockClear();
         await as("get", `/books?sort=${sort}&order=asc`).expect(200);
 
         expect(prisma.book.findMany.mock.calls[0][0].orderBy).toEqual([
           { [sort]: "asc" },
+          { id: "asc" },
+        ]);
+      }
+    });
+
+    /**
+     * §D51 — `author` is the one sortable column that is not a column.
+     *
+     * `{ author: "asc" }` is not a shape Prisma accepts for a relation field,
+     * so the mapping lives in `sort.ts` and is asserted here as well as in its
+     * own spec: this is the route that would silently start ordering by nothing
+     * if the two ever came apart.
+     */
+    it("sorts by the author through the relation", async () => {
+      prisma.book.findMany.mockResolvedValue([]);
+
+      for (const order of ["asc", "desc"] as const) {
+        prisma.book.findMany.mockClear();
+        await as("get", `/books?sort=author&order=${order}`).expect(200);
+
+        expect(prisma.book.findMany.mock.calls[0][0].orderBy).toEqual([
+          { author: { name: order } },
           { id: "asc" },
         ]);
       }
@@ -338,13 +375,60 @@ describe("books routes (Sprints 1–3)", () => {
       prisma.book.create.mockResolvedValue(storedBook);
 
       await as("post", "/books")
-        .send({ title: "Dune", author: "", isbn: "" })
+        .send({ title: "Dune", isbn: "", publisher: "", format: "" })
         .expect(201);
 
       expect(writtenData(prisma.book.create)).toMatchObject({
-        author: null,
         isbn: null,
+        publisher: null,
+        format: null,
       });
+    });
+
+    /**
+     * §D51 — the wire is keyed by id, and a name is refused rather than
+     * quietly resolved.
+     *
+     * This is the assertion the whole decision rests on: if `author: "…"` were
+     * accepted, something would have to turn that string into a row, and
+     * "turn a name into a row" is creation — so every misspelling anywhere in
+     * the system would mint a person. The strict schema is what makes that
+     * impossible rather than merely discouraged.
+     */
+    it("refuses an author sent as a name", async () => {
+      const res = await as("post", "/books")
+        .send({ title: "Dune", author: "Frank Herbert" })
+        .expect(400);
+
+      expect(res.body.code).toBe("VALIDATION_FAILED");
+      expect(prisma.book.create).not.toHaveBeenCalled();
+    });
+
+    /**
+     * §D51 — ownership, not existence. The foreign key would accept any author
+     * id in the table, which would let a crafted request hang a stranger's name
+     * and biography on the reader's own shelf.
+     */
+    it("refuses an author id belonging to somebody else", async () => {
+      prisma.author.findFirst.mockResolvedValue(null);
+
+      const res = await as("post", "/books")
+        .send({ title: "Dune", authorId: "author-of-another-user" })
+        .expect(404);
+
+      expect(res.body.code).toBe("NOT_FOUND");
+      expect(prisma.book.create).not.toHaveBeenCalled();
+    });
+
+    it("writes the author id when it is the reader's own", async () => {
+      prisma.author.findFirst.mockResolvedValue({ id: "author-1" });
+      prisma.book.create.mockResolvedValue(storedBook);
+
+      await as("post", "/books")
+        .send({ title: "Dune", authorId: "author-1" })
+        .expect(201);
+
+      expect(writtenData(prisma.book.create)).toMatchObject({ authorId: "author-1" });
     });
 
     it("stamps the date when a book is added as already finished (S1.5)", async () => {
@@ -932,10 +1016,12 @@ describe("books routes (Sprints 1–3)", () => {
           {
             OR: [
               { title: { contains: "dune" } },
-              { author: { contains: "dune" } },
               { publisher: { contains: "dune" } },
               { isbn: { contains: "dune" } },
               { description: { contains: "dune" } },
+              // §D51 — the fifth field is a relation now, matched through the
+              // join rather than off a column on `Book`.
+              { author: { name: { contains: "dune" } } },
             ],
           },
         ],
@@ -947,7 +1033,9 @@ describe("books routes (Sprints 1–3)", () => {
 
       // Two AND entries, not one OR over both words: a second word narrows.
       expect(where.AND).toHaveLength(2);
-      expect(where.AND[0].OR).toContainEqual({ author: { contains: "herbert" } });
+      expect(where.AND[0].OR).toContainEqual({
+        author: { name: { contains: "herbert" } },
+      });
       expect(where.AND[1].OR).toContainEqual({ title: { contains: "dune" } });
     });
 
@@ -1305,13 +1393,22 @@ describe("books routes (Sprints 1–3)", () => {
 
   describe("GET /books/isbn-duplicates (S1.1, §D13)", () => {
     it("matches regardless of how the ISBN is punctuated", async () => {
+      // §D51 — the projection selects the author's name through the relation,
+      // so Prisma hands over a nested object or `null`.
       prisma.book.findMany.mockResolvedValue([
-        { id: "book-1", title: "Dune", author: "Frank Herbert", isbn: "978-606-4-1" },
+        {
+          id: "book-1",
+          title: "Dune",
+          author: { name: "Frank Herbert" },
+          isbn: "978-606-4-1",
+        },
         { id: "book-2", title: "Altceva", author: null, isbn: "9781234567897" },
       ]);
 
       const res = await as("get", "/books/isbn-duplicates?isbn=9786064 1").expect(200);
 
+      // Flattened to a name on the way out: this answer is one line of prose
+      // and has no use for an id or a biography (§D51).
       expect(res.body).toEqual([
         { id: "book-1", title: "Dune", author: "Frank Herbert" },
       ]);

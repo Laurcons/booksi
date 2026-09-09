@@ -1,11 +1,21 @@
-import type { Book } from "@bookcsi/shared";
+import type { Author, Book } from "@bookcsi/shared";
+
+/** §D51 — an author, since a book carries a row rather than a string now. */
+export function makeAuthor(name: string, overrides: Partial<Author> = {}): Author {
+  return {
+    id: `author-${name.toLowerCase().replace(/\s+/g, "-")}`,
+    name,
+    biography: null,
+    ...overrides,
+  };
+}
 
 /** A complete book; each test overrides only the field it is about — same convention as the React app's own `makeBook`. */
 export function makeBook(overrides: Partial<Book> = {}): Book {
   return {
     id: "book-1",
     title: "Dune",
-    author: "Frank Herbert",
+    author: makeAuthor("Frank Herbert"),
     isbn: "978-606-4-00000-0",
     totalPages: 620,
     categories: ["FICTION__GENERAL"],

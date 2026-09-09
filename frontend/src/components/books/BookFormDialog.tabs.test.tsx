@@ -35,7 +35,7 @@ type User = ReturnType<typeof renderWithQuery>["user"];
 
 const goTo = (user: User, name: string) => user.click(tab(name));
 
-describe("BookFormDialog — the four tabs", () => {
+describe("BookFormDialog — the five tabs", () => {
   it("opens on the book's own details", () => {
     renderForm(makeBook());
 
@@ -59,7 +59,9 @@ describe("BookFormDialog — the four tabs", () => {
     tab("Carte").focus();
     await user.keyboard("{ArrowRight}");
 
-    expect(tab("Descriere")).toHaveAttribute("aria-selected", "true");
+    // §D51 put "Autor" second, straight after the book's own identity — the
+    // author is the second thing you know about a book.
+    expect(tab("Autor")).toHaveAttribute("aria-selected", "true");
 
     await user.keyboard("{ArrowLeft}{ArrowLeft}");
 

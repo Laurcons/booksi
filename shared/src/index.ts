@@ -11,6 +11,7 @@
  * `locale.ts`. The identifiers are still English, everywhere, unamended.
  */
 
+export * from "./author.js";
 export * from "./book.js";
 export * from "./budget.js";
 export * from "./category.js";

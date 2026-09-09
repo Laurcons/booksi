@@ -13,6 +13,7 @@ import {
   type UpdateBookInput,
   type WishlistSummary,
 } from "@bookcsi/shared";
+import { AuthorsService } from "../authors/authors.service";
 import { CategoriesService } from "../categories/categories.service";
 import { AppError } from "../common/app-error";
 import { toDecimal, toNumber } from "../common/money";
@@ -23,6 +24,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "./calendar-date";
 import { RATING_STATUS_MESSAGE, ratingAccepted } from "./rating";
 import { searchWhere } from "./search";
+import { bookOrderBy } from "./sort";
 import { autoDatedField } from "./status-dates";
 
 /**
@@ -33,7 +35,13 @@ import { autoDatedField } from "./status-dates";
  */
 type BookWriteData = {
   title?: string;
-  author?: string | null;
+  /**
+   * §D51 — the foreign key, never a name. Absent leaves the book's author
+   * alone; `null` clears it. Checked for *ownership* before it is written (see
+   * `AuthorsService.assertOwned`), because the foreign key alone would happily
+   * let a book point at another account's author.
+   */
+  authorId?: string | null;
   isbn?: string | null;
   totalPages?: number | null;
   publisher?: string | null;
@@ -78,6 +86,17 @@ const WISHLIST: Status = "WISHLIST";
  */
 const WITH_COVER = {
   cover: { select: { updatedAt: true } },
+  /**
+   * §D51 — the author, embedded whole.
+   *
+   * Unlike the cover this is *not* trimmed to one column, and the difference is
+   * the payload: a cover is a blob §D18 keeps a route away, while an author is
+   * three short fields. The biography is the one that could grow (5000
+   * characters), and it rides along anyway — carrying it is what lets the
+   * book's page and the edit form show it without a second request, which is
+   * the whole reason it is capped at 5000 rather than at `review`'s 10 000.
+   */
+  author: { select: { id: true, name: true, biography: true } },
   // §D45 — the book's shelves. Codes only; the client resolves labels and
   // display order against the tree from `GET /categories`, so this stays a
   // cheap join however many books are listed.
@@ -88,6 +107,7 @@ const WITH_COVER = {
 type BookRowWithCover = BookRow & {
   cover: { updatedAt: Date } | null;
   categories: { categoryCode: string }[];
+  author: { id: string; name: string; biography: string | null } | null;
 };
 
 @Injectable()
@@ -96,6 +116,7 @@ export class BooksService {
     private readonly prisma: PrismaService,
     private readonly covers: CoversService,
     private readonly categories: CategoriesService,
+    private readonly authors: AuthorsService,
   ) {}
 
   /** S1.1, and from Sprint 4 on, the moment a cover gets downloaded (§D8). */
@@ -108,6 +129,10 @@ export class BooksService {
     if (input.categories !== undefined) {
       await this.categories.assertExist(input.categories);
     }
+    // §D51 — an author id must name one of *this* reader's authors. Checked
+    // before the insert for the same reason the category codes are: a bad value
+    // should fail the request, not the foreign key mid-write.
+    await this.assertAuthorOwned(userId, input.authorId);
 
     const data: BookWriteData & { title: string } = {
       ...writeData(input),
@@ -167,10 +192,10 @@ export class BooksService {
   async findAll(userId: string, query: ListBooksQuery): Promise<Book[]> {
     const rows = await this.prisma.book.findMany({
       where: listWhere(userId, query),
-      // `id` breaks ties so that two books sharing an author (or a status, or
-      // a creation timestamp) keep a stable order between requests instead of
-      // swapping places on every reload.
-      orderBy: [{ [query.sort]: query.order }, { id: "asc" }],
+      // §D51 — `author` is a relation now, so the shape of an `orderBy` depends
+      // on which column was asked for. `sort.ts` owns that, and the tie-break
+      // that used to live here moved in with it.
+      orderBy: bookOrderBy(query.sort, query.order),
       include: WITH_COVER,
     });
 
@@ -249,6 +274,7 @@ export class BooksService {
     if (input.categories !== undefined) {
       await this.categories.assertExist(input.categories);
     }
+    await this.assertAuthorOwned(userId, input.authorId);
 
     const data = writeData(input);
 
@@ -365,13 +391,44 @@ export class BooksService {
         isbn: { not: null },
         ...(query.excludeId === undefined ? {} : { id: { not: query.excludeId } }),
       },
-      select: { id: true, title: true, author: true, isbn: true },
+      // §D51 — the author's *name*, flattened. This answer is one line of
+      // prose ("„Dune” — Frank Herbert"), so it carries neither the id nor the
+      // biography; `isbnDuplicateSchema` says the same from the contract's side.
+      select: {
+        id: true,
+        title: true,
+        isbn: true,
+        author: { select: { name: true } },
+      },
       orderBy: { createdAt: "asc" },
     });
 
     return candidates
       .filter((candidate) => normalizeIsbn(candidate.isbn ?? "") === wanted)
-      .map(({ id, title, author }) => ({ id, title, author }));
+      .map(({ id, title, author }) => ({ id, title, author: author?.name ?? null }));
+  }
+
+  /**
+   * §D51 — an `authorId` on a write must name one of this reader's own authors.
+   *
+   * Absent and `null` are both nothing to check: absent leaves the column
+   * alone, and `null` clears it. Only a value gets a query, so the ordinary
+   * write — a book edited without touching its author — costs nothing.
+   *
+   * The check is *ownership*, not existence, and the difference is the point:
+   * the foreign key would accept any author id in the table, so without this a
+   * crafted request could hang a stranger's name (and biography) on the
+   * reader's own shelf. It answers the same 404 an unknown id does (S0.3).
+   */
+  private async assertAuthorOwned(
+    userId: string,
+    authorId: string | null | undefined,
+  ): Promise<void> {
+    if (authorId === undefined || authorId === null) {
+      return;
+    }
+
+    await this.authors.assertOwned(userId, authorId);
   }
 
   /**
@@ -426,7 +483,7 @@ function listWhere(userId: string, query: ListBooksQuery): Prisma.BookWhereInput
 function writeData(input: BookWriteInput): BookWriteData {
   return {
     title: input.title,
-    author: input.author,
+    authorId: input.authorId,
     isbn: input.isbn,
     totalPages: input.totalPages,
     publisher: input.publisher,
@@ -478,7 +535,17 @@ function toBook(row: BookRowWithCover): Book {
     id: row.id,
 
     title: row.title,
-    author: row.author,
+    // §D51 — the whole author or `null`, never a bare name. Every surface that
+    // draws a book draws the name; the id is what the form writes back; the
+    // biography is what the book's page shows under it.
+    author:
+      row.author === null
+        ? null
+        : {
+            id: row.author.id,
+            name: row.author.name,
+            biography: row.author.biography,
+          },
     isbn: row.isbn,
     totalPages: row.totalPages,
     // §D45 — the shelves this book sits on, as codes. Labels and display order

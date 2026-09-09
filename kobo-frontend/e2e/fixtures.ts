@@ -1,4 +1,18 @@
-import type { Book, BudgetSummary, StatsOverview } from "@bookcsi/shared";
+import type { Author, Book, BudgetSummary, StatsOverview } from "@bookcsi/shared";
+
+/**
+ * §D51 — an author row, since a book carries one rather than a name.
+ *
+ * Derived id, so the same name is the same author across fixtures — which is
+ * what the list pages assume when two books share a writer.
+ */
+function author(name: string): Author {
+  return {
+    id: `author-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    name,
+    biography: null,
+  };
+}
 
 /**
  * Data for the no-scroll suite, deliberately worse than the demo data
@@ -10,7 +24,7 @@ import type { Book, BudgetSummary, StatsOverview } from "@bookcsi/shared";
 
 function book(overrides: Partial<Book> & Pick<Book, "id" | "title">): Book {
   return {
-    author: "Autor necunoscut",
+    author: author("Autor necunoscut"),
     isbn: null,
     totalPages: 300,
     categories: ["FICTION__GENERAL"],
@@ -50,7 +64,7 @@ export const PAGE_ONE_BOOKS: Book[] = [
   book({
     id: "book-reading",
     title: "Dune",
-    author: "Frank Herbert",
+    author: author("Frank Herbert"),
     status: "READING",
     pagesRead: 143,
     totalPages: 620,
@@ -59,14 +73,14 @@ export const PAGE_ONE_BOOKS: Book[] = [
   book({
     id: "book-long-title",
     title: VERY_LONG_TITLE,
-    author: "Un Autor Cu Un Nume La Fel De Lung Precum Titlul De Alături",
+    author: author("Un Autor Cu Un Nume La Fel De Lung Precum Titlul De Alături"),
     status: "WISHLIST",
     createdAt: "2026-07-29T10:00:00.000Z",
   }),
   book({
     id: "book-finished",
     title: "Fundația",
-    author: "Isaac Asimov",
+    author: author("Isaac Asimov"),
     status: "FINISHED",
     rating: 5,
     pagesRead: 255,
@@ -80,7 +94,7 @@ export const PAGE_ONE_BOOKS: Book[] = [
   book({
     id: "book-abandoned",
     title: "Ulise",
-    author: "James Joyce",
+    author: author("James Joyce"),
     status: "ABANDONED",
     rating: 2,
     pagesRead: 80,
@@ -90,7 +104,7 @@ export const PAGE_ONE_BOOKS: Book[] = [
   book({
     id: "book-purchased",
     title: "Numele trandafirului",
-    author: "Umberto Eco",
+    author: author("Umberto Eco"),
     status: "PURCHASED",
     createdAt: "2026-07-26T10:00:00.000Z",
   }),
@@ -106,14 +120,14 @@ export const PAGE_TWO_BOOKS: Book[] = [
   book({
     id: "book-page-two",
     title: "O carte oarecare de pe pagina a doua",
-    author: "Cineva",
+    author: author("Cineva"),
     status: "WISHLIST",
     createdAt: "2026-07-01T10:00:00.000Z",
   }),
   book({
     id: "book-extra-1",
     title: "Crimă și pedeapsă",
-    author: "Feodor Dostoievski",
+    author: author("Feodor Dostoievski"),
     status: "FINISHED",
     rating: 4,
     categories: ["FICTION__GENERAL"],
@@ -125,7 +139,7 @@ export const PAGE_TWO_BOOKS: Book[] = [
   book({
     id: "book-extra-2",
     title: "O scurtă istorie a aproape totul",
-    author: "Bill Bryson",
+    author: author("Bill Bryson"),
     status: "READING",
     categories: ["HISTORY__GENERAL"],
     pagesRead: 210,
@@ -135,7 +149,7 @@ export const PAGE_TWO_BOOKS: Book[] = [
   book({
     id: "book-extra-3",
     title: "1984",
-    author: "George Orwell",
+    author: author("George Orwell"),
     status: "PURCHASED",
     categories: ["FICTION__GENERAL"],
     paidPrice: 25.5,
@@ -144,7 +158,7 @@ export const PAGE_TWO_BOOKS: Book[] = [
   book({
     id: "book-extra-4",
     title: "Sapiens: o scurtă istorie a omenirii",
-    author: "Yuval Noah Harari",
+    author: author("Yuval Noah Harari"),
     status: "FINISHED",
     rating: 5,
     categories: ["HISTORY__GENERAL"],
@@ -156,7 +170,7 @@ export const PAGE_TWO_BOOKS: Book[] = [
   book({
     id: "book-extra-5",
     title: "Micul prinț",
-    author: "Antoine de Saint-Exupéry",
+    author: author("Antoine de Saint-Exupéry"),
     status: "WISHLIST",
     categories: ["FICTION__GENERAL"],
     estimatedPrice: 18.99,
@@ -176,7 +190,7 @@ export const ALL_BOOKS: Book[] = [...PAGE_ONE_BOOKS, ...PAGE_TWO_BOOKS];
 export const EDIT_PAGE_BOOK: Book = book({
   id: "book-edit-worst-case",
   title: VERY_LONG_TITLE,
-  author: "Un Autor Cu Un Nume La Fel De Lung Precum Titlul De Alături",
+  author: author("Un Autor Cu Un Nume La Fel De Lung Precum Titlul De Alături"),
   status: "WISHLIST",
   estimatedPrice: 59.99,
   createdAt: "2026-07-15T10:00:00.000Z",

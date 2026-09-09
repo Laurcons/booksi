@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import type { CreateBookInput } from "@bookcsi/shared";
-import { AuthorInput } from "../AuthorInput";
 import { CategoryPicker } from "../CategoryPicker";
 import { IsbnScanner } from "../IsbnScanner";
 import { Field } from "./fields";
@@ -13,9 +12,19 @@ import { useT } from "../../../i18n/locale-context";
  * Tab one: what the book *is*.
  *
  * Everything here is a property of the object on the shelf rather than of the
- * reading of it — title, author, edition, which shelves it sits on. That split
- * is the reason the tabs exist at all: this tab is filled in once and then
- * mostly left alone, while `ReadingTab` changes every few days.
+ * reading of it — title, edition, which shelves it sits on. That split is the
+ * reason the tabs exist at all: this tab is filled in once and then mostly left
+ * alone, while `ReadingTab` changes every few days.
+ *
+ * **The author left this tab in §D51.** It is not an oversight and it is worth
+ * a line, because the identity block below plainly wants it: cover, title,
+ * author, ISBN is how a book introduces itself. What moved it is that the
+ * author stopped being a property of the book and became a row of its own with
+ * prose attached — and prose in a grid of values is precisely what §D48 split
+ * this form up to stop. Keeping the *name* here and the biography a tab away
+ * would have been worse than either: one person, chosen in one place and
+ * described in another, with the note about what an edit affects nowhere near
+ * the control that chose them.
  *
  * The cover and the Open Library search arrive as nodes rather than being built
  * here, because both of them need queries and one of them only exists while
@@ -50,42 +59,26 @@ export function BookTab({
    */
   const [scanning, setScanning] = useState(false);
 
-  const authorField = register("author");
-
   return (
     <div className="flex flex-col gap-4">
       {openLibrary}
 
       {/*
-        The identity block, as designed: the cover on the left with the title,
-        the author and the ISBN beside it.
+        The identity block: the cover on the left, the title and the ISBN beside
+        it. Two rows since §D51 took the author to its own tab, where it used to
+        be three on a laptop.
 
-        A grid rather than nested flex rows because the cover spans a different
-        number of rows at each width — two on a phone, where the ISBN drops
-        below it and takes the full line, three on a laptop, where it sits in
-        the column. One element, placed twice, instead of two copies of the same
-        input in the DOM.
+        A grid rather than nested flex rows so the cover can span them, and one
+        element placed once instead of two copies of the same input in the DOM.
       */}
       <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-4">
-        <div className="row-span-2 sm:row-span-3">{cover}</div>
+        <div className="row-span-2">{cover}</div>
 
         <Field label={t("field.title")} error={errors.title}>
           <input
             {...register("title")}
             className={inputClass({ invalid: errors.title !== undefined })}
             autoComplete="off"
-          />
-        </Field>
-
-        <Field label={t("field.author")} error={errors.author}>
-          <AuthorInput
-            name={authorField.name}
-            value={watch("author")}
-            className={INPUT}
-            onChange={authorField.onChange}
-            onBlur={authorField.onBlur}
-            inputRef={authorField.ref}
-            onSelect={(author) => setValue("author", author, { shouldDirty: true })}
           />
         </Field>
 

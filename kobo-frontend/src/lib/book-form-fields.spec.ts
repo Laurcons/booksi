@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeBook } from "../test/fixtures";
+import { makeAuthor, makeBook } from "../test/fixtures";
 import {
   buildBookPayload,
   buildUpdatePayload,
@@ -15,14 +15,21 @@ describe("readFormValues", () => {
     // defaults `status` to WISHLIST for the `<select>`), this reads a real
     // submission verbatim — an actually-empty `status` here is a submission
     // to investigate, not a default to paper over.
-    expect(readFormValues(undefined)).toEqual({ ...EMPTY_FORM_VALUES, status: "" });
+    // §D51 — `authorName` is not read off the body: it is display-only and
+    // the Kobo never submits it, so `readFormValues` leaves it at its default
+    // rather than reflecting a field the form does not post.
+    expect(readFormValues(undefined)).toEqual({
+      ...EMPTY_FORM_VALUES,
+      status: "",
+      authorName: "",
+    });
   });
 
   it("ignores anything that is not a string, rather than crash on it", () => {
-    const values = readFormValues({ title: ["not", "a", "string"], author: "Cineva" });
+    const values = readFormValues({ title: ["not", "a", "string"], isbn: "978" });
 
     expect(values.title).toBe("");
-    expect(values.author).toBe("Cineva");
+    expect(values.isbn).toBe("978");
   });
 });
 
@@ -43,9 +50,25 @@ describe("valuesFromBook", () => {
 
     const values = valuesFromBook(book);
 
-    expect(values.author).toBe("");
+    expect(values.authorName).toBe("");
     expect(values.rating).toBe("");
     expect(values.finishedOn).toBe("");
+  });
+
+  /**
+   * §D51 — the Kobo shows the author and cannot change it. Both halves are
+   * asserted here because each one fails in a way the other would hide: a
+   * missing name is a row that says nothing, and a submitted one is a 400 from
+   * a strict schema on every save this device makes.
+   */
+  it("carries the author's name for display and sends no author at all", () => {
+    const book = makeBook({ author: makeAuthor("Frank Herbert") });
+
+    const values = valuesFromBook(book);
+
+    expect(values.authorName).toBe("Frank Herbert");
+    expect(buildBookPayload(values)).not.toHaveProperty("author");
+    expect(buildBookPayload(values)).not.toHaveProperty("authorId");
   });
 });
 
@@ -54,7 +77,10 @@ describe("buildBookPayload", () => {
     const payload = buildBookPayload({ ...EMPTY_FORM_VALUES, title: "Dune" });
 
     expect(payload.title).toBe("Dune");
-    expect(payload.author).toBeNull();
+    // §D51 — no author key at all, in either spelling. The Kobo cannot pick
+    // one, so it must not claim to; an omitted field leaves the column alone.
+    expect(payload).not.toHaveProperty("author");
+    expect(payload).not.toHaveProperty("authorId");
     expect(payload.totalPages).toBeNull();
   });
 

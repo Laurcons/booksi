@@ -79,11 +79,16 @@ describe("OpenAPI document", () => {
 
   it("covers every route the app exposes", () => {
     expect(operations().map((o) => o.id).sort()).toEqual([
+      // §D51 — the author entity's four routes. No screen of their own: they
+      // exist for the book form's picker.
+      "DELETE /authors/{id}",
       "DELETE /books/{id}",
       "GET /auth/admin/users",
       "GET /auth/google",
       "GET /auth/google/callback",
       "GET /auth/me",
+      "GET /authors",
+      "GET /authors/{id}",
       "GET /books",
       "GET /books/isbn-duplicates",
       "GET /books/wishlist-summary",
@@ -94,10 +99,12 @@ describe("OpenAPI document", () => {
       "GET /openlibrary/editions/{editionKey}",
       "GET /openlibrary/isbn/{isbn}",
       "GET /openlibrary/search",
+      "PATCH /authors/{id}",
       "PATCH /books/{id}",
       "POST /auth/impersonate/{userId}",
       "POST /auth/logout",
       "POST /auth/stop-impersonating",
+      "POST /authors",
       "POST /books",
       "POST /books/{id}/purchase",
       "PUT /auth/locale",
@@ -146,7 +153,10 @@ describe("OpenAPI document", () => {
 
     it("accepts the fields Sprints 1 to 5 own", () => {
       expect(Object.keys(schema().properties ?? {}).sort()).toEqual([
-        "author",
+        // §D51 — an id, never a name: a name-keyed write would have to resolve
+        // to a row, and resolving means creating, which would make every typo
+        // a new person.
+        "authorId",
         // §D45 — the shelves a book sits on, a set of category codes (was the
         // single-value `genre` before the taxonomy moved into the database).
         "categories",

@@ -233,6 +233,8 @@ export const ro = {
 
   /* the four tabs */
   "bookForm.tab.book": "Carte",
+  // §D51 — al doilea tab: autorul, cu tot cu biografie.
+  "bookForm.tab.author": "Autor",
   "bookForm.tab.description": "Descriere",
   "bookForm.tab.reading": "Lectură",
   "bookForm.tab.verdict": "Verdict",
@@ -282,6 +284,8 @@ export const ro = {
 
   "field.title": "Titlu",
   "field.author": "Autor",
+  "field.biography": "Biografie",
+  "field.biographyPlaceholder": "Cine a fost, ce a scris…",
   "field.status": "Status",
   "field.pages": "Nr. de pagini",
   "field.publisher": "Editura",
@@ -521,6 +525,9 @@ export const ro = {
   "budget.monthly": "Buget lunar",
   "chart.spend.title": "Cheltuieli pe luni",
   "profile.details": "Detalii",
+  // §D51 — titlul secțiunii de pe fișa cărții poartă numele, ca să nu fie
+  // nevoie să te uiți înapoi la titlu ca să afli despre cine e vorba.
+  "profile.aboutAuthor": "Despre {name}",
   "connectors.none": "Niciun asistent conectat momentan.",
   "pair.codeApproved": "Cod aprobat",
   "pair.code": "Cod",
@@ -553,6 +560,60 @@ export const ro = {
   "month.short.10": "oct.",
   "month.short.11": "nov.",
   "month.short.12": "dec.",
+
+  /* -------------------------------------------------- §D51 — autori */
+  "author.searchPlaceholder": "Caută sau creează un autor…",
+  "author.clear": "Scoate autorul",
+  "author.searching": "Se caută…",
+  "author.noneYet": "Niciun autor încă. Scrie un nume ca să-l creezi.",
+  "author.create": "Creează autorul „{name}”",
+  "author.created": "Autorul „{name}” a fost creat.",
+  "author.createFailed": "Autorul n-a putut fi creat.",
+  "author.delete": "Șterge autorul {name}",
+  // Confirmarea apare doar când cifra e nenulă: la un autor fără cărți nu e
+  // nimic de avertizat (§D51).
+  "author.deleteConfirm": {
+    one: "Ștergi „{name}”? O carte rămâne fără autor.",
+    few: "Ștergi „{name}”? {count} cărți rămân fără autor.",
+    other: "Ștergi „{name}”? {count} de cărți rămân fără autor.",
+  },
+  "author.deleted": "Autorul „{name}” a fost șters.",
+  "author.deletedWithBooks": {
+    one: "„{name}” a fost șters. O carte a rămas fără autor.",
+    few: "„{name}” a fost șters. {count} cărți au rămas fără autor.",
+    other: "„{name}” a fost șters. {count} de cărți au rămas fără autor.",
+  },
+  "author.deleteFailed": "Autorul n-a putut fi șters.",
+  "author.bookCount": {
+    one: "o carte",
+    few: "{count} cărți",
+    other: "{count} de cărți",
+  },
+  "author.matchCount": {
+    one: "un autor găsit",
+    few: "{count} autori găsiți",
+    other: "{count} de autori găsiți",
+  },
+  // Indicația discretă: numărul e cel care o face informație, nu disclaimer.
+  "author.shared": {
+    one: "Se aplică singurei tale cărți de {name}.",
+    few: "Se aplică tuturor celor {count} cărți ale tale de {name}.",
+    other: "Se aplică tuturor celor {count} de cărți ale tale de {name}.",
+  },
+  "author.sharedUnknown": "Se aplică tuturor cărților tale de acest autor.",
+  "author.noneSelected":
+    "Alege un autor sau creează unul ca să poți scrie despre el. Biografia " +
+    "e a autorului, nu a cărții — se vede pe fișa fiecărei cărți de-a lui.",
+
+  /* -------------------------------------------------- §D51 — toast-uri */
+  "toast.dismiss": "Închide mesajul",
+  "bookForm.saveFailedReason": "n-a mers",
+  "bookForm.saveFailedBoth":
+    "Nu s-a salvat nimic — nici cartea, nici datele autorului: {reason}",
+  "bookForm.savedAuthorNotBook":
+    "Datele autorului s-au salvat, dar cartea nu: {reason}",
+  "bookForm.savedBookNotAuthor":
+    "Cartea s-a salvat, dar biografia autorului nu: {reason}",
 } as const;
 
 export type MessageKey = keyof typeof ro;

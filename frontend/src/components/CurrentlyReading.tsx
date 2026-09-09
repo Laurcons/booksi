@@ -51,7 +51,7 @@ export function CurrentlyReading({ books }: { books: Book[] }) {
                 <p className="truncate font-display text-base text-ink">
                   {book.title}
                 </p>
-                <p className="mt-0.5 truncate text-xs text-ink-3">{book.author}</p>
+                <p className="mt-0.5 truncate text-xs text-ink-3">{book.author?.name}</p>
 
                 <div className="mt-auto">
                   <div className="h-1 overflow-hidden rounded-full bg-surface-0">

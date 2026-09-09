@@ -143,7 +143,7 @@ function TableView({
           <CoverThumb title={book.title} coverUrl={book.coverUrl} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm text-ink">{book.title}</p>
-            <p className="truncate text-xs text-ink-3">{book.author ?? "—"}</p>
+            <p className="truncate text-xs text-ink-3">{book.author?.name ?? "—"}</p>
           </div>
           <StatusPill status={book.status} />
         </label>
@@ -185,7 +185,7 @@ function GalleryView({
             />
             <div className="relative aspect-[2/3] w-full overflow-hidden">
               {src === null ? (
-                <CoverPlaceholder title={book.title} author={book.author} variant="card" />
+                <CoverPlaceholder title={book.title} author={book.author?.name} variant="card" />
               ) : (
                 <img
                   {...CREDENTIALED_IMAGE}

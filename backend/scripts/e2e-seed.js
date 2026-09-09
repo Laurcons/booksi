@@ -90,6 +90,14 @@ const BOOKS = [
   { title: "Fundația", author: "Isaac Asimov", category: "FICTION__GENERAL", status: "FINISHED", pagesRead: 255, totalPages: 255, rating: 5, paidPrice: "38.00", purchasedOn: new Date("2026-05-02"), finishedOn: new Date("2026-06-11") },
 ];
 
+/**
+ * §D51 — one author with prose, so the book profile's biography section has
+ * something to draw and the specs can tell "written" from "not written apart".
+ */
+const AUTHOR_BIOGRAPHY =
+  "Scriitor și poet român, autorul trilogiei Orbitor. Scrie o proză densă, " +
+  "autobiografică, în care Bucureștiul copilăriei devine un organism.";
+
 async function main() {
   const env = readEnv();
   const prisma = new PrismaClient({
@@ -108,6 +116,33 @@ async function main() {
     });
 
     await prisma.book.deleteMany({ where: { userId: user.id } });
+    // §D51 — after the books, because a book points at an author. Deleting the
+    // other way round would `SetNull` every book's author and then delete the
+    // rows anyway; this order simply has nothing to null.
+    await prisma.author.deleteMany({ where: { userId: user.id } });
+
+    /**
+     * §D51 — one `Author` row per distinct name above, created before the
+     * books so each book can point at one.
+     *
+     * `Cărtărescu` carries a biography and the other authors do not, which is
+     * the shape the specs need: the book profile draws the section only when
+     * there is prose, so a run where every author had one could not tell the
+     * two states apart.
+     */
+    const authorIds = new Map();
+
+    for (const name of new Set(BOOKS.map((book) => book.author).filter(Boolean))) {
+      const author = await prisma.author.create({
+        data: {
+          userId: user.id,
+          name,
+          biography: name === "Mircea Cărtărescu" ? AUTHOR_BIOGRAPHY : null,
+        },
+      });
+
+      authorIds.set(name, author.id);
+    }
 
     /**
      * One `create` per book rather than a single `createMany`, because §D45
@@ -119,11 +154,13 @@ async function main() {
      * browser. The `category` on each entry above is the `general` leaf of the
      * group the old value named — the same mapping the data migration used.
      */
-    for (const { category, ...book } of BOOKS) {
+    for (const { category, author, ...book } of BOOKS) {
       await prisma.book.create({
         data: {
           ...book,
           userId: user.id,
+          // §D51 — the foreign key, not a name.
+          ...(author === undefined ? {} : { authorId: authorIds.get(author) }),
           categories: { create: [{ categoryCode: category }] },
         },
       });

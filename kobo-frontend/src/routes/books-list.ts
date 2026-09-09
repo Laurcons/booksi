@@ -255,7 +255,7 @@ function bookRow(book: Book, categoryLabels: Map<string, string>): Html {
       ? html`<span class="cover-placeholder" aria-hidden="true">
           <span class="cover-placeholder-cell">
             <span class="cover-placeholder-title">${book.title}</span>
-            <span class="cover-placeholder-author">${book.author ?? "Autor necunoscut"}</span>
+            <span class="cover-placeholder-author">${book.author?.name ?? "Autor necunoscut"}</span>
           </span>
         </span>`
       : html`<img
@@ -271,7 +271,7 @@ function bookRow(book: Book, categoryLabels: Map<string, string>): Html {
   const info = html`<div class="book-info">
     <a class="book-title" href="/books/${book.id}">${book.title}</a>
     <p class="book-details">
-      <span class="book-meta">${book.author ?? "Autor necunoscut"} · ${addedYear(book)}</span>
+      <span class="book-meta">${book.author?.name ?? "Autor necunoscut"} · ${addedYear(book)}</span>
       <span class="book-status">
         ${statusPill(book.status)}${book.rating !== null ? html` ${ratingLabel(book.rating)}` : null}
       </span>

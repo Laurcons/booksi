@@ -102,6 +102,10 @@ function Profile({ book }: { book: Book }) {
             onDelete={() => setDialog("delete")}
           />
           <Description text={book.description} />
+          {/* §D51 — who wrote it, if anything is written down about them. Under
+              the book's own prose, because that is the order of interest: what
+              this book is, then who the person behind it was. */}
+          {book.author !== null && <Biography author={book.author} />}
           <Details book={book} />
         </div>
       </div>
@@ -130,7 +134,7 @@ function Cover({ book }: { book: Book }) {
   return (
     <div className="aspect-[2/3] overflow-hidden rounded-xl border border-line bg-surface-2">
       {src === null ? (
-        <CoverPlaceholder title={book.title} author={book.author} variant="card" />
+        <CoverPlaceholder title={book.title} author={book.author?.name} variant="card" />
       ) : (
         <img
           {...CREDENTIALED_IMAGE}
@@ -154,7 +158,7 @@ function Identity({ book }: { book: Book }) {
       <h1 className="font-display text-4xl text-ink">{book.title}</h1>
 
       {book.author !== null && (
-        <p className="mt-2 text-lg text-ink-2">{book.author}</p>
+        <p className="mt-2 text-lg text-ink-2">{book.author.name}</p>
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -231,6 +235,47 @@ function Description({ text }: { text: string | null }) {
           {text}
         </p>
       )}
+    </section>
+  );
+}
+
+/**
+ * §D51 — the author's biography, on the book's page.
+ *
+ * Drawn the same way the description above it is, and that is the point rather
+ * than laziness: both are prose about the book in front of you, both arrive
+ * from a person or a model rather than from a field, and §Fișa cărții already
+ * decided how prose is set on this screen — `max-w-prose`, `leading-relaxed`,
+ * `whitespace-pre-line` so written paragraph breaks survive, and rendered as
+ * text because it comes over the network and anything treating it as markup
+ * would hand a remote writer the page.
+ *
+ * **Absent means absent.** No empty state, no "nothing written yet", no prompt
+ * to go and write one — the section simply is not there, which is §Fișa cărții's
+ * rule for every other missing field ("detaliile absente nu se desenează").
+ * The description gets an empty state because it is the reason that screen
+ * exists and because nobody would guess an assistant can fill it; a biography
+ * is neither, and a paragraph of apology under every author nobody has written
+ * about would be on almost every book.
+ *
+ * The heading carries the author's name rather than the word "Biography" alone,
+ * so the section says whose life it is without the reader looking back up at
+ * the title block for the answer.
+ */
+function Biography({ author }: { author: NonNullable<Book["author"]> }) {
+  const t = useT();
+
+  if (author.biography === null) {
+    return null;
+  }
+
+  return (
+    <section>
+      <SectionTitle>{t("profile.aboutAuthor", { name: author.name })}</SectionTitle>
+
+      <p className="mt-3 max-w-prose whitespace-pre-line leading-relaxed text-ink-2">
+        {author.biography}
+      </p>
     </section>
   );
 }

@@ -42,6 +42,12 @@ vi.mock("./IsbnScanner", () => ({
 const defaults = (call: ApiCall) => {
   if (call.url.includes("isbn-duplicates")) return [];
   if (call.url.includes("/openlibrary/isbn/")) return duneEdition;
+  // §D51 — the author the lookup named, resolved to a row. The real route is
+  // idempotent by name, which is why the fill may call it without a click.
+  if (call.method === "POST" && call.url.endsWith("/authors")) {
+    return { id: "author-frank-herbert", name: "Frank Herbert", biography: null };
+  }
+  if (call.url.includes("/authors")) return [];
   if (call.url.includes("/books?")) return [];
   return makeBook();
 };
@@ -141,9 +147,18 @@ describe("BookFormDialog — scanning an ISBN (§D43)", () => {
 
     // The point of the feature: one barcode, a filled-in book.
     expect(await screen.findByDisplayValue("Dune")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Frank Herbert")).toBeInTheDocument();
     expect(screen.getByDisplayValue("620")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Nemira")).toBeInTheDocument();
+
+    // §D51 — the author too, on its own tab and as a resolved row rather than
+    // as the string the lookup returned. The tab's name carries its
+    // unsaved-changes marker by now, hence the anchored regex.
+    await user.click(screen.getByRole("tab", { name: /^Autor/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Autor" })).toHaveValue(
+        "Frank Herbert",
+      ),
+    );
   });
 
   it("leaves a title the user already typed alone", async () => {

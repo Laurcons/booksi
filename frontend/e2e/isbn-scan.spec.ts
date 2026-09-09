@@ -75,8 +75,22 @@ test.describe("scanning an ISBN from the camera (§D43)", () => {
 
     // The point of the feature: one barcode, a filled-in book.
     await expect(page.getByLabel(/Titlu/)).toHaveValue("Dune");
-    await expect(page.getByLabel(/Autor/)).toHaveValue("Frank Herbert");
     await expect(page.getByLabel("Pagini")).toHaveValue("620");
+
+    /**
+     * §D51 — the author too, but it is on its own tab now and it arrived as a
+     * *row* rather than as the string Open Library sent: the fill resolves the
+     * catalogue's name through `POST /authors`, which is the one place an author
+     * is created without a click (a catalogue's spelling is not a typo).
+     *
+     * The tab's name carries its unsaved-changes marker by this point, hence
+     * the anchored regex, and the textbox is asked for by role because the
+     * panel is `aria-labelledby` a tab called "Autor" as well.
+     */
+    await page.getByRole("tab", { name: /^Autor/ }).click();
+    await expect(page.getByRole("textbox", { name: "Autor" })).toHaveValue(
+      "Frank Herbert",
+    );
   });
 
   test("switches the camera off once it has the answer", async ({

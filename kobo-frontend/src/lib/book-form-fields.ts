@@ -10,7 +10,20 @@ import { normalizeDateInput } from "./date-input";
  */
 export interface BookFormValues {
   title: string;
-  author: string;
+  /**
+   * §D51 — the author's name, **read-only on this device**.
+   *
+   * The author is an entity now and the API takes an `authorId`, which needs a
+   * server-backed autocomplete, a deliberate create and a confirmed delete —
+   * none of which a page with zero client-side JavaScript (§D37) can offer. So
+   * the Kobo shows who wrote the book and does not pretend to be able to change
+   * it: the field is displayed, never submitted, and never part of a payload.
+   *
+   * Kept in these values rather than passed separately so the form's rendering
+   * helpers keep taking one object, and named `authorName` rather than `author`
+   * so nothing can mistake it for something the API accepts.
+   */
+  authorName: string;
   isbn: string;
   totalPages: string;
   categories: string[];
@@ -30,9 +43,11 @@ export interface BookFormValues {
 
 // §D45 — every field except `categories`, which is an array and is read
 // separately below. Typed to exclude it so the string-assigning loop stays sound.
-const FIELD_NAMES: readonly Exclude<keyof BookFormValues, "categories">[] = [
+const FIELD_NAMES: readonly Exclude<
+  keyof BookFormValues,
+  "categories" | "authorName"
+>[] = [
   "title",
-  "author",
   "isbn",
   "totalPages",
   "publisher",
@@ -49,10 +64,20 @@ const FIELD_NAMES: readonly Exclude<keyof BookFormValues, "categories">[] = [
   "finishedOn",
 ];
 
-/** Pulls the fields this form owns out of an urlencoded body, defaulting anything absent to `""`. */
-export function readFormValues(body: unknown): BookFormValues {
+/**
+ * Pulls the fields this form owns out of an urlencoded body, defaulting
+ * anything absent to `""`.
+ *
+ * `authorName` is the one value that cannot come from the body, because the
+ * form does not post it (§D51 — the Kobo shows the author and cannot change
+ * it). It is passed in instead, so that re-rendering a rejected submission
+ * still shows whose book it is: the edit route has the stored book in hand
+ * anyway, and the alternative is a row that goes blank on a validation error
+ * for no reason the reader could work out.
+ */
+export function readFormValues(body: unknown, authorName = ""): BookFormValues {
   const record = (body ?? {}) as Record<string, unknown>;
-  const values = {} as BookFormValues;
+  const values = { authorName } as BookFormValues;
 
   for (const name of FIELD_NAMES) {
     const value = record[name];
@@ -75,7 +100,8 @@ export function readFormValues(body: unknown): BookFormValues {
 export function valuesFromBook(book: Book): BookFormValues {
   return {
     title: book.title,
-    author: book.author ?? "",
+    // Display only — see `authorName` above.
+    authorName: book.author?.name ?? "",
     isbn: book.isbn ?? "",
     totalPages: book.totalPages === null ? "" : String(book.totalPages),
     categories: book.categories,
@@ -96,7 +122,7 @@ export function valuesFromBook(book: Book): BookFormValues {
 
 export const EMPTY_FORM_VALUES: BookFormValues = {
   title: "",
-  author: "",
+  authorName: "",
   isbn: "",
   totalPages: "",
   categories: [],
@@ -156,7 +182,10 @@ function coerceNullableText(raw: string): string | null {
 export function buildBookPayload(values: BookFormValues): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     title: values.title.trim(),
-    author: coerceNullableText(values.author),
+    // §D51 — no `author` and no `authorId`. The Kobo cannot pick one, so it
+    // must not claim to: sending either would be this device overwriting a
+    // decision made on a screen that has the controls for it. An omitted field
+    // leaves the column alone.
     isbn: coerceNullableText(values.isbn),
     totalPages: coerceNullableNumber(values.totalPages),
     categories: values.categories,

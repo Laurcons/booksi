@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Shelf } from "./Shelf";
-import { makeBook } from "../test/helpers";
+import { makeBook, makeAuthor } from "../test/helpers";
 import { renderWithQuery } from "../test/helpers";
 
 describe("Shelf (S8.2)", () => {
@@ -11,7 +11,7 @@ describe("Shelf (S8.2)", () => {
     // handler, and a hover card no touch screen could ever summon.
     renderWithQuery(
       <Shelf
-        books={[makeBook({ id: "a", title: "Dune", author: "Frank Herbert" })]}
+        books={[makeBook({ id: "a", title: "Dune", author: makeAuthor("Frank Herbert") })]}
         onOpen={() => {}}
       />,
     );

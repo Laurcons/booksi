@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule, minutes, seconds } from "@nestjs/throttler";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
+import { AuthorsModule } from "./authors/authors.module";
 import { BooksModule } from "./books/books.module";
 import { BudgetModule } from "./budget/budget.module";
 import { CategoriesModule } from "./categories/categories.module";
@@ -53,6 +54,7 @@ import { StatsModule } from "./stats/stats.module";
     // gatekeeping, so it doesn't need to sit in this file's provider list.
     AuditModule,
     AuthModule,
+    AuthorsModule,
     BooksModule,
     // §D45 — the category taxonomy. `BooksModule` imports it too, to validate
     // a write's category codes; listed here so the app's surface shows it.

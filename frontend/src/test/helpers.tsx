@@ -3,9 +3,17 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { vi } from "vitest";
-import type { AuthUser, Book, CategoryTree, ErrorCode, Locale } from "@bookcsi/shared";
+import type {
+  Author,
+  AuthUser,
+  Book,
+  CategoryTree,
+  ErrorCode,
+  Locale,
+} from "@bookcsi/shared";
 import { CURRENT_USER_KEY } from "../api/auth";
 import { CATEGORIES_KEY } from "../api/categories";
+import { ToastProvider } from "../components/toast/ToastProvider";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 
 /**
@@ -186,9 +194,36 @@ export function renderWithQuery(
     user: userEvent.setup(),
     ...render(
       <QueryClientProvider client={queryClient}>
-        <LocaleProvider>{ui}</LocaleProvider>
+        <LocaleProvider>
+          {/* §D51 — `useToast` throws outside its provider rather than
+              degrading to a no-op (a swallowed toast is the failure it guards),
+              so every test that renders the book form needs it. It also makes
+              the messages assertable, which is the only way the partial-save
+              behaviour can be tested at all. */}
+          <ToastProvider>{ui}</ToastProvider>
+        </LocaleProvider>
       </QueryClientProvider>,
     ),
+  };
+}
+
+/**
+ * §D51 — an author, for the tests that need one attached to a book.
+ *
+ * `makeAuthor("Frank Herbert")` rather than a literal at every call site,
+ * because an author is three fields now and only one of them is ever the point
+ * of the test. The id is derived from the name so two calls with the same name
+ * produce the same author, which is what the picker's grouping assumes.
+ */
+export function makeAuthor(
+  name: string,
+  overrides: Partial<Author> = {},
+): Author {
+  return {
+    id: `author-${name.toLowerCase().replace(/\s+/g, "-")}`,
+    name,
+    biography: null,
+    ...overrides,
   };
 }
 
@@ -197,7 +232,7 @@ export function makeBook(overrides: Partial<Book> = {}): Book {
   return {
     id: "book-1",
     title: "Dune",
-    author: "Frank Herbert",
+    author: makeAuthor("Frank Herbert"),
     isbn: "978-606-4-00000-0",
     totalPages: 620,
     categories: ["FICTION__GENERAL"],

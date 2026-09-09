@@ -49,6 +49,7 @@ model User {
   locale String @default("ro")
 
   books          Book[]
+  authors        Author[]
   settings       Settings?
   mcpGrants      McpGrant[]
   devicePairings DevicePairing[]
@@ -111,6 +112,60 @@ model BookCategory {
   @@index([categoryCode])
 }
 
+/// §D51 — the author as an entity, with the one field the old free-text column
+/// could not carry: a biography.
+///
+/// **Scoped to a user, like every other table here.** The biography is the
+/// reader's own prose (the same status as `Book.description`), the picker may
+/// only offer names off the reader's own shelves, and a delete must not reach
+/// another account. A shared author table would have one reader's edit rewriting
+/// a stranger's book page.
+///
+/// `@@unique([userId, name])` is the constraint the whole feature leans on, and
+/// it is **stricter than byte-identity by decision**: the column collates
+/// `utf8mb4_unicode_ci`, which folds case *and* accents, so `frank herbert` and
+/// `Frank Herbert` are one row, and so are `Calinescu` and `Călinescu`. Both
+/// foldings are wanted — `bell hooks` is not a second person, and a name typed
+/// without diacritics is the same author as one typed with them. The client
+/// folds the same way before offering to create (`foldAuthorName` in
+/// `shared/src/author.ts`), so it never offers to make a row the index would
+/// refuse.
+///
+/// There is no admin surface and no `/authors` page: an author is created and
+/// deleted from the book form's own picker, which is why `bookCount` is
+/// computed on read rather than kept as a column — see `AuthorsService`.
+model Author {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// `VARCHAR(255)`, not Prisma's default 191, and this closes a latent bug
+  /// rather than adding a field: the old `Book.author` column was 191 while the
+  /// zod schema capped names at 255, so a 200-character name passed validation
+  /// and then failed at the driver. `AUTHOR_NAME_MAX` and the column agree now.
+  /// 255 × 4 bytes plus the cuid leaves the composite unique index well inside
+  /// InnoDB's 3072-byte key limit.
+  name String @db.VarChar(255)
+
+  /// Free-form prose about the person, or NULL for the authors nobody has
+  /// written about yet — which is every author the migration created, since the
+  /// column it came from held only a name.
+  ///
+  /// `TEXT` and capped at 5000 characters by the schema (`AUTHOR_BIOGRAPHY_MAX`),
+  /// the same ceiling as a book's description and for the same reason: a model
+  /// reads it back over MCP, so the cap is set by what is cheap to put in a
+  /// context window. Editing it from any one book changes it for all of them,
+  /// which is the point and is why the form says so.
+  biography String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  books Book[]
+
+  @@unique([userId, name])
+}
+
 model Book {
   id     String @id @default(cuid())
   userId String
@@ -118,7 +173,19 @@ model Book {
 
   // identity (user-input or Open Library)
   title           String
-  author          String?
+
+  /// §D51 — which author, or NULL. Replaces the `author String?` column.
+  ///
+  /// `onDelete: SetNull` is the deliberate answer to "what happens to the books
+  /// when an author is deleted": they stay, and they lose the author. Cascade
+  /// would delete the books, which is catastrophic for a housekeeping action
+  /// taken from a dropdown; `Restrict` would make an author undeletable until
+  /// every book was edited first, which is a chore the reader did not ask for.
+  /// The form warns with a count before it happens ("4 books will be left
+  /// without an author") — and says nothing at all when the count is zero,
+  /// because then there is nothing to warn about.
+  authorId        String?
+  author          Author?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
   isbn            String? // NOT unique — see D13
   totalPages      Int? // frequently absent — see D4
   publisher       String?
@@ -171,6 +238,9 @@ model Book {
   @@index([userId, status])
   @@index([userId, finishedOn])
   @@index([userId, purchasedOn])
+  /// §D51 — the FK's own index, which is also what makes deleting an author
+  /// cheap: `SetNull` has to find every book pointing at it.
+  @@index([authorId])
 }
 
 enum CoverSource {

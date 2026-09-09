@@ -58,10 +58,23 @@ const defaults = (call: ApiCall) => {
   if (call.url.includes("/openlibrary/search")) return [dune];
   if (call.url.includes("/openlibrary/editions/")) return duneEdition;
   if (call.url.includes("/openlibrary/isbn/")) return duneEdition;
-  // AuthorInput's own `useBooks` call, for its suggestion list.
+  /**
+   * §D51 — the author Open Library named, resolved to a row.
+   *
+   * `POST /authors` is idempotent by name on the real API, so this is the same
+   * answer whether the author existed or not, which is exactly why the fill is
+   * allowed to call it without a click (see `fillAuthor`).
+   */
+  if (call.method === "POST" && call.url.endsWith("/authors")) {
+    return HERBERT;
+  }
+  if (call.url.includes("/authors")) return [HERBERT];
   if (call.url.includes("/books?")) return [];
   return makeBook();
 };
+
+/** The author row the fill resolves to. */
+const HERBERT = { id: "author-frank-herbert", name: "Frank Herbert", biography: null };
 
 const searchBox = () => screen.getByLabelText(/Caută în Open Library/);
 const save = () => screen.getByRole("button", { name: /Salvează|Adaugă/ });
@@ -74,11 +87,54 @@ describe("BookFormDialog — searching Open Library (S4.1)", () => {
     await user.click(await screen.findByRole("button", { name: /Dune/ }));
 
     await waitFor(() => expect(screen.getByLabelText("Titlu")).toHaveValue("Dune"));
-    expect(screen.getByLabelText("Autor")).toHaveValue("Frank Herbert");
     // §D7 — the edition is where the ISBN and the page count come from, and it
     // takes the second request to get them.
     expect(screen.getByLabelText(/ISBN/)).toHaveValue("9780441013593");
     expect(screen.getByLabelText("Pagini")).toHaveValue(620);
+
+    // §D51 — the author is on its own tab now, and it arrived as a *row*
+    // rather than as the string Open Library sent.
+    //
+    // Anchored regex, not an exact name: the fill dirties `authorId`, so the
+    // tab has grown its unsaved-changes dot and the sr-only text that goes with
+    // it — the accessible name is "Autor are modificări nesalvate".
+    await user.click(screen.getByRole("tab", { name: /^Autor/ }));
+    expect(screen.getByRole("textbox", { name: "Autor" })).toHaveValue("Frank Herbert");
+  });
+
+  /**
+   * §D51 — the one place an author is created without anybody clicking, and
+   * the reason it is allowed.
+   *
+   * The rule everywhere else is that a name must be confirmed before it becomes
+   * a person, and it exists to stop *typos* minting authors. A name from Open
+   * Library was not typed by anyone: it is a catalogue's own spelling, on an
+   * edition the reader explicitly picked. Dropping it instead would mean a
+   * filled-in book with a blank author and the reader retyping what the form
+   * already knew.
+   */
+  it("resolves the author Open Library named, without asking", async () => {
+    const { calls, user } = renderForm(defaults);
+
+    await user.type(searchBox(), "dune");
+    await user.click(await screen.findByRole("button", { name: /Dune/ }));
+    await waitFor(() => expect(screen.getByLabelText("Titlu")).toHaveValue("Dune"));
+
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (call) =>
+            call.method === "POST" &&
+            call.url.endsWith("/authors") &&
+            (call.body as { name?: string } | undefined)?.name === "Frank Herbert",
+        ),
+      ).toBe(true),
+    );
+
+    await user.click(save());
+
+    // And the book carries the id, never the name.
+    await waitFor(() => expect(lastWrite(calls)).toMatchObject({ authorId: HERBERT.id }));
   });
 
   it("sends the edition key, which is what makes the cover arrive (§D8)", async () => {

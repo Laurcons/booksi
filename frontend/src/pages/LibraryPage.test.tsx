@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import type { Book } from "@bookcsi/shared";
-import { makeBook, stubApi, type ApiCall } from "../test/helpers";
+import { makeBook, stubApi, type ApiCall, makeAuthor } from "../test/helpers";
 import { LibraryPage } from "./LibraryPage";
 import { renderWithQuery } from "../test/helpers";
 
@@ -64,8 +64,8 @@ const lastListUrl = (calls: ApiCall[]): string =>
   calls.filter((call) => call.url.includes("/books?")).at(-1)?.url ?? "";
 
 const LIBRARY = [
-  makeBook({ id: "book-1", title: "Dune", author: "Frank Herbert" }),
-  makeBook({ id: "book-2", title: "Solaris", author: "Stanisław Lem" }),
+  makeBook({ id: "book-1", title: "Dune", author: makeAuthor("Frank Herbert") }),
+  makeBook({ id: "book-2", title: "Solaris", author: makeAuthor("Stanisław Lem") }),
 ];
 
 describe("LibraryPage — search (§D42)", () => {

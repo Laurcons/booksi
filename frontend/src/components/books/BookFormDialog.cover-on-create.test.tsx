@@ -33,7 +33,12 @@ const duneEdition: BookSuggestion = {
 
 const defaults = (call: ApiCall) => {
   if (call.url.includes("isbn-duplicates")) return [];
-  // AuthorInput's own `useBooks` call, for its suggestion list.
+  // §D51 — the author Open Library named, resolved to a row. The real route
+  // is idempotent by name, which is why the fill may call it without a click.
+  if (call.method === "POST" && call.url.endsWith("/authors")) {
+    return { id: "author-frank-herbert", name: "Frank Herbert", biography: null };
+  }
+  if (call.url.includes("/authors")) return [];
   if (call.url.includes("/books?")) return [];
   if (call.url.includes("/openlibrary/editions/")) return duneEdition;
   if (call.url.includes("/cover")) return { coverUrl: "/covers/book-1?v=1" };

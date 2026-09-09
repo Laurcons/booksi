@@ -63,6 +63,30 @@
     }
   }
 
+  /**
+   * §D51 — how a toast arrives. It slides a few pixels in from the edge it is
+   * anchored to and fades up; nothing bounces and nothing scales, because a
+   * message that draws attention to its own entrance is a message read second.
+   *
+   * Applied through `motion-safe:` rather than relying on the reduced-motion
+   * rule at the bottom of this file: that rule collapses a duration to 0.01ms,
+   * which is right for a transition and wrong for a keyframe animation whose
+   * first frame is `opacity: 0` — collapsing it would flash the toast in from
+   * invisible. `motion-safe:` does not apply the animation at all.
+   */
+  --animate-toast-in: toast-in 180ms ease-out;
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   --font-display: "Playfair Display", ui-serif, Georgia, serif;
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 }

@@ -10,9 +10,12 @@ import type { Prisma } from "@prisma/client";
  */
 
 /**
- * The five fields a book is recognised by. Order is not significance — the
- * clause is an `OR` and a row matching in any of them matches — it is only the
- * order they are declared in the model.
+ * The four *scalar* fields a book is recognised by. Order is not significance —
+ * the clause is an `OR` and a row matching in any of them matches — it is only
+ * the order they are declared in the model.
+ *
+ * `author` used to be the second entry and is not a column any more (§D51); it
+ * is matched through the relation instead, in `searchWhere` below.
  *
  * `description` is in the list at the maintainer's explicit request, and it is
  * the one entry that widens what a hit *means*: it is prose (up to 5000
@@ -27,7 +30,7 @@ import type { Prisma } from "@prisma/client";
  * the other. Fixing that would mean `REPLACE()` in SQL — raw, unindexed, and
  * beyond what a search box needs.
  */
-const SEARCH_FIELDS = ["title", "author", "publisher", "isbn", "description"] as const;
+const SEARCH_FIELDS = ["title", "publisher", "isbn", "description"] as const;
 
 /**
  * The words of a query, in order, with the gaps between them thrown away.
@@ -62,9 +65,29 @@ export function searchTerms(q: string): string[] {
  * *Cartea șoaptelor*'s neighbours on the shelf without a normalised column.
  * Prisma's `mode: "insensitive"` is a Postgres feature and must not be added:
  * on MySQL it is unsupported, and the collation already does the work.
+ *
+ * ## The author is a relation now (§D51)
+ *
+ * `{ author: { name: { contains: term } } }` is the fifth arm of each `OR`, and
+ * it needs no denormalised copy of the name on `Book`. Prisma compiles it to a
+ * subquery over `Author`, which changes the plan and not the cost: `contains`
+ * is `LIKE '%term%'` and therefore unindexable on **every** field in this
+ * clause, so the search was already a scan of the reader's books before §D51
+ * and still is. What it now scans in addition is a personal library's author
+ * table — hundreds of rows.
+ *
+ * The **biography is deliberately not searched**, unlike `description`. The
+ * two are the same kind of prose and the decision went the other way on
+ * purpose: a hit in a description is at least about the book that matched,
+ * while a hit in a biography would return every book by an author whose life
+ * story happens to contain the word. `q=dune` finding a Herbert novel because
+ * his biography mentions Dune is a result nothing on screen could explain.
  */
 export function searchWhere(q: string): Prisma.BookWhereInput[] {
   return searchTerms(q).map((term) => ({
-    OR: SEARCH_FIELDS.map((field) => ({ [field]: { contains: term } })),
+    OR: [
+      ...SEARCH_FIELDS.map((field) => ({ [field]: { contains: term } })),
+      { author: { name: { contains: term } } },
+    ],
   }));
 }

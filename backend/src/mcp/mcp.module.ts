@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
+import { AuthorsModule } from "../authors/authors.module";
 import { BooksModule } from "../books/books.module";
 import { BudgetModule } from "../budget/budget.module";
 import { CategoriesModule } from "../categories/categories.module";
@@ -20,6 +21,7 @@ import { WellKnownController } from "./well-known.controller";
 
 @Module({
   imports: [
+    AuthorsModule,
     BooksModule,
     BudgetModule,
     CategoriesModule,

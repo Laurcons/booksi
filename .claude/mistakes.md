@@ -370,3 +370,102 @@ away the exact thing under test. Get the real compiled stylesheet
 page with the class strings copied verbatim) and read the *used* values with
 `getComputedStyle`. `left: 0px; right: 9.5px; width: 12.5px` on a 22px spine said
 in one line what three rounds of ink measurement could not.
+
+### `resetField` is a silent no-op on a field react-hook-form never registered
+
+§D51's author picker deliberately has no RHF `ref` (the display text is a name,
+the stored value an id — the very divergence the first entry in this file
+records a crash for). So `authorId` lives in the form via `setValue` alone, with
+no input of its own.
+
+Then, to clear it after an author was deleted, I reached for
+`resetField("authorId", { defaultValue: null })` — the precise API for "this is
+the new baseline, not an edit". It typechecked, it threw nothing, and it did
+**nothing at all**: `resetField` looks the field up in RHF's internal `_fields`
+and returns early when it is not there. The picker's box emptied (its own
+state), while the form went on holding the deleted author's id.
+
+**Fix:** `setValue(name, value)` with **no options**. It sets the value and
+leaves `dirtyFields` untouched, which is the same "not an edit" meaning, and it
+works whether or not the field is registered. The same bug was waiting in the
+Open Library fill, which runs from the *Carte* tab where the biography's
+textarea is not even mounted — so a registered field is unregistered there too.
+
+**Lesson:** on a form with unregistered fields — a picker, a hidden value, or
+any field on an unmounted tab — `resetField` and anything else that resolves
+through `_fields` is unreliable. Prefer `setValue`. And the broader one: an API
+that fails by doing nothing needs a test that asserts the *outcome*, not the
+call; this surfaced only because a browser pass drove a delete and looked at
+what the form still held afterwards.
+
+### A display-only value put through validation can make a form unsavable
+
+The author's *name* is not sent anywhere — the API takes an id — but I made it a
+validated form field anyway (`authorName: z.string()`), because it has to
+survive the Autor tab unmounting.
+
+A test stub then answered `POST /authors` with a book-shaped object, so
+`author.name` was `undefined`, the field failed `z.string()`, and `handleSubmit`
+refused to run. No request, no visible error: the message was attached to a
+field with no input, on a tab, for a value the reader neither typed nor can see.
+The form was simply dead.
+
+This is the same shape as the disabled-rating bug lower down this file, and the
+same lesson generalised: **do not put a value through validation unless a person
+can act on the verdict.** Fixed by moving the name out of the form entirely,
+into `BookFormDialog`'s own `useState` — which does not unmount when tabs
+switch, so it never needed to be a form field in the first place.
+
+### `apiFetch` sets `Accept` but not `Content-Type`, and Express then drops the body
+
+Wrote three author mutations as `apiFetch(url, { method: "PATCH", body:
+JSON.stringify(input) })` and every one came back 400 "expected object, received
+undefined". The payload was correct; the *header* was missing, so Express's JSON
+parser never read the body and Nest saw `undefined`.
+
+Every other mutation in the app passes `headers: { "Content-Type":
+"application/json" }` by hand, so `apiFetch` had never needed to — twelve call
+sites doing it right and no help for the thirteenth.
+
+**Fix:** `apiFetch` now sets it whenever `body` is a string, which is exactly
+when `JSON.stringify` produced it; the raw-image upload passes a `Blob` and its
+own type, so it is unaffected, and an explicit header still wins.
+
+**Lesson:** when a convention is repeated at every call site rather than
+enforced in the shared helper, the helper is the bug. And note where the error
+pointed: at the *shape of the payload*, one layer past the actual fault — the
+same misdirection as the Nest pipe entry below.
+
+### Focus is not click: a picker that returns focus to its own input goes dead
+
+Picking a suggestion closes the dropdown and focuses the input, so typing can
+continue. The list reopened on `onFocus` — and the input was *already* focused,
+so a second click on the field fired no `focus` event and did nothing. The only
+ways back into the list were to click away and return, or to start typing.
+
+Found by a Playwright test whose click timed out; the screenshot showed a
+perfectly correct-looking form with a closed dropdown, which is exactly what a
+user would have reported as "the field doesn't open".
+
+**Lesson:** any control that manages its own focus needs `onClick` as well as
+`onFocus` to open. `onFocus` alone is only correct for a control the user
+arrives at from somewhere else.
+
+### Two correct labels can still break a query — and one of them was mine
+
+`getByLabelText("Autor")` started matching two elements: the picker's input, and
+the tab *panel*, which is `aria-labelledby` a tab whose name is also "Autor".
+Both are correct markup, and the collision is only in the query — the fix was
+`getByRole("textbox", { name: "Autor" })`.
+
+But chasing it turned up a genuine fault next door: the input carried **both**
+an `aria-label` and an associated visible `<label>`, saying the same word.
+`aria-label` *overrides* a visible label rather than adding to it, so the pair
+stays correct only by luck and a screen reader reads the invisible one the
+moment they disagree. Removed the `aria-label`. (`CategoryPicker` still has the
+same duplication; nothing queries it by label, which is the only reason it has
+not surfaced.)
+
+**Lesson:** when a label query matches more than one thing, check whether the
+duplication is in the *test* or in the markup before fixing the test. Here it
+was both.

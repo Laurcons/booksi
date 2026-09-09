@@ -45,6 +45,7 @@ import { type Locale } from "./locale.js";
  */
 const validationRo = {
   "validation.title.required": "Titlul e obligatoriu",
+  "validation.author.nameRequired": "Numele autorului e obligatoriu",
   "validation.year.implausible": "An de apariție implauzibil",
   "validation.year.future": "Anul de apariție nu poate fi în viitor",
   "validation.pagesRead.negative": "Paginile citite nu pot fi negative",
@@ -64,6 +65,7 @@ export type ValidationKey = keyof typeof validationRo;
 
 const validationEn: Catalog<ValidationKey> = {
   "validation.title.required": "A title is required",
+  "validation.author.nameRequired": "The author needs a name",
   "validation.year.implausible": "That publication year is implausible",
   "validation.year.future": "The publication year cannot be in the future",
   "validation.pagesRead.negative": "Pages read cannot be negative",
@@ -140,6 +142,7 @@ const errorRo = {
   "error.rateLimited": "Prea multe cereri într-un timp scurt. Așteaptă un moment.",
 
   "error.book.notFound": "Cartea asta nu există sau nu e a ta.",
+  "error.author.notFound": "Autorul ăsta nu există sau nu e al tău.",
   "error.books.notFound": "Una sau mai multe cărți nu există sau nu sunt ale tale.",
   "error.challenge.notFound": "Provocarea asta nu există sau nu e a ta.",
   "error.rating.wrongStatus":
@@ -184,6 +187,7 @@ const errorEn: Catalog<ErrorKey> = {
   "error.rateLimited": "Too many requests too quickly. Wait a moment.",
 
   "error.book.notFound": "That book does not exist, or is not yours.",
+  "error.author.notFound": "That author does not exist, or is not yours.",
   "error.books.notFound":
     "One or more of those books do not exist, or are not yours.",
   "error.challenge.notFound": "That challenge does not exist, or is not yours.",

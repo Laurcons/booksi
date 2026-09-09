@@ -188,10 +188,10 @@ de metadate cu stelele și pastila de status.
 - Bara de progres apare **doar** pe cărțile cu status `Citesc`.
 - Hover: `translateY(-2px)` și conturul devine `--accent-quiet`. Atât.
 
-### Dialogul de editare (§D48)
+### Dialogul de editare (§D48, §D51)
 
-Patru taburi — Carte · Descriere · Lectură · Verdict — un singur „Salvează", și trei reguli care
-se aplică fiecărui câmp:
+Cinci taburi — Carte · **Autor** · Descriere · Lectură · Verdict — un singur „Salvează", și trei
+reguli care se aplică fiecărui câmp:
 
 - **Înălțime constantă.** Corpul dialogului are aceeași înălțime pe toate taburile (`27rem` la
   editare, `31rem` la adăugare, unde încape și căutarea Open Library). Comutarea unui tab nu
@@ -210,6 +210,52 @@ nu — orizontală peste `sm`, verticală dedesubt.
 
 Punctele de pe taburi: alamă pentru modificări nesalvate pe tabul respectiv, roșu (§Eroare) pentru
 un câmp de corectat. Ambele sunt și scrise pentru cititorul de ecran.
+
+**Tabul „Autor" (§D51)** stă al doilea, imediat după identitatea cărții, fiindcă autorul e al
+doilea lucru pe care-l știi despre o carte — și ține autorul *întreg*: caseta care-l alege,
+biografia, și nota despre cât de departe ajunge o editare. Autorul a plecat de tot din tabul
+„Carte", chiar dacă blocul de identitate de acolo îl vrea: a ține numele într-un loc și biografia
+în altul ar fi fost mai rău decât oricare variantă întreagă.
+
+- **Caseta nu e un câmp de text.** Ce se tastează e o căutare; ce se stochează e un id. Firul de
+  alamă de pe contur înseamnă „ce vezi e ce ține formularul", deci apare doar când caseta arată
+  selecția și dispare în clipa în care textul devine o căutare. La pierderea focusului caseta
+  revine la numele autorului selectat: nu rămâne niciodată text care nu e un autor.
+- **Focusul arată toată lista**, cu autorul curent bifat (`✓`, alamă). Altfel, o casetă care ține
+  deja un autor s-ar filtra la exact acel autor și n-ai putea răsfoi fără să ștergi mai întâi.
+- **Rândul de creare e desenat ca un act deliberat:** despărțit de potriviri, în alamă, cu numele
+  scris în el — ca o greșeală de tastare să se vadă în butonul pe care urmează să apeși.
+- **Ștergerea e în rând**, cu `✕`, iar confirmarea se deschide *în același rând* și numește
+  consecința („O carte rămâne fără autor"). La un autor fără cărți nu apare deloc: nu e nimic de
+  avertizat. O confirmare într-un al doilea modal peste primul nu e o opțiune — `Modal` nu
+  supraviețuiește stivuirii (ambele instanțe ascultă `keydown` pe `document`).
+- **Indicația de partajare e o propoziție cu o cifră**, sub caseta de biografie, la fel de discretă
+  ca contorul de caractere: `ink-3`, fără contur, fără iconiță, fără culoare. Nu e un avertisment —
+  a scrie o biografie pornind de la o carte e felul intenționat de a scrie una — deci nu are voie
+  să arate ca avertismentul de ISBN duplicat, care *este* unul.
+
+### Toast-uri (§D51)
+
+Prima formă de mesaj tranzitoriu din aplicație, și există pentru mesajele care n-au proprietar pe
+ecran: „Datele autorului s-au salvat, dar cartea nu" nu e despre niciuna dintre cele două, iar
+crearea și ștergerea unui autor se întâmplă înăuntrul unui dialog al cărui slot de eroare e despre
+carte.
+
+- Jos-dreapta peste `sm`, sus-centrat sub `sm` — pe telefon dialogul e o foaie cu footerul lipit
+  unde ajunge degetul (§D48), deci colțul de jos e exact locul pe care nu-l poate ocupa.
+- `z-50`, cu un pas peste modal: mesajul de salvare parțială apare peste un dialog care **rămâne
+  deschis**, iar un mesaj pe care ți se cere să-l citești și nu-l vezi e mai rău decât niciunul.
+- `surface-2`, contur `line`, plus o **dungă** de 2px în stânga: alamă pentru o confirmare, roșul
+  §Eroare pentru un eșec. Nu fundal colorat — §Anti-tipare respinge suprafețele care poartă
+  culoare de stare, iar un panou roșu s-ar citi ca o defecțiune de sistem, nu ca o propoziție
+  despre o salvare.
+- **Erorile stau până sunt închise, confirmările pleacă singure** (5s). O propoziție pe care
+  trebuie să acționezi și care dispare după patru secunde e o propoziție care mai bine n-ar fi
+  fost arătată.
+- Intrarea alunecă 8px și se stinge din opacitate, 180ms, prin `motion-safe:` — nu prin regula
+  globală de reduced-motion, care taie durata la 0.01ms și ar face un keyframe care începe din
+  `opacity: 0` să pâlpâie.
+- Cel mult trei simultan, cele mai vechi cad. O stivă nemărginită încetează să fie un mesaj.
 
 **Footerul spune la ce e dialogul acum (§D49).** La editare, curat: un singur `Închide`. La prima
 modificare: `Renunță` + `Salvează`. La adăugare: `Renunță` + `Adaugă`, de la început. Cât timp are
@@ -290,6 +336,13 @@ gândeai.
 - **Detaliile absente nu se desenează.** Fără liniuțe, fără rânduri goale: majoritatea cărților
   au trei-patru din unsprezece câmpuri (§D4), iar o grilă cu opt „—" arată ca o pagină stricată,
   nu ca o carte despre care se știe puțin.
+- **Biografia autorului (§D51)** e a doua secțiune de proză, sub descriere, cu aceleași reguli —
+  `max-w-prose`, `leading-relaxed`, `whitespace-pre-line` — fiindcă ordinea interesului e aceea:
+  ce e cartea, apoi cine a fost omul din spatele ei. Titlul secțiunii poartă numele („Despre Mircea
+  Cărtărescu"), ca să nu fie nevoie să te uiți înapoi la titlu ca să afli despre cine e vorba.
+  **Absentă înseamnă absentă:** fără stare goală, fără „nu s-a scris încă" — regula de mai sus,
+  aplicată. Descrierea primește o stare goală fiindcă e motivul pentru care ecranul există și
+  fiindcă nimeni n-ar ghici că un asistent o poate completa; o biografie nu e niciuna din două.
 - **Butonul „înapoi" își spune destinația** — „Înapoi la raft", nu o săgeată singură. E un
   `<a>`, nu un `<button>`: duce la o cale reală, deci middle-click și „copy link" trebuie să
   meargă (§D41).

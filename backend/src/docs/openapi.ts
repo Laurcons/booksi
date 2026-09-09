@@ -4,6 +4,12 @@ import { z } from "zod";
 import {
   adminUserSummarySchema,
   authUserSchema,
+  authorDetailSchema,
+  authorSchema,
+  authorSuggestionSchema,
+  createAuthorSchema,
+  deleteAuthorResultSchema,
+  updateAuthorSchema,
   bookSchema,
   bookSuggestionSchema,
   budgetByMonthSchema,
@@ -66,6 +72,12 @@ import {
 export type SchemaName =
   | "AuthUser"
   | "AdminUserSummary"
+  | "Author"
+  | "AuthorDetail"
+  | "AuthorSuggestion"
+  | "CreateAuthorInput"
+  | "UpdateAuthorInput"
+  | "DeleteAuthorResult"
   | "Book"
   | "CreateBookInput"
   | "UpdateBookInput"
@@ -95,6 +107,14 @@ export type SchemaName =
 const SCHEMAS: Record<SchemaName, ComponentSchema> = {
   AuthUser: toOpenApiSchema(authUserSchema, "output"),
   AdminUserSummary: toOpenApiSchema(adminUserSummarySchema, "output"),
+  // §D51 — the author entity. `Author` carries the biography; the suggestion
+  // deliberately does not (see `shared/src/author.ts`).
+  Author: toOpenApiSchema(authorSchema, "output"),
+  AuthorDetail: toOpenApiSchema(authorDetailSchema, "output"),
+  AuthorSuggestion: toOpenApiSchema(authorSuggestionSchema, "output"),
+  CreateAuthorInput: toOpenApiSchema(createAuthorSchema, "input"),
+  UpdateAuthorInput: toOpenApiSchema(updateAuthorSchema, "input"),
+  DeleteAuthorResult: toOpenApiSchema(deleteAuthorResultSchema, "output"),
   Book: toOpenApiSchema(bookSchema, "output"),
   CreateBookInput: toOpenApiSchema(createBookSchema, "input"),
   UpdateBookInput: toOpenApiSchema(updateBookSchema, "input"),
@@ -166,6 +186,12 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       "session",
     )
     .addTag("auth", "Google OAuth și sesiunea (Sprint 0)")
+    .addTag(
+      "authors",
+      "Autorii, ca entitate (§D51): autocomplete, creare deliberată, " +
+        "biografie și ștergere. Nu există ecran de administrare — totul se " +
+        "face din caseta „Autor” a formularului de carte",
+    )
     .addTag(
       "books",
       "Biblioteca: creare, listare, editare, ștergere (Sprint 1), plus " +

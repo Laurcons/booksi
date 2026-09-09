@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  AUTHOR_BIOGRAPHY_MAX,
   createBookSchema,
   isRatable,
   statusSchema,
@@ -23,7 +24,30 @@ import {
 export const bookFormSchema = z
   .object({
     title: z.string(),
-    author: z.string(),
+    /**
+     * §D51 — which author, by id. The value the API takes.
+     *
+     * Not registered on any input, and that is not a style choice: the box
+     * shows a *name* while this holds an *id*, which is precisely the
+     * divergence `.claude/mistakes.md` records react-hook-form crashing on when
+     * it reads a held `ref` back off the DOM. `AuthorPicker` therefore takes
+     * `value`/`onChange` and the dialog writes this with `setValue`.
+     */
+    authorId: z.string().nullable(),
+    /**
+     * §D51 — the biography, edited here and saved to a **different entity**.
+     *
+     * The one field on this form that is not the book's. It rides along so the
+     * tab strip can mark it (`TAB_OF_FIELD`) and so one Save covers both
+     * writes, but it is excluded from the payload builders by
+     * `NON_BOOK_FIELDS` — sending it to `POST /books` would be rejected by
+     * `createBookSchema`'s strictness, which is the correct outcome and a poor
+     * way to discover the mistake.
+     *
+     * Capped here as well as on the server so the counter under the box and the
+     * 400 agree.
+     */
+    authorBiography: z.string().max(AUTHOR_BIOGRAPHY_MAX),
     isbn: z.string(),
     totalPages: z.string(),
     categories: z.array(z.string()),
@@ -62,7 +86,11 @@ export const bookFormSchema = z
   // the transform has to declare that it produces the API schema's *input*.
   .transform((values): z.input<typeof createBookSchema> => ({
     title: values.title,
-    author: values.author,
+    // §D51 — the id, and only the id. `authorName` and `authorBiography` are
+    // deliberately absent: the first is display, the second belongs to
+    // `PATCH /authors/:id`, and `createBookSchema` is strict enough to reject
+    // either one.
+    authorId: values.authorId,
     isbn: values.isbn,
     totalPages: values.totalPages.trim() === "" ? null : Number(values.totalPages),
     categories: values.categories,
@@ -134,7 +162,8 @@ function blankToNull(value: string): string | null {
 
 export const EMPTY: BookFormValues = {
   title: "",
-  author: "",
+  authorId: null,
+  authorBiography: "",
   isbn: "",
   totalPages: "",
   categories: [],
@@ -159,7 +188,10 @@ type RatingValue = BookFormValues["rating"];
 export function toFormValues(book: Book): BookFormValues {
   return {
     title: book.title,
-    author: book.author ?? "",
+    // §D51 — the author arrives embedded, biography included, so opening the
+    // dialog needs no second request to fill the Autor tab.
+    authorId: book.author?.id ?? null,
+    authorBiography: book.author?.biography ?? "",
     isbn: book.isbn ?? "",
     totalPages: book.totalPages === null ? "" : String(book.totalPages),
     categories: book.categories,
@@ -183,14 +215,36 @@ export function toFormValues(book: Book): BookFormValues {
 }
 
 /**
- * The fields this dialog renders, which is the list both payload builders walk.
+ * §D51 — the fields on this form that are **not** the book's.
  *
- * Reading it off `EMPTY` rather than writing it twice means a field cannot be
- * added to the form and forgotten here.
+ * One so far: `authorBiography`, another entity's column saved by its own
+ * request. Named explicitly rather than inferred, so adding a second is a
+ * deliberate line rather than a silent omission from the payload.
+ *
+ * The author's *name* is deliberately not a form field at all — it is display
+ * state, and `BookFormDialog` holds it in `useState`. It was a field here for
+ * one revision, and the reason it left is worth keeping: a validated field with
+ * no input of its own can fail validation, and then `handleSubmit` refuses to
+ * run with an error attached to something the reader cannot see or correct.
+ * That is the same shape as the disabled-rating bug in `.claude/mistakes.md`,
+ * and the fix is the same in spirit — do not put a value through validation
+ * unless a person can act on the verdict.
+ */
+const NON_BOOK_FIELDS: readonly (keyof BookFormValues)[] = ["authorBiography"];
+
+/**
+ * The fields this dialog renders that belong to the book, which is the list
+ * both payload builders walk.
+ *
+ * Still read off `EMPTY` rather than written twice — the property that keeps a
+ * new field from being added to the form and forgotten here — minus the two
+ * §D51 added that a book write must not carry.
  */
 export type FormField = keyof BookFormValues & keyof CreateBookInput;
 
-export const FORM_FIELDS = Object.keys(EMPTY) as FormField[];
+export const FORM_FIELDS = (Object.keys(EMPTY) as (keyof BookFormValues)[]).filter(
+  (field): field is FormField => !NON_BOOK_FIELDS.includes(field),
+);
 
 /** The edit payload: exactly the fields the user changed, nothing else. */
 export function onlyDirty(
@@ -244,8 +298,17 @@ export function onlyFilled(payload: CreateBookInput): CreateBookInput {
   return filled as CreateBookInput;
 }
 
-/** The four tabs, in the order they are shown. */
-export const TABS = ["book", "description", "reading", "verdict"] as const;
+/**
+ * The tabs, in the order they are shown — five since §D51.
+ *
+ * "Autor" sits second, right after the book's own identity, because that is
+ * where the reader looks for it: the author is the second thing you know about
+ * a book. It is a tab rather than a panel under the Carte tab's author field
+ * for the reason §D48 gave for splitting the form at all — the biography is a
+ * third field of prose, and prose wedged into a grid of values is what the
+ * tabs exist to undo.
+ */
+export const TABS = ["book", "author", "description", "reading", "verdict"] as const;
 
 export type TabId = (typeof TABS)[number];
 
@@ -259,9 +322,13 @@ export type TabId = (typeof TABS)[number];
  * where the JSX happens to sit) so that moving a field between tabs is one
  * edit and cannot half-happen.
  */
-export const TAB_OF_FIELD: Record<FormField, TabId> = {
+export const TAB_OF_FIELD: Record<keyof BookFormValues, TabId> = {
   title: "book",
-  author: "book",
+  // §D51 — the author moved off the Carte tab entirely, and took its own with
+  // it. Keyed on every form field rather than only the book's, so that a
+  // biography edited on a tab nobody is looking at still gets its dot.
+  authorId: "author",
+  authorBiography: "author",
   isbn: "book",
   totalPages: "book",
   categories: "book",
@@ -286,7 +353,7 @@ export function tabsOf(fields: Iterable<string>): TabId[] {
   const hit = new Set<TabId>();
 
   for (const field of fields) {
-    const tab = TAB_OF_FIELD[field as FormField];
+    const tab = TAB_OF_FIELD[field as keyof BookFormValues];
 
     if (tab !== undefined) {
       hit.add(tab);
@@ -303,3 +370,5 @@ export function tabsOf(fields: Iterable<string>): TabId[] {
  */
 export const DESCRIPTION_MAX = 5000;
 export const REVIEW_MAX = 10_000;
+/** §D51 — the same ceiling the API enforces (`AUTHOR_BIOGRAPHY_MAX`). */
+export const BIOGRAPHY_MAX = AUTHOR_BIOGRAPHY_MAX;

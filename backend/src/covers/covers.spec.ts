@@ -43,7 +43,9 @@ const storedBook = {
   id: "book-1",
   userId: "user-1",
   title: "Dune",
-  author: "Frank Herbert",
+  // §D51 — a joined row, as `WITH_COVER` selects it.
+  authorId: "author-1",
+  author: { id: "author-1", name: "Frank Herbert", biography: null },
   isbn: null,
   totalPages: 620,
   categories: [{ categoryCode: "FICTION__GENERAL" }],
@@ -371,6 +373,11 @@ describe("covers (Sprint 4)", () => {
       cover: { select: { updatedAt: true } },
       // §D45 — the book's shelves ride along, codes only.
       categories: { select: { categoryCode: true }, orderBy: { categoryCode: "asc" } },
+      // §D51 — the author, whole. Unlike the cover it is not trimmed to one
+      // column: three short fields against a blob is the difference, and
+      // carrying the biography is what lets the book's page show it without a
+      // second request.
+      author: { select: { id: true, name: true, biography: true } },
     });
   });
 });

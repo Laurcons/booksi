@@ -3,7 +3,7 @@ import request from "supertest";
 import type { Env } from "../config/env";
 import { BOOKS_PER_PAGE } from "../lib/pagination";
 import { createApp } from "../server";
-import { makeBook } from "../test/fixtures";
+import { makeBook, makeAuthor } from "../test/fixtures";
 
 const env: Env = {
   NODE_ENV: "test",
@@ -117,7 +117,7 @@ describe("GET /books", () => {
   });
 
   it("renders a book's title, author, and status pill", async () => {
-    const book = makeBook({ id: "b1", title: "Dune", author: "Frank Herbert", status: "READING" });
+    const book = makeBook({ id: "b1", title: "Dune", author: makeAuthor("Frank Herbert"), status: "READING" });
     mockBackend([book]);
 
     const res = await request(app).get("/books").set("Cookie", "session=x");
@@ -276,7 +276,7 @@ describe("GET /books", () => {
   });
 
   it("draws a cover for a book with none, instead of an empty image", async () => {
-    mockBackend([makeBook({ id: "b1", title: "Dune", author: "Frank Herbert", coverUrl: null })]);
+    mockBackend([makeBook({ id: "b1", title: "Dune", author: makeAuthor("Frank Herbert"), coverUrl: null })]);
 
     const res = await request(app).get("/books").set("Cookie", "session=x");
 

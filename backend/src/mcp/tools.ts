@@ -5,15 +5,18 @@ import { z } from "zod";
 import {
   bookSortSchema,
   categoryCodeSchema,
+  createAuthorSchema,
   createBookSchema,
   createChallengeSchema,
   openLibrarySearchQuerySchema,
   statusSchema,
+  updateAuthorSchema,
   updateBookSchema,
   updateChallengeSchema,
   type HttpErrorBody,
   type ListBooksQuery,
 } from "@bookcsi/shared";
+import type { AuthorsService } from "../authors/authors.service";
 import type { BooksService } from "../books/books.service";
 import type { BudgetService } from "../budget/budget.service";
 import type { CategoriesService } from "../categories/categories.service";
@@ -31,6 +34,7 @@ import type { StatsService } from "../stats/stats.service";
 export interface ToolContext {
   userId: string;
   grantId: string;
+  authors: AuthorsService;
   books: BooksService;
   stats: StatsService;
   budget: BudgetService;
@@ -116,7 +120,8 @@ function logToolAudit(
  * like any other screen — see `frontend/src/pages/McpConsentPage.tsx`.
  */
 export function registerTools(server: McpServer, ctx: ToolContext): void {
-  const { userId, books, stats, budget, categories, openLibrary, challenges } = ctx;
+  const { userId, authors, books, stats, budget, categories, openLibrary, challenges } =
+    ctx;
 
   server.registerTool(
     "list_categories",
@@ -145,6 +150,111 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       );
     },
   );
+
+  /* ------------------------------------------------------------------ *
+   * §D51 — authors
+   * ------------------------------------------------------------------ */
+
+  server.registerTool(
+    "list_authors",
+    {
+      title: "List the authors",
+      description:
+        "Call this to find an author's id before setting `authorId` on add_book or update_book, " +
+        "and to check whether an author already exists before create_author. Returns every author " +
+        "in the user's library with the number of books each one has.\n\n" +
+        "`q` narrows by name and ignores case and diacritics, so \"calin\" finds \"Călinescu\". " +
+        "Prefer it over listing everything when you are after one person.\n\n" +
+        "Biographies are not included — they can be several paragraphs. get_book returns the " +
+        "biography of the author of that book.",
+      inputSchema: {
+        q: z
+          .string()
+          .optional()
+          .describe("Filter by name, case- and diacritic-insensitive. Absent means every author."),
+      },
+    },
+    async (args) => {
+      // Trimmed here rather than trusted, the same as `search_library`'s `q`:
+      // over MCP the value comes from a model, and `" "` would otherwise reach
+      // the query as a filter that matches every row.
+      const q = args.q?.trim() === "" ? undefined : args.q?.trim();
+
+      return textResult(await authors.findAll(userId, { q }));
+    },
+  );
+
+  server.registerTool(
+    "create_author",
+    {
+      title: "Create an author",
+      description:
+        "Call this ONLY when the user wants a book attributed to an author who is not in " +
+        "list_authors yet. **Check list_authors first, every time.** An author is a shared row: " +
+        "every book by that person points at it, and one biography covers all of them, so a " +
+        "second row for a name that is already there splits a shelf in two and the user has to " +
+        "find and undo it.\n\n" +
+        "In the interface this takes a deliberate click for exactly that reason — a misspelling " +
+        "must not silently become a person (§D51). A tool call is your equivalent of that click, " +
+        "so make it on purpose: if you are unsure whether \"Le Guin\" is the \"Ursula K. Le Guin\" " +
+        "already in the library, ask the user rather than creating a second one.\n\n" +
+        "Name only. The biography is written afterwards with update_author. Calling this with a " +
+        "name that already exists returns the existing author rather than a duplicate, so a " +
+        "collision is safe — but it is not a substitute for looking first.",
+      inputSchema: createAuthorSchema.shape,
+    },
+    async (args) => {
+      try {
+        const author = await authors.create(userId, args);
+        logToolAudit(ctx, "mcp.create_author", { authorId: author.id, name: author.name });
+        return textResult(author);
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  server.registerTool(
+    "update_author",
+    {
+      title: "Write an author's biography",
+      description:
+        "Call this to fill in or change what is known about an author. Like a book's description, " +
+        "bookcsi fetches this from nowhere — you are the source: find out who the person is and " +
+        "write it in **the language the user is writing to you in**, in the third person.\n\n" +
+        "**It applies to every book by that author**, which is the whole point of the field and " +
+        "also the care it needs: you are not annotating the book that came up in conversation, you " +
+        "are writing the entry for a person. Keep it about their life and work, not about one " +
+        "novel — that belongs in the book's `description`.\n\n" +
+        "`null` clears it. The name cannot be changed here, or anywhere: correcting a typo and " +
+        "merging two people are the same request on the wire, and the second one would rewrite " +
+        "every book that pointed at the old name (§D51).",
+      inputSchema: {
+        id: z.string().min(1).describe("The author's id, from list_authors."),
+        ...updateAuthorSchema.shape,
+      },
+    },
+    async (args) => {
+      const { id, ...input } = args;
+      try {
+        const author = await authors.update(userId, id, input);
+        logToolAudit(ctx, "mcp.update_author", { authorId: id });
+        return textResult(author);
+      } catch (error) {
+        return errorResult(errorText(error));
+      }
+    },
+  );
+
+  /**
+   * There is deliberately **no `delete_author`**.
+   *
+   * Deleting one is irreversible, reaches books the request never named
+   * (`onDelete: SetNull`), and the interface only allows it behind a
+   * confirmation that states how many books are about to lose their author —
+   * a sentence a model cannot show and a user cannot answer mid-tool-call. The
+   * housekeeping stays in the picker that owns it (§D51).
+   */
 
   server.registerTool(
     "search_library",
@@ -253,7 +363,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         "Call this when the user explicitly asks to add a book to the library — only the title is " +
         "required, but you may also fill in description (a summary you write yourself) if asked. " +
         "Do NOT call it merely because a book came up in conversation; add only on a clear request " +
-        "such as \"add X\" or \"put X on my wishlist\".",
+        "such as \"add X\" or \"put X on my wishlist\".\n\n" +
+        "`authorId` is an **id, never a name** (§D51). Call list_authors to find the author, and " +
+        "create_author only if they are genuinely not there yet — a name you half-remember or " +
+        "spelled differently must not become a second person in the library. If you cannot " +
+        "confidently resolve the author, add the book without one and say so; the reader fixes it " +
+        "in one click, which is cheaper than a duplicate they have to find first.",
       inputSchema: createBookSchema,
     },
     async (args) => {
@@ -284,7 +399,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         "user dictates or asks you to tidy up their own words, at any status — a book abandoned " +
         "halfway is worth a review and cannot take a rating. Never invent one, never summarise the " +
         "book into it (that is `description`), and never write about a book on the user\'s behalf " +
-        "because it seems like something they would say.",
+        "because it seems like something they would say.\n\n" +
+        "`authorId` is an **id, never a name** (§D51) — see add_book. `null` removes the book\'s " +
+        "author without touching the author itself.",
       inputSchema: { id: z.string().min(1).describe("The book's id."), ...updateBookSchema.shape },
     },
     async (args) => {

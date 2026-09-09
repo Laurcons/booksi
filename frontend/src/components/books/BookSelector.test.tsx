@@ -2,13 +2,13 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Book } from "@bookcsi/shared";
-import { makeBook, renderWithQuery, stubApi, type ApiCall } from "../../test/helpers";
+import { makeBook, renderWithQuery, stubApi, type ApiCall, makeAuthor } from "../../test/helpers";
 import { BookSelector } from "./BookSelector";
 
 const LIBRARY: Book[] = [
-  makeBook({ id: "book-1", title: "Dune", author: "Frank Herbert" }),
-  makeBook({ id: "book-2", title: "Solaris", author: "Stanisław Lem" }),
-  makeBook({ id: "book-3", title: "Circe", author: "Madeline Miller" }),
+  makeBook({ id: "book-1", title: "Dune", author: makeAuthor("Frank Herbert") }),
+  makeBook({ id: "book-2", title: "Solaris", author: makeAuthor("Stanisław Lem") }),
+  makeBook({ id: "book-3", title: "Circe", author: makeAuthor("Madeline Miller") }),
 ];
 
 /**
@@ -34,7 +34,7 @@ function respond(call: ApiCall): Book[] | null {
   return LIBRARY.filter(
     (book) =>
       book.title.toLowerCase().includes(needle) ||
-      (book.author ?? "").toLowerCase().includes(needle),
+      (book.author?.name ?? "").toLowerCase().includes(needle),
   );
 }
 

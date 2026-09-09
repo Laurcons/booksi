@@ -34,7 +34,7 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: () => void }) {
     <article className="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface-2 transition duration-150 hover:-translate-y-0.5 hover:border-accent-quiet">
       <div className="relative aspect-[2/3] shrink-0 overflow-hidden rounded-[2px]">
         {src === null ? (
-          <CoverPlaceholder title={book.title} author={book.author} variant="card" />
+          <CoverPlaceholder title={book.title} author={book.author?.name} variant="card" />
         ) : (
           <img
             {...CREDENTIALED_IMAGE}
@@ -61,7 +61,7 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: () => void }) {
         </button>
 
         {book.author !== null && (
-          <p className="line-clamp-1 text-sm text-ink-3">{book.author}</p>
+          <p className="line-clamp-1 text-sm text-ink-3">{book.author.name}</p>
         )}
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-0.5">

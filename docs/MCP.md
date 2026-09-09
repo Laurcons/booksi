@@ -230,17 +230,20 @@ de CORS-ul din §D20, care rămâne exact cum e — `/mcp` nu se apelează dintr
 ## 8. Suprafața de unelte
 
 Serviciile primesc deja `userId` ca argument și controllerele sunt subțiri, deci uneltele sunt
-învelișuri peste `BooksService`, `StatsService`, `BudgetService`, `OpenLibraryService` și
-`ChallengesService`. Schemele de intrare se iau din `shared/` — aceleași `zod` care validează
+învelișuri peste `BooksService`, `AuthorsService`, `StatsService`, `BudgetService`,
+`OpenLibraryService` și `ChallengesService`. Schemele de intrare se iau din `shared/` — aceleași `zod` care validează
 REST-ul.
 
 | Unealtă | Serviciu |
 |---|---|
 | `search_library` | `BooksService.list` — filtre pe status, gen, favorite, text; rând subțire, **fără** `description` |
 | `get_book` | `BooksService.findOne` — cartea întreagă, inclusiv `description` și `review` |
-| `add_book` | `BooksService.create` |
-| `update_book` | `BooksService.update` — inclusiv status, progres, `description` (§D40) și `review` (§D48) |
+| `add_book` | `BooksService.create` — `authorId` e un **id**, din `list_authors` (§D51) |
+| `update_book` | `BooksService.update` — inclusiv status, progres, `description` (§D40), `review` (§D48) și `authorId` (§D51) |
 | `delete_book` | `BooksService.remove` |
+| `list_authors` | `AuthorsService.findAll` — id, nume, număr de cărți. **Fără biografie:** are până la 5000 de caractere, iar `get_book` o aduce pentru autorul cărții |
+| `create_author` | `AuthorsService.create` — cere explicit verificarea listei mai întâi (§D51) |
+| `update_author` | `AuthorsService.update` — **doar biografia**, și se aplică fiecărei cărți a autorului |
 | `get_reading_stats` | `StatsService` |
 | `get_budget` | `BudgetService` |
 | `search_open_library` | `OpenLibraryService.search` |
@@ -308,6 +311,27 @@ propria bibliotecă. Descrierile deja salvate nu se ating.
 Pașii 1–3 n-au nevoie de niciun client MCP ca să fie testați, iar pasul 4 e primul care poate
 eșua din motive aflate în afara codului nostru. Ordinea e aleasă ca acel eșec să apară cu tot
 restul deja verificat.
+
+---
+
+### Autorii (§D51)
+
+Trei unelte, și **niciun `delete_author`.** Ștergerea unui autor e ireversibilă, atinge cărți pe
+care cererea nu le-a numit (`onDelete: SetNull`), iar interfața o permite doar în spatele unei
+confirmări care spune câte cărți își pierd autorul — o propoziție pe care un model n-o poate arăta
+și un utilizator n-o poate răspunde în mijlocul unui apel de unealtă. Curățenia rămâne în
+picker-ul căruia îi aparține.
+
+`create_author` există fiindcă un model nu poate da clic, iar în interfață crearea *cere* un clic
+deliberat: un nume greșit scris nu trebuie să devină în tăcere o persoană. Un apel de unealtă e
+echivalentul acelui clic, deci descrierea uneltei cere explicit `list_authors` înainte — și îi
+spune modelului să *întrebe* când nu e sigur dacă „Le Guin" e „Ursula K. Le Guin" care există
+deja, în loc să creeze a doua. Ruta e idempotentă după nume, deci o coliziune e inofensivă, dar
+asta nu înlocuiește verificarea.
+
+`update_author` e pe aceeași bază ca `description` din §D40 — bookcsi nu aduce biografii de
+nicăieri, modelul e sursa — cu o precizare în plus: **e intrarea unei persoane, nu o adnotare pe
+cartea din conversație.** Numele nu se poate schimba nici aici, nici altundeva (§D51).
 
 ---
 

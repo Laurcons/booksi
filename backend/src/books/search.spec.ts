@@ -36,17 +36,34 @@ describe("search (§D42)", () => {
 
   describe("searchWhere", () => {
     it("looks in all five fields for one word", () => {
+      // §D51 — four scalars and one relation. The author is last because it is
+      // no longer a column: it is matched through the join, which needs no
+      // denormalised copy of the name on `Book`.
       expect(searchWhere("dune")).toEqual([
         {
           OR: [
             { title: { contains: "dune" } },
-            { author: { contains: "dune" } },
             { publisher: { contains: "dune" } },
             { isbn: { contains: "dune" } },
             { description: { contains: "dune" } },
+            { author: { name: { contains: "dune" } } },
           ],
         },
       ]);
+    });
+
+    /**
+     * §D51 — the biography is prose like a description and is deliberately
+     * *not* searched. A hit in a description is at least about the book that
+     * matched; a hit in a biography would return every book by an author whose
+     * life story happens to contain the word, for a reason nothing on screen
+     * could explain.
+     */
+    it("searches the author's name and not their biography", () => {
+      const [clause] = searchWhere("dune");
+
+      expect(clause.OR).toContainEqual({ author: { name: { contains: "dune" } } });
+      expect(JSON.stringify(clause)).not.toContain("biography");
     });
 
     it("gives every word its own clause, so all of them must match", () => {
@@ -65,7 +82,7 @@ describe("search (§D42)", () => {
       // single `contains` over the whole string would find nothing.
       const [first, second] = searchWhere("herbert dune");
 
-      expect(first.OR).toContainEqual({ author: { contains: "herbert" } });
+      expect(first.OR).toContainEqual({ author: { name: { contains: "herbert" } } });
       expect(second.OR).toContainEqual({ title: { contains: "dune" } });
     });
 

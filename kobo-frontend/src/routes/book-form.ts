@@ -57,6 +57,12 @@ const EXTRA_STYLE = `
     overflow: hidden;
   }
   .field-error { display: block; font-weight: bold; font-size: ${fontSize.meta}px; margin: 0 0 ${webPx(2)}px 0; }
+  /* §D51 — the read-only author row. Same rhythm as a label + input, but the
+     value is set in the body weight rather than in a box, so nothing invites a
+     tap that would do nothing. */
+  .field-label { display: block; font-size: ${fontSize.meta}px; }
+  .field-static { display: block; padding: ${webPx(4)}px 0; }
+  .field-note { display: block; font-size: ${fontSize.meta}px; color: ${ink.secondary}; }
   label { display: block; margin: 0 0 ${webPx(16)}px 0; }
   input[type="text"], select {
     display: block;
@@ -103,6 +109,27 @@ function textField(
         value="${values[name]}"
         inputmode="${numeric ? "decimal" : "text"}"
     /></label>
+  </p>`;
+}
+
+/**
+ * §D51 — a value the device shows and cannot change.
+ *
+ * The author is the only one, and it exists because the alternatives are both
+ * worse than a line of text: a free-text box would send a name the API no
+ * longer accepts, and dropping the row entirely would leave a Kobo reader
+ * editing a book with no way to see who wrote it.
+ *
+ * No `<input disabled>` — a greyed-out box on e-paper reads as a rendering
+ * fault, and a disabled input is not submitted anyway, so the box would be
+ * pure suggestion that something could be typed there. A label and the value,
+ * with the one sentence that says where it *can* be changed.
+ */
+function readOnlyField(label: string, value: string): Html {
+  return html`<p>
+    <span class="field-label">${label}</span>
+    <span class="field-static">${value === "" ? "—" : value}</span>
+    <span class="field-note">Se schimbă din aplicația web.</span>
   </p>`;
 }
 
@@ -180,7 +207,7 @@ function formFields(
   return html`${(errors[""] ?? []).map((msg) => html`<p class="field-error">${msg}</p>`)}
     <div class="wizard-section">
       ${textField("title", "Titlu", values, errors)}
-      ${textField("author", "Autor", values, errors)}
+      ${readOnlyField("Autor", values.authorName)}
       ${textField("isbn", "ISBN", values, errors)}
       ${textField("totalPages", "Număr de pagini", values, errors, true)}
       ${categoryField(tree, values, errors)}
@@ -347,7 +374,9 @@ export function createBookFormRouter(env: Env): Router {
       return;
     }
 
-    const values = readFormValues(req.body);
+    // The author's name comes from the stored book, not from the body: the
+    // form displays it and never posts it (§D51).
+    const values = readFormValues(req.body, original.author?.name ?? "");
 
     try {
       const updated = await updateBook(env, userAgent, session, id, buildUpdatePayload(values, original));

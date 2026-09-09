@@ -162,11 +162,15 @@ describe("book form (S1.1, S1.3, S1.4, S2.1–S2.4)", () => {
         .post("/books/new")
         .set("Cookie", session())
         .type("form")
-        .send({ title: "", author: "Cineva" });
+        .send({ title: "", publisher: "Nemira" });
 
       expect(res.status).toBe(200);
       expect(res.text).toContain("Titlul e obligatoriu");
-      expect(res.text).toContain('value="Cineva"');
+      // §D51 — was `author` until the author became an entity. The point of the
+      // assertion is that a rejected submission comes back with what was
+      // *typed* still in the boxes, so any other free-text field makes it;
+      // `author` no longer can, because the Kobo does not post one.
+      expect(res.text).toContain('value="Nemira"');
     });
 
     it("sends the reader back to pair when the session the form posted with has gone stale", async () => {

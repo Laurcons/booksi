@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Book } from "@bookcsi/shared";
-import { lastWrite, makeBook, renderWithQuery, stubApi } from "../../test/helpers";
+import { lastWrite, makeBook, renderWithQuery, stubApi, makeAuthor } from "../../test/helpers";
 import { BookCard } from "./BookCard";
 
 function renderCard(book: Book, onOpen = vi.fn()) {
@@ -15,7 +15,7 @@ describe("BookCard — what the card shows (S5.4)", () => {
     renderCard(
       makeBook({
         title: "Dune",
-        author: "Frank Herbert",
+        author: makeAuthor("Frank Herbert"),
         rating: 4,
         status: "FINISHED",
         coverUrl: "/covers/book-1?v=1",
@@ -59,7 +59,7 @@ describe("BookCard — what the card shows (S5.4)", () => {
 
 describe("BookCard — the placeholder (S5.5)", () => {
   it("draws a cover of our own for a book without one", () => {
-    renderCard(makeBook({ title: "Dune", author: "Frank Herbert", coverUrl: null }));
+    renderCard(makeBook({ title: "Dune", author: makeAuthor("Frank Herbert"), coverUrl: null }));
 
     // The title and author are drawn *on* the placeholder as well, which is the
     // point of S5.5: the book stays identifiable without a jacket. Two of each,

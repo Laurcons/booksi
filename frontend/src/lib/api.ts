@@ -65,6 +65,24 @@ export async function apiFetch<T>(
     credentials: "include",
     headers: {
       Accept: "application/json",
+      /**
+       * Declared here rather than at every call site, because forgetting it is
+       * a silent failure with a misleading message.
+       *
+       * Express's JSON parser only reads a body when the request says it is
+       * JSON. Without this header the body is skipped, `req.body` arrives
+       * `undefined`, and the schema answers 400 with "expected object, received
+       * undefined" — which reads as a bug in the *payload* while the payload
+       * was fine and never left the header behind. §D51's author mutations were
+       * written without it and lost their body exactly this way.
+       *
+       * Only for a string body, which is what `JSON.stringify` produces. The
+       * cover upload sends a `Blob` and names its own image type; that call
+       * lands in neither branch, and `init.headers` would override this anyway.
+       */
+      ...(typeof init.body === "string"
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init.headers,
     },
   });

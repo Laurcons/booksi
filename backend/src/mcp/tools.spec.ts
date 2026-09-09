@@ -139,7 +139,21 @@ describe("what the tools say (§D44)", () => {
    * pair of Romanian words. Everything else being English is the decision this
    * suite guards.
    */
-  const COLLATION_EXAMPLE = '"sarpe" finds "Șarpe"';
+  /**
+   * The diacritics that are allowed to survive, and the tool each one belongs
+   * to.
+   *
+   * Both make the same point and cannot make it without the accent: the
+   * database folds diacritics, so an example of that folding has to show one.
+   * A list rather than a single constant since §D51 added the second — the
+   * guarantee is unchanged (an accent anywhere else fails), and each entry is
+   * asserted to still appear where it is claimed, so an allowance cannot outlive
+   * the sentence it was granted for.
+   */
+  const COLLATION_EXAMPLES: [tool: string, example: string][] = [
+    ["search_library", '"sarpe" finds "Șarpe"'],
+    ["list_authors", '"calin" finds "Călinescu"'],
+  ];
 
   const captured = registerAndCapture();
 
@@ -157,7 +171,10 @@ describe("what the tools say (§D44)", () => {
     expect(captured.prose.size).toBeGreaterThan(0);
 
     for (const name of captured.prose.keys()) {
-      const text = proseOf(name).replace(COLLATION_EXAMPLE, "");
+      const text = COLLATION_EXAMPLES.reduce(
+        (prose, [, example]) => prose.replace(example, ""),
+        proseOf(name),
+      );
 
       // Romanian is the only other language in the app, and its diacritics are
       // the cheapest reliable tell that a description slipped back into it.
@@ -169,9 +186,12 @@ describe("what the tools say (§D44)", () => {
     }
   });
 
-  it("keeps the collation example, which needs the diacritic to make its point", () => {
-    expect(proseOf("search_library")).toContain(COLLATION_EXAMPLE);
-  });
+  it.each(COLLATION_EXAMPLES)(
+    "keeps %s's collation example, which needs the diacritic to make its point",
+    (tool, example) => {
+      expect(proseOf(tool)).toContain(example);
+    },
+  );
 
   /**
    * §D48 — the review is the reader's prose, and the only thing stopping a model

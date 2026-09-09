@@ -36,7 +36,7 @@ export function DeleteBookDialog({
           {t("deleteBook.body", {
             title: `„${book.title}"`,
             author: book.author
-              ? t("deleteBook.byAuthor", { author: book.author })
+              ? t("deleteBook.byAuthor", { author: book.author.name })
               : "",
           })}
         </p>

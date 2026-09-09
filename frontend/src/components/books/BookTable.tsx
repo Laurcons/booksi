@@ -268,7 +268,7 @@ function Row({
           {book.title}
         </button>
       </Td>
-      <Td className="text-ink-2">{book.author ?? <Empty />}</Td>
+      <Td className="text-ink-2">{book.author?.name ?? <Empty />}</Td>
       <Td>
         <StatusPill status={book.status} />
       </Td>
@@ -448,7 +448,7 @@ function BookRowCard({
           </button>
 
           <p className="mt-0.5 line-clamp-1 text-sm text-ink-2">
-            {book.author ?? <Empty />}
+            {book.author?.name ?? <Empty />}
           </p>
 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">

@@ -110,7 +110,7 @@ function Spine({ book, onOpen }: { book: Book; onOpen: () => void }) {
         // The spine carries no readable text at 14px, and none at all below
         // the threshold, so the accessible name is spelled out here.
         aria-label={
-          book.author === null ? book.title : `${book.title}, ${book.author}`
+          book.author === null ? book.title : `${book.title}, ${book.author.name}`
         }
         className="relative block rounded-t-[3px] transition-transform duration-150 ease-out group-hover:-translate-y-2.5 focus-visible:-translate-y-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:focus-visible:translate-y-0"
         style={{
@@ -270,7 +270,7 @@ function SpineCard({
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-sm text-ink">{book.title}</p>
           {book.author !== null && (
-            <p className="mt-0.5 truncate text-xs text-ink-3">{book.author}</p>
+            <p className="mt-0.5 truncate text-xs text-ink-3">{book.author.name}</p>
           )}
           {categoryLabels.length > 0 && (
             <p className="mt-1.5 text-[11px] text-ink-3">{categoryLabels.join(" · ")}</p>

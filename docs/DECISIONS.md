@@ -18,7 +18,7 @@ textele afișate, prin mape de traducere. Vezi §D21.
 | `id` | cuid | System-generated |
 | `userId` | fk → `User` | System-generated |
 | `title` | text (obligatoriu) | User-input / Third-party |
-| `author` | text | User-input / Third-party |
+| `authorId` | fk → `Author`, nullable | User-input (§D51 — era `author`, text liber) |
 | `isbn` | text, nullable | User-input / Search-assisted |
 | `totalPages` | int, nullable | Third-party / User-input |
 | `genre` | enum din listă controlată, nullable | User-input |
@@ -37,6 +37,12 @@ textele afișate, prin mape de traducere. Vezi §D21.
 | `finishedOn` | date, nullable | System-generated, user-overridable |
 
 `manuallyEditedFields` a fost eliminat odată cu S4.4 — vezi §D25.
+
+### Entitatea `Author` (§D51)
+`id` (cuid), `userId` (fk → `User`), `name` (`VARCHAR(255)`), `biography` (TEXT, nullable, plafon
+5000), `createdAt`, `updatedAt`. Unic pe `(userId, name)` — colația pliază majusculele și
+diacriticele, deci `Calinescu` și `Călinescu` sunt un rând. Fără ecran de administrare: se
+creează și se șterge din caseta „Autor" a formularului de carte. Vezi §D51.
 
 ### Entitatea `User`
 `id` (cuid), `googleId` (unic), `email` (unic), `name`, `avatarUrl`, `createdAt`.
@@ -1124,6 +1130,147 @@ utilitarele logice ale Tailwind (`inset-x`, `inset-y`, `mx`, `my`, `ps`, `pe`, `
 schimbă axa. Este singurul element cu writing mode vertical din tot codul, iar bulina de
 „preferată" de dedesubt folosește același `inset-x-0 mx-auto` fără probleme — exact pentru că nu
 are writing mode.
+
+---
+
+### D51 — Autorul devine entitate, cu biografie, și se administrează exclusiv din caseta lui
+
+`Book.author` era o coloană `VARCHAR` de text liber. Două cărți ale aceleiași persoane țineau
+două copii ale numelui, iar despre persoană nu se putea nota nimic. Cererea — **o biografie** —
+nu încape într-o coloană de nume, iar odată ce există un al doilea câmp, autorul e o entitate,
+nu un atribut.
+
+**Decizie: `Author { id, userId, name, biography }`, per utilizator, iar pe sârmă se scrie
+`authorId`, niciodată un nume.**
+
+**Per utilizator, nu global.** Biografia e proza cititorului, exact ca `Book.description`;
+autocomplete-ul n-are voie să ofere nume de pe rafturile altcuiva; iar o ștergere nu poate
+traversa conturi. Un tabel global ar însemna că editarea unei biografii rescrie pagina unui
+străin — și ar face din nota „se aplică tuturor cărților tale" o minciună.
+
+**Id, nu nume, și asta e miezul.** O scriere cu `author: "…"` ar trebui să rezolve numele într-un
+rând, iar a rezolva înseamnă a *crea* când nu există potrivire — deci fiecare greșeală de tastare
+din sistem ar produce o persoană. Există exact o rută care creează un autor (`POST /authors`), se
+ajunge la ea printr-un clic pe un rând care spune ce face, iar `authorId` poate arăta doar spre
+ce există deja. Verificarea e de **proprietate**, nu de existență: cheia străină ar accepta orice
+id din tabel, deci fără ea o cerere fabricată ar agăța numele altcuiva pe raftul cititorului.
+
+**Caseta „Autor" nu mai e un câmp de text.** Regula, în cuvintele întreținătorului: *caseta nu
+trebuie să conțină niciodată text care nu e un autor din bază.* Ce se tastează e o **întrebare**,
+nu o valoare — valoarea e un id — deci cele două pot să difere în timpul căutării, iar la
+pierderea focusului caseta revine la numele autorului selectat (sau la gol). Nimic nu rămâne pe
+jumătate scris. Consecința de implementare e cea din `.claude/mistakes.md`: react-hook-form
+citește un `ref` pe care-l ține *înapoi* din DOM, iar vechiul `AuthorInput` scăpa doar fiindcă
+textul afișat **era** valoarea stocată. Nu mai e, deci controlul nu are nici `ref`, nici câmp
+înregistrat: părintele deține valoarea prin `value`/`onChange`, ca `CategoryPicker`.
+
+**Crearea e imediată, nu amânată până la Salvează.** Momentul în care se confirmă un nume e
+locul unde trebuie să apară o problemă cu numele — trei taburi și un clic mai încolo nu e unde ar
+căuta cineva. Costul, acceptat: un formular abandonat poate lăsa un autor fără cărți. Exact de
+aceea confirmarea de ștergere **nu apare** când cifra e zero: la un autor la care nu trimite
+nicio carte nu e nimic de avertizat, deci se șterge dintr-un clic, din același dropdown care l-a
+făcut. Cele două decizii se închid una pe alta.
+
+**`POST /authors` e idempotentă după nume.** Clientul oferă crearea doar când nimic nu s-a
+potrivit, iar testul lui de potrivire pliază numele exact ca indexul unic, deci o coliziune
+înseamnă două taburi, un dropdown învechit, sau una din puținele echivalențe pe care colația le
+pliază și aproximarea din client nu (`ß`/`ss`). Toate trei vor același răspuns — *dă-mi autorul
+cu numele asta* — și niciuna nu vrea o eroare de citit.
+
+**Unicitatea e mai strictă decât „octet cu octet", prin decizie.** `@@unique([userId, name])` pe
+o coloană `utf8mb4_unicode_ci` pliază **și** majusculele **și** diacriticele: `frank herbert` e
+`Frank Herbert`, iar `Calinescu` e `Călinescu`. Ambele plieri sunt dorite — `bell hooks` nu e o a
+doua persoană, iar un nume tastat fără diacritice e același autor. Clientul pliază identic
+(`foldAuthorName`), altfel ar oferi crearea unui rând pe care indexul îl refuză.
+
+**Ștergerea lasă cărțile în picioare** (`onDelete: SetNull`). Cascade ar șterge cărțile, ceea ce
+e catastrofal pentru o acțiune de curățenie făcută dintr-un dropdown; `Restrict` ar face autorul
+de neșters până la editarea fiecărei cărți. Confirmarea spune cifra înainte, iar răspunsul o
+spune după — poate să se fi mișcat între desenarea dropdown-ului și clic.
+
+**Numele nu se poate edita, nicăieri.** Pe sârmă, corectarea unei greșeli de tastare și fuziunea
+a două persoane sunt aceeași cerere, iar a doua rescrie în tăcere fiecare carte care trimitea la
+numele vechi. Până există un ecran care spune care dintre cele două se întâmplă, un autor greșit
+se repară creând cel bun, mutând cartea pe el și ștergându-l pe cel greșit — trei acte
+deliberate, fiecare spunând ce e.
+
+**Al cincilea tab, „Autor", și autorul pleacă de tot din tabul „Carte".** Motivul e cel din §D48:
+biografia e a treia proză din formular, iar proza într-o grilă de valori e exact ce au desfăcut
+taburile. A ține *numele* în „Carte" și biografia într-un tab alături ar fi fost mai rău decât
+oricare: o persoană, aleasă într-un loc și descrisă în altul, cu nota despre ce afectează editarea
+nicăieri lângă controlul care a ales-o. Tabul stă al doilea, imediat după identitatea cărții,
+fiindcă acolo se uită cititorul: autorul e al doilea lucru pe care-l știi despre o carte.
+
+**Indicația discretă e o propoziție cu o cifră**, nu un avertisment: „Se aplică tuturor celor 4
+cărți ale tale de Frank Herbert". Cifra e ce o face informație și nu disclaimer — cititorul află
+dintr-o dată *că* e partajat și *cât de departe* ajunge. E a doua excepție deliberată la regula
+§D48 „etichetă și valoare, nimic altceva", după contorul de caractere, iar justificarea e că
+alternativa e un `textarea` care rescrie în tăcere pagini la care nimeni nu se uită. Desenată cât
+de discret e contorul cu care împarte câmpul: `ink-3`, fără contur, fără iconiță, fără culoare —
+nu e o problemă, e felul intenționat de a scrie o biografie.
+
+**Un singur Salvează, două entități, patru rezultate.** Cartea și biografia sunt rânduri
+separate, în spatele unor rute separate, și niciuna nu depinde de cealaltă (autorul există deja —
+crearea s-a întâmplat în picker), deci pleacă împreună cu `allSettled`. **Dialogul se închide
+doar dacă a aterizat tot.** Închiderea la o reușită parțială ar arunca jumătatea nesalvată —
+modificările la carte, sau paragraful abia scris — iar toast-ul ar fi un necrolog în loc de ceva
+pe care să acționezi. Deci o reușită parțială ține dialogul deschis și spune **care** jumătate a
+supraviețuit: „Datele autorului s-au salvat, dar cartea nu: …". Starea „modificat" se lasă
+neatinsă intenționat, iar un Salvează din nou retrimite și jumătatea care reușise — inofensiv,
+fiindcă ambele scrieri sunt idempotente, și mult mai sigur decât alternativa (marcarea per câmp
+cere `resetField`, care e no-op silențios pe câmpurile neînregistrate, iar un `reset` întreg ar
+curăța și jumătatea care *a eșuat*, lăsând un formular care pare salvat și nu e).
+
+**Prima apariție a toast-urilor în aplicație**, și §D51 e motivul: până acum fiecare eroare avea
+un loc pe ecran, fiindcă mesajul aparținea lucrului la care te uitai. „Datele autorului s-au
+salvat, dar cartea nu" nu aparține niciuneia dintre ele, iar crearea și ștergerea unui autor se
+întâmplă *înăuntrul* unui dialog al cărui slot de eroare e despre carte. Scrise de mână, ca
+modalul și capcana de focus (§Modal): o bibliotecă ar fi adus propriul DOM, propriul context de
+stacking și propriul styling light-mode-first, ca să ajungem înapoi la tokenurile noastre.
+`z-50`, cu un pas peste modal, fiindcă mesajul de salvare parțială apare peste un dialog care
+rămâne deschis. Erorile stau până sunt închise (trebuie citite); confirmările pleacă singure.
+Odată cu ele a plecat linia de eroare de sub footer: orice eșec pe care-l arăta produce acum un
+toast care spune mai mult, deci cele două tipăreau aceeași propoziție de două ori.
+
+**Open Library e singurul loc unde se creează un autor fără clic**, și e deliberat. Regula de
+peste tot există ca să oprească *greșelile de tastare*; un nume venit de la Open Library nu l-a
+tastat nimeni — e ortografia unui catalog, pe o ediție pe care cititorul a ales-o explicit. Nu
+există greșeală de care să te aperi, iar alternativa e mai rea decât inutilă: ar arunca autorul
+dintr-o carte deja completată și l-ar lăsa pe cititor să retasteze ce formularul știa deja.
+
+**Căutarea nu are nevoie de denormalizare.** `{ author: { name: { contains } } }` e al cincilea
+braț al fiecărui `OR` din §D42, compilat de Prisma într-un subquery peste `Author`. Nu schimbă
+costul: `contains` e `LIKE '%…%'` și deci neindexabil pe **toate** câmpurile clauzei, așa că
+căutarea era deja un scan al cărților cititorului. **Biografia nu se caută**, spre deosebire de
+descriere: o potrivire în descriere e cel puțin despre cartea găsită, iar una în biografie ar
+întoarce fiecare carte a unui autor a cărui viață conține întâmplător cuvântul — un rezultat pe
+care nimic de pe ecran nu l-ar putea explica. Sortarea trece prin `{ author: { name: order } }`
+(`books/sort.ts`), fiindcă `{ author: "asc" }` nu e o formă pe care Prisma o acceptă pentru o
+relație.
+
+**Kobo afișează autorul și nu-l poate schimba** (deocamdată, la cerere). API-ul cere `authorId`,
+care are nevoie de autocomplete server-side, creare deliberată și ștergere confirmată — nimic din
+ce o pagină cu zero JavaScript de client (§D37) poate oferi. Deci rândul e o etichetă și o
+valoare, plus propoziția care spune unde *se* poate schimba. Nu `<input disabled>`: o casetă
+gri pe hârtie electronică se citește ca o eroare de randare, iar un input dezactivat nici nu se
+trimite — ar fi pură sugestie că s-ar putea tasta acolo. Formularul nu trimite deloc `author` sau
+`authorId`, iar un câmp absent lasă coloana în pace.
+
+**MCP primește `list_authors`, `create_author` și `update_author`** — un model nu poate da clic,
+iar un apel de unealtă e echivalentul lui. `create_author` cere explicit verificarea prealabilă a
+listei, din același motiv pentru care interfața cere un clic. **Nu există `delete_author`:**
+ștergerea e ireversibilă, atinge cărți pe care cererea nu le-a numit, iar interfața o permite doar
+în spatele unei confirmări care spune câte cărți își pierd autorul — o propoziție pe care un model
+n-o poate arăta și un utilizator n-o poate răspunde în mijlocul unui apel.
+
+**Datele vechi se mapează, nu se golesc** (ca la §D39 și §D45). Migrarea în trei pași — lărgește,
+cară, șterge — creează un `Author` per nume distinct al fiecărui utilizator, apoi leagă fiecare
+carte. `SELECT DISTINCT` peste o coloană `utf8mb4_unicode_ci` pliază deja majusculele și
+diacriticele, ceea ce e intenția, dar lasă întrebarea *care ortografie se păstrează*; MariaDB ar
+răspunde arbitrar, iar funcția de fereastră din migrare răspunde deliberat: ortografia care apare
+pe cele mai multe cărți câștigă, egalitățile rupte pe ordine de octeți ca rezultatul să fie
+identic la fiecare rulare. Cărțile cu autor NULL sau numai spații rămân cu `authorId` NULL și nu
+pierd nimic.
 
 ---
 

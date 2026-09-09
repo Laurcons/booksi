@@ -441,7 +441,7 @@ function ChallengeSpine({
         <button
           type="button"
           onClick={onOpen}
-          aria-label={book.author === null ? book.title : `${book.title}, ${book.author}`}
+          aria-label={book.author === null ? book.title : `${book.title}, ${book.author.name}`}
           className="relative block rounded-t-[3px] transition-colors duration-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           style={{
             width,
@@ -559,7 +559,7 @@ function ChallengeBookRow({ book, onOpen }: { book: Book; onOpen: () => void }) 
             {book.title}
           </button>
           <p className="truncate text-sm text-ink-3">
-            {book.author}
+            {book.author?.name}
             {categoryLabels.length > 0 && ` · ${categoryLabels.join(", ")}`}
           </p>
           {book.status === "READING" && <PageProgressEditor book={book} />}

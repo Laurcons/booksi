@@ -184,6 +184,7 @@ export const en: Catalog<MessageKey> = {
 
   /* the four tabs */
   "bookForm.tab.book": "Book",
+  "bookForm.tab.author": "Author",
   "bookForm.tab.description": "Description",
   "bookForm.tab.reading": "Reading",
   "bookForm.tab.verdict": "Verdict",
@@ -233,6 +234,8 @@ export const en: Catalog<MessageKey> = {
 
   "field.title": "Title",
   "field.author": "Author",
+  "field.biography": "Biography",
+  "field.biographyPlaceholder": "Who they were, what they wrote…",
   "field.status": "Status",
   "field.categories": "Categories",
   "field.review": "Review",
@@ -471,6 +474,7 @@ export const en: Catalog<MessageKey> = {
   "budget.monthly": "Monthly budget",
   "chart.spend.title": "Spending by month",
   "profile.details": "Details",
+  "profile.aboutAuthor": "About {name}",
   "connectors.none": "No assistant is connected right now.",
   "pair.codeApproved": "Code approved",
   "pair.code": "Code",
@@ -503,4 +507,51 @@ export const en: Catalog<MessageKey> = {
   "month.short.10": "Oct",
   "month.short.11": "Nov",
   "month.short.12": "Dec",
+
+  /* -------------------------------------------------- §D51 — authors */
+  "author.searchPlaceholder": "Search for or create an author…",
+  "author.clear": "Remove the author",
+  "author.searching": "Searching…",
+  "author.noneYet": "No authors yet. Type a name to create one.",
+  "author.create": "Create the author \u201c{name}\u201d",
+  "author.created": "The author \u201c{name}\u201d was created.",
+  "author.createFailed": "The author could not be created.",
+  "author.delete": "Delete the author {name}",
+  "author.deleteConfirm": {
+    one: "Delete \u201c{name}\u201d? One book will be left without an author.",
+    other: "Delete \u201c{name}\u201d? {count} books will be left without an author.",
+  },
+  "author.deleted": "The author \u201c{name}\u201d was deleted.",
+  "author.deletedWithBooks": {
+    one: "\u201c{name}\u201d was deleted. One book was left without an author.",
+    other: "\u201c{name}\u201d was deleted. {count} books were left without an author.",
+  },
+  "author.deleteFailed": "The author could not be deleted.",
+  "author.bookCount": {
+    one: "one book",
+    other: "{count} books",
+  },
+  "author.matchCount": {
+    one: "one author found",
+    other: "{count} authors found",
+  },
+  "author.shared": {
+    one: "Applies to your only book by {name}.",
+    other: "Applies to all {count} of your books by {name}.",
+  },
+  "author.sharedUnknown": "Applies to all your books by this author.",
+  "author.noneSelected":
+    "Pick an author, or create one, and you can write about them here. The " +
+    "biography belongs to the author rather than to this book \u2014 it shows " +
+    "on the page of every book of theirs.",
+
+  /* -------------------------------------------------- §D51 — toasts */
+  "toast.dismiss": "Dismiss",
+  "bookForm.saveFailedReason": "it did not go through",
+  "bookForm.saveFailedBoth":
+    "Nothing was saved \u2014 neither the book nor the author's details: {reason}",
+  "bookForm.savedAuthorNotBook":
+    "The author's details were saved, but the book was not: {reason}",
+  "bookForm.savedBookNotAuthor":
+    "The book was saved, but the author's biography was not: {reason}",
 };

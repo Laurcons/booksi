@@ -14,6 +14,7 @@ import {
   type CreateBookInput,
   type OpenLibraryResult,
 } from "@bookcsi/shared";
+import { useCreateAuthor, useUpdateAuthor } from "../../api/authors";
 import { BOOKS_KEY, useCreateBook, useIsbnDuplicates, useUpdateBook } from "../../api/books";
 import {
   useEditionSuggestion,
@@ -29,6 +30,7 @@ import { CoverPicker } from "./CoverPicker";
 import { CoverThumb } from "./CoverThumb";
 import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
+import { AuthorTab } from "./form/AuthorTab";
 import { BookTab } from "./form/BookTab";
 import { DescriptionTab } from "./form/DescriptionTab";
 import { ReadingTab } from "./form/ReadingTab";
@@ -45,6 +47,7 @@ import {
   type BookFormValues,
   type TabId,
 } from "./form/schema";
+import { useToast } from "../toast/toast-context";
 import { useT } from "../../i18n/locale-context";
 import type { MessageKey } from "../../i18n/catalog";
 import { useLocalizedResolver } from "../../i18n/zod-resolver";
@@ -52,7 +55,7 @@ import { useLocalizedResolver } from "../../i18n/zod-resolver";
 /**
  * S1.1 (add) and S1.3 (edit) are the same form, and every field is still
  * editable at any time, whatever populated it. What changed is the shape: one
- * scroll of nineteen fields became four tabs.
+ * scroll of nineteen fields became four tabs, and then five (§D51).
  *
  * The tabs are not steps. There is one Save, it saves everything, and any tab
  * can be reached from any other in one click — a wizard would be wrong here,
@@ -71,6 +74,13 @@ import { useLocalizedResolver } from "../../i18n/zod-resolver";
  * - **A change or an error on a tab you cannot see is marked on the tab**
  *   (`TAB_OF_FIELD` in `form/schema.ts`), because the alternative is a Save
  *   button that appears to do nothing.
+ *
+ * §D51 adds the one thing that was true of no earlier version of this dialog:
+ * **Save writes two entities.** The book, and — if the reader touched it — the
+ * biography of an author that other books also carry. Both go up together and
+ * neither waits on the other; what happens when only one of them lands is the
+ * most carefully decided behaviour in this file, and `submit` is where it is
+ * written down.
  */
 export function BookFormDialog({
   book,
@@ -81,8 +91,17 @@ export function BookFormDialog({
   onClose: () => void;
 }) {
   const t = useT();
+  const toast = useToast();
   const create = useCreateBook();
   const update = useUpdateBook();
+  /**
+   * §D51 — the biography's own write. `create` here is *not* how an author is
+   * made: that happens in `AuthorTab` the moment the reader confirms a name.
+   * This one exists for the Open Library fill below, which resolves a
+   * catalogue's spelling of a name to a row without anybody clicking.
+   */
+  const createAuthor = useCreateAuthor();
+  const updateAuthor = useUpdateAuthor();
   const editing = book !== undefined;
   const queryClient = useQueryClient();
 
@@ -94,6 +113,19 @@ export function BookFormDialog({
    * request and goes up right after, the same way `olEditionKey` does.
    */
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null);
+
+  /**
+   * §D51 — the selected author's name, for the picker to show.
+   *
+   * Held here rather than as a form field for two reasons that both matter.
+   * It is **display state**, so putting it through validation would let a value
+   * nobody can see or correct block `handleSubmit` (the `authorName` field this
+   * replaced did exactly that when a response arrived without a name — the same
+   * shape as the disabled-rating bug in `.claude/mistakes.md`). And it has to
+   * outlive the Autor tab, which unmounts on every tab switch — this component
+   * does not.
+   */
+  const [authorName, setAuthorName] = useState(book?.author?.name ?? "");
 
   const form = useForm<BookFormValues, unknown, CreateBookInput>({
     // §D44 — the schema carries keys, so the resolver has to word them.
@@ -178,7 +210,9 @@ export function BookFormDialog({
       };
 
       set("title", suggestion.title);
-      set("author", suggestion.author ?? "");
+      // §D51 — the author is not a string field any more, so it cannot be
+      // poured in here. `fillAuthor` below does it, because resolving a name to
+      // a row is a request and this function is synchronous.
       set("isbn", suggestion.isbn ?? "");
       set("totalPages", suggestion.totalPages === null ? "" : String(suggestion.totalPages));
       set("publisher", suggestion.publisher ?? "");
@@ -189,6 +223,58 @@ export function BookFormDialog({
       set("format", suggestion.format ?? "");
     },
     [getValues, setValue],
+  );
+
+  /**
+   * §D51 — the author half of a suggestion, which needs a round trip.
+   *
+   * **This is the one place an author is created without a click, and it is
+   * deliberate.** The rule §D51 enforces everywhere else — a name must be
+   * confirmed before it becomes a person — exists to stop *typos* minting
+   * authors. A name arriving from Open Library was not typed by anybody: it is
+   * a catalogue's own spelling, attached to an edition the reader explicitly
+   * picked. There is no misspelling to protect against, and the alternative is
+   * worse than pointless — it would drop the author from a filled-in book and
+   * leave the reader to retype what the form already knew.
+   *
+   * `POST /authors` is idempotent by name, so the ordinary case (an author the
+   * library already has) resolves to the existing row rather than making a
+   * second one.
+   *
+   * A failure costs the author and nothing else — the same footing as the cover
+   * download and the edition lookup. The book is filled in and savable; the
+   * author is one click away in the Autor tab.
+   */
+  const fillAuthor = useCallback(
+    async (name: string | null, { overwrite }: { overwrite: boolean }) => {
+      if (name === null || name.trim() === "") {
+        return;
+      }
+
+      // The same rule the scalar fields follow: an ISBN typed under a book that
+      // already names an author must not replace that author, while picking a
+      // search result is an explicit "this book" and may.
+      if (!overwrite && getValues("authorId") !== null) {
+        return;
+      }
+
+      const author = await createAuthor.mutateAsync({ name: name.trim() }).catch(() => null);
+
+      if (author === null) {
+        return;
+      }
+
+      setValue("authorId", author.id, { shouldDirty: true });
+      setAuthorName(author.name);
+      // No `shouldDirty` on the biography: it is what is *stored* for the
+      // author just resolved, so Save must not write it back over itself.
+      // (`resetField` would say this more precisely and cannot be used — it is
+      // a silent no-op on an unregistered field, and this runs from the Carte
+      // tab, where the biography's textarea is not even mounted. See
+      // `AuthorTab` for the full note.)
+      setValue("authorBiography", author.biography ?? "");
+    },
+    [createAuthor, getValues, setValue],
   );
 
   useEffect(() => {
@@ -204,8 +290,9 @@ export function BookFormDialog({
 
     applied.current = key;
     fill(isbnSuggestion.data, { overwrite: false });
+    void fillAuthor(isbnSuggestion.data.author, { overwrite: false });
     setOlEditionKey(isbnSuggestion.data.olEditionKey);
-  }, [isbnSuggestion.isSuccess, isbnSuggestion.data, isbn, fill]);
+  }, [isbnSuggestion.isSuccess, isbnSuggestion.data, isbn, fill, fillAuthor]);
 
   /** S4.1 — a chosen work, resolved into the edition its fields come from. */
   const selectResult = async (result: OpenLibraryResult) => {
@@ -226,6 +313,9 @@ export function BookFormDialog({
       { overwrite: true },
     );
     setOlEditionKey(result.editionKey);
+    // Picking a result is an explicit "this book", so the author it names wins
+    // over whatever was selected before.
+    await fillAuthor(result.author, { overwrite: true });
 
     if (result.editionKey === null) {
       return;
@@ -238,6 +328,8 @@ export function BookFormDialog({
 
     if (suggestion !== null) {
       fill(suggestion, { overwrite: true });
+      // The edition's own author, which is more specific than the work's.
+      await fillAuthor(suggestion.author, { overwrite: true });
       // Prevents the ISBN just filled in from triggering S4.2's lookup for the
       // edition it came from.
       applied.current = normalizeIsbn(suggestion.isbn ?? "");
@@ -246,32 +338,139 @@ export function BookFormDialog({
 
   const submit = handleSubmit(
     async (payload) => {
+      /**
+       * §D51 — one Save, two entities, and the four outcomes it can have.
+       *
+       * The book and the author's biography are separate rows behind separate
+       * routes, and neither write depends on the other: an author cannot be
+       * created here (that already happened, in the picker), so there is no
+       * ordering to respect. They go up together with `allSettled` — which is
+       * also what makes "both failed" a case that falls out rather than one
+       * that has to be constructed.
+       *
+       * **The dialog closes only if everything landed.** That is the rule the
+       * rest of this follows from. Closing on a partial failure would throw
+       * away whichever half is still unsaved — the reader's edits to the book,
+       * or the paragraph they just wrote about an author — and the toast would
+       * be an obituary rather than something to act on. So a partial failure
+       * keeps the dialog open and says which half survived; pressing Save again
+       * sends both halves, which is safe because both writes are idempotent
+       * (the block below has the full reasoning for leaving the dirty state
+       * alone rather than narrowing it).
+       */
+      const bio = getValues("authorBiography");
+      const authorId = getValues("authorId");
+
+      /**
+       * Whether the biography is ours to write on this Save.
+       *
+       * Both conditions matter. `dirtyFields` because an untouched biography
+       * must not be written back over itself — every `PATCH` would otherwise
+       * bump `updatedAt` on a row shared with other books for no reason. And a
+       * selected author, because there is nothing to `PATCH` without one.
+       */
+      const savesBiography = dirtyFields.authorBiography === true && authorId !== null;
+
+      const saveBiography = async () => {
+        if (!savesBiography) {
+          return;
+        }
+
+        await updateAuthor.mutateAsync({ id: authorId, input: { biography: bio } });
+      };
+
       if (editing) {
         // Only what the user actually touched. Sending an untouched empty date
         // would read as "clear it", and would stop the API from stamping the
         // transition date this very request just triggered (S1.5).
         const changed = onlyDirty(payload, dirtyFields);
+        const savesBook = Object.keys(changed).length > 0;
 
-        if (Object.keys(changed).length > 0) {
-          await update.mutateAsync({ id: book.id, input: changed });
+        const [bookResult, authorResult] = await Promise.allSettled([
+          savesBook ? update.mutateAsync({ id: book.id, input: changed }) : null,
+          saveBiography(),
+        ]);
+
+        const bookFailed = bookResult.status === "rejected";
+        const authorFailed = authorResult.status === "rejected";
+
+        if (!bookFailed && !authorFailed) {
+          onClose();
+          return;
         }
-      } else {
+
+        /**
+         * The dirty state is deliberately left exactly as it was.
+         *
+         * The tempting move is to mark the half that landed as clean, so the
+         * tab dots narrow to what is left. It was tried and dropped: doing it
+         * per field needs `resetField`, which is a silent no-op on the fields
+         * this form does not register (`authorId`, `categories`, and anything
+         * on an unmounted tab), and doing it with a whole-form `reset` would
+         * clear the dirty flag on the half that *failed* — leaving a form that
+         * looks saved, is not, and sends nothing on the next Save.
+         *
+         * Leaving it alone means pressing Save again re-sends the half that
+         * already succeeded. That is safe rather than merely tolerable: both
+         * writes are idempotent — the same book fields and the same biography
+         * — so the retry costs one redundant request and an `updatedAt`. The
+         * toast is what says which half failed, in words, which is the part the
+         * reader actually needs.
+         */
+        toast.show(
+          "error",
+          partialSaveMessage({
+            t,
+            bookFailed,
+            authorFailed,
+            bookError: bookResult.status === "rejected" ? bookResult.reason : null,
+            authorError:
+              authorResult.status === "rejected" ? authorResult.reason : null,
+          }),
+        );
+
+        return;
+      }
+
+      /**
+       * Creating. The biography goes up alongside, for the case that matters
+       * more than it sounds: a reader adding a book, creating its author in the
+       * picker and writing two lines about them, all before the first Save.
+       */
+      const [bookResult, authorResult] = await Promise.allSettled([
         // §D8: given the edition, the server downloads and stores the cover as
         // part of creating the book. Nothing else on the client knows about it.
-        const created = await create.mutateAsync({
+        create.mutateAsync({
           ...onlyFilled(payload),
           ...(olEditionKey === null ? {} : { olEditionKey }),
-        });
+        }),
+        saveBiography(),
+      ]);
 
-        // A manually picked file goes up once the id it needs exists — after
-        // the dialog is already gone, on the same best-effort footing as the
-        // Open Library fetch above: a failure here costs the cover, not the
-        // book, and Edit is the way back to it.
-        if (pendingCoverFile !== null) {
-          void uploadCoverImage(created.id, pendingCoverFile)
-            .then(() => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }))
-            .catch(() => {});
-        }
+      if (bookResult.status === "rejected" || authorResult.status === "rejected") {
+        toast.show(
+          "error",
+          partialSaveMessage({
+            t,
+            bookFailed: bookResult.status === "rejected",
+            authorFailed: authorResult.status === "rejected",
+            bookError: bookResult.status === "rejected" ? bookResult.reason : null,
+            authorError:
+              authorResult.status === "rejected" ? authorResult.reason : null,
+          }),
+        );
+
+        return;
+      }
+
+      // A manually picked file goes up once the id it needs exists — after
+      // the dialog is already gone, on the same best-effort footing as the
+      // Open Library fetch above: a failure here costs the cover, not the
+      // book, and Edit is the way back to it.
+      if (pendingCoverFile !== null) {
+        void uploadCoverImage(bookResult.value.id, pendingCoverFile)
+          .then(() => queryClient.invalidateQueries({ queryKey: BOOKS_KEY }))
+          .catch(() => {});
       }
 
       onClose();
@@ -294,7 +493,17 @@ export function BookFormDialog({
     },
   );
 
-  const failure = create.error ?? update.error;
+  /**
+   * §D51 — there is no inline error line under the footer any more, and its
+   * removal is deliberate rather than incidental.
+   *
+   * It used to render `create.error ?? update.error` right above the Save
+   * button. Every failure it could show now also produces a toast — the
+   * partial-save path reports *which half* landed, which the inline line
+   * could not say — so keeping both printed the same sentence twice, a few
+   * inches apart, with the less informative copy nearer the button. The toast
+   * is `role="alert"`, so nothing is lost to a screen reader either.
+   */
   const status = watch("status");
 
   /**
@@ -355,7 +564,7 @@ export function BookFormDialog({
 
             {editing && (
               <p className="mt-1 truncate text-xs text-ink-3">
-                {[book.author, book.publisher, book.publicationYear]
+                {[book.author?.name ?? null, book.publisher, book.publicationYear]
                   .filter((part) => part !== null && part !== "")
                   .join(" · ")}
               </p>
@@ -448,6 +657,16 @@ export function BookFormDialog({
             />
           )}
 
+          {/* §D51 — the whole author: the picker, the biography, and the note
+              that says how far an edit to it reaches. */}
+          {tab === "author" && (
+            <AuthorTab
+              form={form}
+              authorName={authorName}
+              onNameChange={setAuthorName}
+            />
+          )}
+
           {tab === "description" && <DescriptionTab form={form} />}
 
           {tab === "reading" && <ReadingTab form={form} />}
@@ -461,12 +680,6 @@ export function BookFormDialog({
             />
           )}
         </div>
-
-        {failure && (
-          <p role="alert" className="px-5 pb-2 text-sm text-error">
-            {errorMessage(failure, failure.message)}
-          </p>
-        )}
 
         {/*
           §D49 — the footer says what the dialog is currently for, and the two
@@ -514,7 +727,50 @@ export function BookFormDialog({
 }
 
 /**
- * The four tabs, as a real tablist.
+ * §D51 — which half of the Save failed, in one sentence.
+ *
+ * Three outcomes reach here and each one says something different, because to
+ * the reader they *are* different situations: everything is still unsaved,
+ * their prose about an author survived but the book did not, or the book
+ * survived and the prose did not. A single "could not save" for all three would
+ * leave them guessing whether to retype anything.
+ *
+ * The underlying error's own words are carried through where there are any —
+ * §D27's whole point is that a message with a `code` was written for a person —
+ * and `errorMessage` falls back to a general sentence for the failures that
+ * were not.
+ */
+function partialSaveMessage({
+  t,
+  bookFailed,
+  authorFailed,
+  bookError,
+  authorError,
+}: {
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+  bookFailed: boolean;
+  authorFailed: boolean;
+  bookError: unknown;
+  authorError: unknown;
+}): string {
+  const reason = errorMessage(
+    (bookFailed ? bookError : authorError) as Error,
+    t("bookForm.saveFailedReason"),
+  );
+
+  if (bookFailed && authorFailed) {
+    return t("bookForm.saveFailedBoth", { reason });
+  }
+
+  if (bookFailed) {
+    return t("bookForm.savedAuthorNotBook", { reason });
+  }
+
+  return t("bookForm.savedBookNotAuthor", { reason });
+}
+
+/**
+ * The five tabs, as a real tablist.
  *
  * Arrow keys move between them because that is what a tablist does, and the
  * dots are the reason the strip carries any state at all: brass for "you have
@@ -537,6 +793,7 @@ function TabStrip({
 
   const LABEL: Record<TabId, MessageKey> = {
     book: "bookForm.tab.book",
+    author: "bookForm.tab.author",
     description: "bookForm.tab.description",
     reading: "bookForm.tab.reading",
     verdict: "bookForm.tab.verdict",
@@ -676,7 +933,6 @@ function Note({ children }: { children: ReactNode }) {
  */
 type FillableField =
   | "title"
-  | "author"
   | "isbn"
   | "totalPages"
   | "publisher"
