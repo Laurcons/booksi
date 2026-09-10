@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
 import type {
   Author,
@@ -57,22 +58,50 @@ export function useAuthors(q: string) {
 }
 
 /**
- * One author in full — the biography included.
+ * One author in full, for the tab to **display**.
  *
- * Only needed when the form **switches** to a different author: opening it
- * already has the biography, because the book response carries its author whole
- * (§D51). `enabled` is therefore the normal state for this hook, not an
- * afterthought: it is off whenever no author is selected.
+ * The only thing read off it is the `bookCount` in the shared-scope line — the
+ * biography reaches the form through `fetchAuthor` below instead, and the note
+ * there says why that separation matters. `enabled` is the normal state for
+ * this hook rather than an afterthought: it is off whenever no author is
+ * selected.
  */
 export function useAuthor(id: string | null) {
-  return useQuery({
-    // `AuthorDetail`, not `Author`: this route carries the `bookCount` the
-    // form's shared-scope line needs, which is deliberately absent from the
-    // author embedded in a book response (§D51).
-    queryKey: authorKey(id ?? ""),
-    queryFn: () => apiFetch<AuthorDetail>(`/authors/${id ?? ""}`),
-    enabled: id !== null,
-  });
+  return useQuery({ ...authorQuery(id ?? ""), enabled: id !== null });
+}
+
+/**
+ * One author's route, in one place.
+ *
+ * `AuthorDetail`, not `Author`: it carries the `bookCount` the form's
+ * shared-scope line needs, which is deliberately absent from the author
+ * embedded in a book response (§D51). Shared by the hook above and the
+ * imperative fetch below so that both are the same cache entry — a switch of
+ * author costs one request between the two of them, not two.
+ */
+const authorQuery = (id: string) => ({
+  queryKey: authorKey(id),
+  queryFn: () => apiFetch<AuthorDetail>(`/authors/${id}`),
+});
+
+/**
+ * The same author, fetched once because something happened — not subscribed to.
+ *
+ * §D51 — this is how the biography reaches the form, and the distinction from
+ * `useAuthor` is the whole reason it exists. The text is poured in by the
+ * **event that changes the author**, because that is the only moment it is
+ * true. It used to be poured by an effect watching `useAuthor`, which fires on
+ * every *mount* — and `AuthorTab` mounts on every visit to the tab, so leaving
+ * the tab and coming back overwrote whatever the reader had typed with the
+ * stored version (`.claude/mistakes.md`).
+ *
+ * `useAuthor` therefore no longer feeds the form at all: it is display data for
+ * the shared-scope line, and a refetch, a window regaining focus or a
+ * `setQueryData` from a `PATCH` can no longer reach a field somebody is typing
+ * in.
+ */
+export function fetchAuthor(queryClient: QueryClient, id: string) {
+  return queryClient.fetchQuery(authorQuery(id));
 }
 
 /**

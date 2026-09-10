@@ -212,10 +212,16 @@ Punctele de pe taburi: alamă pentru modificări nesalvate pe tabul respectiv, r
 un câmp de corectat. Ambele sunt și scrise pentru cititorul de ecran.
 
 **Tabul „Autor" (§D51)** stă al doilea, imediat după identitatea cărții, fiindcă autorul e al
-doilea lucru pe care-l știi despre o carte — și ține autorul *întreg*: caseta care-l alege,
-biografia, și nota despre cât de departe ajunge o editare. Autorul a plecat de tot din tabul
-„Carte", chiar dacă blocul de identitate de acolo îl vrea: a ține numele într-un loc și biografia
-în altul ar fi fost mai rău decât oricare variantă întreagă.
+doilea lucru pe care-l știi despre o carte — și ține **biografia**: proza, nota despre cât de
+departe ajunge o editare, și o a doua copie a casetei care alege autorul.
+
+**Caseta autorului e pe două taburi**, singurul câmp din formular arătat de două ori. Pe „Carte"
+fiindcă blocul de identitate o vrea (copertă, titlu, autor, ISBN e felul în care o carte se
+prezintă) și fiindcă acolo o pun completarea din Open Library și scanarea codului de bare — altfel
+cititorul pleacă pe alt tab ca să vadă rezultatul propriei acțiuni. Pe „Autor" fiindcă momentul în
+care observi că citești biografia altcuiva e exact momentul în care vrei comanda la îndemână. E
+montat un singur tab, deci nu sunt niciodată două casete pe ecran, iar punctul de pe tab urmează
+apartenența: o schimbare de autor punctează „Carte", biografia punctează „Autor".
 
 - **Caseta nu e un câmp de text.** Ce se tastează e o căutare; ce se stochează e un id. Firul de
   alamă de pe contur înseamnă „ce vezi e ce ține formularul", deci apare doar când caseta arată
@@ -229,6 +235,10 @@ biografia, și nota despre cât de departe ajunge o editare. Autorul a plecat de
   consecința („O carte rămâne fără autor"). La un autor fără cărți nu apare deloc: nu e nimic de
   avertizat. O confirmare într-un al doilea modal peste primul nu e o opțiune — `Modal` nu
   supraviețuiește stivuirii (ambele instanțe ascultă `keydown` pe `document`).
+- **Ce ai scris în biografie supraviețuiește schimbării de tab.** Textul stocat intră în casetă
+  doar când se schimbă autorul, nu la fiecare montare a tabului — altfel un drum dus-întors până
+  la „Carte" ștergea editarea nesalvată. La schimbarea autorului caseta se golește imediat, ca să
+  nu arate proza unei persoane sub numele alteia.
 - **Indicația de partajare e o propoziție cu o cifră**, sub caseta de biografie, la fel de discretă
   ca contorul de caractere: `ink-3`, fără contur, fără iconiță, fără culoare. Nu e un avertisment —
   a scrie o biografie pornind de la o carte e felul intenționat de a scrie una — deci nu are voie

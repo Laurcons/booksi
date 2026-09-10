@@ -601,6 +601,7 @@ export const ro = {
     other: "Se aplică tuturor celor {count} de cărți ale tale de {name}.",
   },
   "author.sharedUnknown": "Se aplică tuturor cărților tale de acest autor.",
+  "author.biographyFailed": "Biografia autorului n-a putut fi încărcată.",
   "author.noneSelected":
     "Alege un autor sau creează unul ca să poți scrie despre el. Biografia " +
     "e a autorului, nu a cărții — se vede pe fișa fiecărei cărți de-a lui.",

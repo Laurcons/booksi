@@ -1194,12 +1194,36 @@ numele vechi. Până există un ecran care spune care dintre cele două se înt�
 se repară creând cel bun, mutând cartea pe el și ștergându-l pe cel greșit — trei acte
 deliberate, fiecare spunând ce e.
 
-**Al cincilea tab, „Autor", și autorul pleacă de tot din tabul „Carte".** Motivul e cel din §D48:
-biografia e a treia proză din formular, iar proza într-o grilă de valori e exact ce au desfăcut
-taburile. A ține *numele* în „Carte" și biografia într-un tab alături ar fi fost mai rău decât
-oricare: o persoană, aleasă într-un loc și descrisă în altul, cu nota despre ce afectează editarea
-nicăieri lângă controlul care a ales-o. Tabul stă al doilea, imediat după identitatea cărții,
-fiindcă acolo se uită cititorul: autorul e al doilea lucru pe care-l știi despre o carte.
+**Al cincilea tab, „Autor", ține biografia — iar caseta care alege autorul e pe două taburi.**
+Motivul tabului e cel din §D48: biografia e a treia proză din formular, iar proza într-o grilă de
+valori e exact ce au desfăcut taburile. Stă al doilea, imediat după identitatea cărții, fiindcă
+acolo se uită cititorul: autorul e al doilea lucru pe care-l știi despre o carte.
+
+Prima variantă a scos autorul *de tot* din „Carte", și a fost prea mult. Ce avea nevoie de un tab
+era biografia, nu caseta: blocul de identitate o vrea — copertă, titlu, autor, ISBN e felul în
+care o carte se prezintă — iar „Carte" e tabul unde o pun completarea din Open Library și
+scanarea codului de bare, deci cititorul trebuia să plece pe alt tab ca să vadă rezultatul
+propriei acțiuni. Invers, a scoate caseta din „Autor" ar rata exact momentul în care e nevoie de
+ea: când observi că citești biografia altcuiva. Deci apare în ambele locuri, e **același** câmp,
+și e singurul din formular arătat de două ori.
+
+Duplicarea e ieftină fiindcă e montat un singur tab: nu există niciodată două casete pe ecran, iar
+`AuthorPicker` își reia textul din `value` la montare. Purtarea stă într-un singur loc
+(`useAuthorSelection`), altfel cele două copii ar putea diverge. Punctul de pe tab urmează
+apartenența, nu locul: `authorId` e un câmp al *cărții* și punctează „Carte", `authorBiography` e
+al autorului și punctează „Autor" — `TAB_OF_FIELD` ține un tab per câmp, deci un control duplicat
+cere o decizie acolo, nu o intrare pentru fiecare loc în care apare.
+
+**Biografia stocată se toarnă în casetă doar când se schimbă autorul.** Nu dintr-un efect care
+urmărește query-ul: un efect care seedează un câmp rulează la **fiecare** montare, iar cu taburi
+un panou se montează la fiecare vizită — deci un drum dus-întors până la „Carte" ștergea editarea
+nesalvată. Mai rău decât pare: `setValue` fără opțiuni nu atinge `dirtyFields`, deci tabul rămânea
+punctat pentru schimbarea pe care o ștersese, iar Salvează scria textul vechi peste el însuși.
+Acum toarnă evenimentul care a schimbat autorul (`useAuthorSelection`), o dată, când e adevărat;
+cursa dintre două alegeri rapide se rezolvă citind `authorId` din formular, care e autoritatea pe
+„ce e selectat acum". Caseta se golește imediat la alegere, ca să nu arate niciodată proza unei
+persoane sub numele alteia. `useAuthor` a rămas doar pentru cifra din nota de partajare, deci un
+refetch nu mai poate ajunge la un câmp în care scrie cineva.
 
 **Indicația discretă e o propoziție cu o cifră**, nu un avertisment: „Se aplică tuturor celor 4
 cărți ale tale de Frank Herbert". Cifra e ce o face informație și nu disclaimer — cititorul află

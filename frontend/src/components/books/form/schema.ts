@@ -31,7 +31,8 @@ export const bookFormSchema = z
      * shows a *name* while this holds an *id*, which is precisely the
      * divergence `.claude/mistakes.md` records react-hook-form crashing on when
      * it reads a held `ref` back off the DOM. `AuthorPicker` therefore takes
-     * `value`/`onChange` and the dialog writes this with `setValue`.
+     * `value`/`onChange`, and `useAuthorSelection` writes this with `setValue`
+     * on behalf of both tabs that show the control.
      */
     authorId: z.string().nullable(),
     /**
@@ -222,9 +223,9 @@ export function toFormValues(book: Book): BookFormValues {
  * deliberate line rather than a silent omission from the payload.
  *
  * The author's *name* is deliberately not a form field at all — it is display
- * state, and `BookFormDialog` holds it in `useState`. It was a field here for
- * one revision, and the reason it left is worth keeping: a validated field with
- * no input of its own can fail validation, and then `handleSubmit` refuses to
+ * state, and `useAuthorSelection` holds it in `useState`. It was a field here
+ * for one revision, and the reason it left is worth keeping: a validated field
+ * with no input of its own can fail validation, and then `handleSubmit` refuses to
  * run with an error attached to something the reader cannot see or correct.
  * That is the same shape as the disabled-rating bug in `.claude/mistakes.md`,
  * and the fix is the same in spirit — do not put a value through validation
@@ -324,10 +325,18 @@ export type TabId = (typeof TABS)[number];
  */
 export const TAB_OF_FIELD: Record<keyof BookFormValues, TabId> = {
   title: "book",
-  // §D51 — the author moved off the Carte tab entirely, and took its own with
-  // it. Keyed on every form field rather than only the book's, so that a
-  // biography edited on a tab nobody is looking at still gets its dot.
-  authorId: "author",
+  /*
+    §D51 — one tab per field, and the author is the one field this form shows
+    twice, so the two halves are split by what they belong to. `authorId` is a
+    property of the *book* and its picker leads on the Carte tab, so changing
+    the author dots Carte. The biography belongs to the author and only the
+    Autor tab has it, so it dots Autor.
+
+    The dot answers "where is the thing I changed", which is why a duplicated
+    control needs a decision here rather than an entry for each place it
+    appears.
+  */
+  authorId: "book",
   authorBiography: "author",
   isbn: "book",
   totalPages: "book",

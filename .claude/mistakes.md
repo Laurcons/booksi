@@ -469,3 +469,43 @@ not surfaced.)
 **Lesson:** when a label query matches more than one thing, check whether the
 duplication is in the *test* or in the markup before fixing the test. Here it
 was both.
+
+### An effect that seeds a form field runs again on every mount — and a tab panel mounts on every visit
+
+The Autor tab poured the fetched biography into the form from a `useEffect`
+guarded only on *which author* the response was for. That guard is necessary and
+insufficient: the effect also fires on mount, only the active tab is mounted, so
+leaving the tab and coming back re-poured the **stored** text over whatever the
+reader had typed. Reported by the maintainer as "edit the biography, switch
+tabs, your edits are lost".
+
+Two things made it worse than it looked. The same line also fires on the *first*
+visit, racing the reader against a `GET` issued when the tab opened — the same
+loss in a smaller window. And `setValue` with no options deliberately skips the
+dirty update (`shouldDirty||shouldTouch)&&…` in the RHF source), so after the
+clobber the field still counted as changed: the tab kept its dot for the edit it
+had just erased, and Save wrote the old text back over itself. A test asserting
+only the toast had been passing for weeks with the biography going out empty.
+
+The first fix I proposed was a ref remembering whose biography was in the box.
+It works, and the maintainer's pushback — "can't this be declarative?" — was
+right that it fences the lifecycle off rather than removing it. The seeding is
+not synchronisation, it is a **consequence of an event**: it belongs in the
+handler that changes the author, where it happens once, when it is true. That
+deleted the effect, both faces of the bug, and the guard along with them.
+
+Also worth recording: react-hook-form has no declarative answer here, and it is
+worth knowing why before reaching for one. `dirtyFields` compares text to text,
+so it cannot express "this baseline belongs to a different entity now" — two
+authors with the same biography are indistinguishable to it, and the common case
+is *both empty*. `resetField` would move the baseline properly and is unusable
+at the one moment it is needed: the biography's textarea is only rendered once an
+author is selected, and `resetField` on an unregistered field is a silent no-op.
+`useForm({ values, resetOptions: { keepDirtyValues: true } })` is the library's
+designated tool and is form-wide, so it would re-seed all nineteen fields on
+every book-query invalidation — including the one our own Save triggers.
+
+**Lesson:** an effect that writes state the user can also edit is a clobber
+waiting for a remount. Ask what *event* made the new value true and write it
+there. And when a value in a form belongs to another entity, the form library's
+dirty tracking cannot help — it compares values, and identity is the question.

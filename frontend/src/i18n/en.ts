@@ -540,6 +540,7 @@ export const en: Catalog<MessageKey> = {
     other: "Applies to all {count} of your books by {name}.",
   },
   "author.sharedUnknown": "Applies to all your books by this author.",
+  "author.biographyFailed": "The author\u2019s biography could not be loaded.",
   "author.noneSelected":
     "Pick an author, or create one, and you can write about them here. The " +
     "biography belongs to the author rather than to this book \u2014 it shows " +

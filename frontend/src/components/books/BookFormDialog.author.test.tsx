@@ -94,9 +94,21 @@ function renderForm(
   return { calls, user, onClose };
 }
 
-/** The Autor tab is not the one the dialog opens on. */
+/**
+ * The Autor tab is not the one the dialog opens on.
+ *
+ * Matched by prefix rather than exactly: a dirty tab announces itself ("Autor
+ * are modificări nesalvate"), so an exact name stops finding the tab as soon as
+ * anything on it has been edited — which is precisely the state the
+ * round-trip tests need to click it in.
+ */
 async function openAuthorTab(user: ReturnType<typeof renderForm>["user"]) {
-  await user.click(screen.getByRole("tab", { name: "Autor" }));
+  await user.click(screen.getByRole("tab", { name: /^Autor/ }));
+}
+
+/** The tab the dialog opens on, matched by prefix for the same reason. */
+async function openBookTab(user: ReturnType<typeof renderForm>["user"]) {
+  await user.click(screen.getByRole("tab", { name: /^Carte/ }));
 }
 
 /**
@@ -125,15 +137,33 @@ function deleteRow(author: AuthorSuggestion) {
 }
 
 describe("BookFormDialog — the author tab (§D51)", () => {
-  it("puts the author on its own tab, not in the identity block", async () => {
-    const { user } = renderForm();
+  /**
+   * The author field is on both tabs, and it is **one** field: the Carte tab
+   * has it because cover/title/author/ISBN is how a book introduces itself and
+   * because that is where a fill or a scan puts an author, and the Autor tab
+   * has it because noticing you are reading the wrong person's biography is
+   * exactly when you want to change who it is about.
+   *
+   * Only one panel is mounted at a time, so `authorBox()` is unambiguous — the
+   * claim here is that whichever copy you arrive at shows the same selection.
+   */
+  it("shows the author on both tabs, as one field", async () => {
+    const { user } = renderForm(makeBook({ author: makeAuthor("Frank Herbert") }));
 
-    // Nothing on the Carte tab asks for an author any more.
-    expect(screen.queryByRole("textbox", { name: "Autor" })).not.toBeInTheDocument();
+    // The identity block, straight after the title.
+    expect(authorBox()).toHaveValue("Frank Herbert");
 
     await openAuthorTab(user);
+    expect(authorBox()).toHaveValue("Frank Herbert");
 
-    expect(authorBox()).toBeInTheDocument();
+    // Changed on the Autor tab…
+    await user.clear(authorBox());
+    await user.type(authorBox(), "Călinescu");
+    await user.click(await screen.findByRole("button", { name: /^George Călinescu/ }));
+
+    // …and the Carte tab's copy is the same field, not a stale second one.
+    await openBookTab(user);
+    expect(authorBox()).toHaveValue("George Călinescu");
   });
 
   it("asks the server for matches rather than filtering the loaded books", async () => {
@@ -348,7 +378,7 @@ describe("BookFormDialog — the author tab (§D51)", () => {
    * message names which half survived rather than saying "could not save".
    */
   it("reports honestly when the author saved and the book did not", async () => {
-    const { user, onClose } = renderForm(
+    const { calls, user, onClose } = renderForm(
       makeBook({ author: makeAuthor("Frank Herbert") }),
       (call) => {
         if (call.method === "PATCH" && call.url.includes("/books/")) {
@@ -368,6 +398,19 @@ describe("BookFormDialog — the author tab (§D51)", () => {
       await screen.findByText(/Datele autorului s-au salvat, dar cartea nu/),
     ).toBeInTheDocument();
 
+    // And what reached the author is what was typed. Worth asserting rather
+    // than trusting: this test passed for a while with the biography going out
+    // empty, because the tab switch above overwrote it on the way past and left
+    // the field looking dirty anyway.
+    expect(
+      calls.some(
+        (call) =>
+          call.method === "PATCH" &&
+          call.url.includes("/authors/") &&
+          (call.body as { biography?: string } | undefined)?.biography === "Ceva.",
+      ),
+    ).toBe(true);
+
     // Still open, because the book's edits are still unsaved.
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -383,5 +426,97 @@ describe("BookFormDialog — the author tab (§D51)", () => {
     await waitFor(() => expect(authorBox()).toHaveValue(""));
     // The biography box goes with it: there is no author to write about.
     expect(screen.queryByLabelText("Biografie")).not.toBeInTheDocument();
+  });
+
+  /**
+   * The bug this file's seeding logic was rewritten for.
+   *
+   * Every tab switch unmounts the panel, so an effect that seeded the biography
+   * from the fetched author ran again on the way back in and replaced whatever
+   * had been typed. The biography is now poured in by the *event* that changes
+   * the author, so a remount pours nothing.
+   */
+  it("keeps an unsaved biography across a tab switch", async () => {
+    const { user } = renderForm(
+      makeBook({ author: makeAuthor("Frank Herbert", { biography: "Deja scrisă." }) }),
+    );
+    await openAuthorTab(user);
+
+    // Wait for the author's row, so the test is about the remount rather than
+    // about a response that has not landed yet.
+    await screen.findByText(/Se aplică tuturor celor 3 cărți/);
+
+    await user.clear(screen.getByLabelText("Biografie"));
+    await user.type(screen.getByLabelText("Biografie"), "Rescrisă de mine.");
+
+    await openBookTab(user);
+    await openAuthorTab(user);
+
+    expect(screen.getByLabelText("Biografie")).toHaveValue("Rescrisă de mine.");
+  });
+
+  /**
+   * And the edit that survived is the one that gets saved.
+   *
+   * A separate claim from the test above, because the failure had two halves:
+   * `setValue` with no options leaves `dirtyFields` alone, so the overwritten
+   * field still counted as changed and Save wrote the *stored* text back over
+   * itself — green tab dot, successful request, nothing saved.
+   */
+  it("saves the biography that survived the tab switch", async () => {
+    const { calls, user } = renderForm(
+      makeBook({ author: makeAuthor("Frank Herbert", { biography: "Deja scrisă." }) }),
+    );
+    await openAuthorTab(user);
+    await screen.findByText(/Se aplică tuturor celor 3 cărți/);
+
+    await user.clear(screen.getByLabelText("Biografie"));
+    await user.type(screen.getByLabelText("Biografie"), "Rescrisă de mine.");
+
+    await openBookTab(user);
+    await user.click(screen.getByRole("button", { name: "Salvează" }));
+
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (call) =>
+            call.method === "PATCH" &&
+            call.url.endsWith(`/authors/${HERBERT.id}`) &&
+            (call.body as { biography?: string } | undefined)?.biography ===
+              "Rescrisă de mine.",
+        ),
+      ).toBe(true),
+    );
+  });
+
+  /**
+   * The other half of the rule: a *real* switch of author must still replace
+   * the box, or the reader would write one person's prose onto another. This is
+   * the assertion that stops the fix above from being applied too widely.
+   */
+  it("replaces the biography when the author changes", async () => {
+    const { user } = renderForm(
+      makeBook({ author: makeAuthor("Frank Herbert", { biography: "Deja scrisă." }) }),
+      (call) => {
+        if (call.url.endsWith(`/authors/${CALINESCU.id}`)) {
+          return {
+            ...makeAuthor("George Călinescu", { biography: "Criticul." }),
+            bookCount: 1,
+          };
+        }
+        return defaults(call);
+      },
+    );
+    await openAuthorTab(user);
+
+    expect(screen.getByLabelText("Biografie")).toHaveValue("Deja scrisă.");
+
+    await user.clear(authorBox());
+    await user.type(authorBox(), "Călinescu");
+    await user.click(await screen.findByRole("button", { name: /^George Călinescu/ }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Biografie")).toHaveValue("Criticul."),
+    );
   });
 });

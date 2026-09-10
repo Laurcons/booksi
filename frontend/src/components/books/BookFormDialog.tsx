@@ -32,6 +32,7 @@ import { CoverUpload } from "./CoverUpload";
 import { OpenLibrarySearch } from "./OpenLibrarySearch";
 import { AuthorTab } from "./form/AuthorTab";
 import { BookTab } from "./form/BookTab";
+import { useAuthorSelection } from "./form/use-author-selection";
 import { DescriptionTab } from "./form/DescriptionTab";
 import { ReadingTab } from "./form/ReadingTab";
 import { VerdictTab } from "./form/VerdictTab";
@@ -114,19 +115,6 @@ export function BookFormDialog({
    */
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null);
 
-  /**
-   * §D51 — the selected author's name, for the picker to show.
-   *
-   * Held here rather than as a form field for two reasons that both matter.
-   * It is **display state**, so putting it through validation would let a value
-   * nobody can see or correct block `handleSubmit` (the `authorName` field this
-   * replaced did exactly that when a response arrived without a name — the same
-   * shape as the disabled-rating bug in `.claude/mistakes.md`). And it has to
-   * outlive the Autor tab, which unmounts on every tab switch — this component
-   * does not.
-   */
-  const [authorName, setAuthorName] = useState(book?.author?.name ?? "");
-
   const form = useForm<BookFormValues, unknown, CreateBookInput>({
     // §D44 — the schema carries keys, so the resolver has to word them.
     resolver: useLocalizedResolver(bookFormSchema),
@@ -140,6 +128,19 @@ export function BookFormDialog({
     getValues,
     formState: { errors, dirtyFields, isSubmitting },
   } = form;
+
+  /**
+   * §D51 — who wrote it, for both of the tabs that ask.
+   *
+   * Held here rather than in a tab because the author field is on two of them
+   * (Carte and Autor) and both have to behave identically, and because the
+   * selected name is display state that has to outlive a panel which unmounts
+   * on every tab switch. `useAuthorSelection` has the rest, including why the
+   * biography is poured in by the event that changes the author rather than by
+   * an effect.
+   */
+  const author = useAuthorSelection(form, book?.author?.name ?? "");
+  const { adopt } = author;
 
   const isbn = useDebounced(watch("isbn"), 300);
   const duplicates = useIsbnDuplicates(isbn, book?.id);
@@ -242,8 +243,8 @@ export function BookFormDialog({
    * second one.
    *
    * A failure costs the author and nothing else — the same footing as the cover
-   * download and the edition lookup. The book is filled in and savable; the
-   * author is one click away in the Autor tab.
+   * download and the edition lookup. The book is filled in and savable, and the
+   * picker is right there on this tab (§D51) rather than one away.
    */
   const fillAuthor = useCallback(
     async (name: string | null, { overwrite }: { overwrite: boolean }) => {
@@ -258,23 +259,20 @@ export function BookFormDialog({
         return;
       }
 
-      const author = await createAuthor.mutateAsync({ name: name.trim() }).catch(() => null);
+      const resolved = await createAuthor
+        .mutateAsync({ name: name.trim() })
+        .catch(() => null);
 
-      if (author === null) {
+      if (resolved === null) {
         return;
       }
 
-      setValue("authorId", author.id, { shouldDirty: true });
-      setAuthorName(author.name);
-      // No `shouldDirty` on the biography: it is what is *stored* for the
-      // author just resolved, so Save must not write it back over itself.
-      // (`resetField` would say this more precisely and cannot be used — it is
-      // a silent no-op on an unregistered field, and this runs from the Carte
-      // tab, where the biography's textarea is not even mounted. See
-      // `AuthorTab` for the full note.)
-      setValue("authorBiography", author.biography ?? "");
+      // The whole row is in hand, biography included, so this needs no second
+      // request — and no `shouldDirty` on the biography, because it is what is
+      // *stored* for the author just resolved. See `useAuthorSelection`.
+      adopt(resolved);
     },
-    [createAuthor, getValues, setValue],
+    [adopt, createAuthor, getValues],
   );
 
   useEffect(() => {
@@ -619,6 +617,7 @@ export function BookFormDialog({
           {tab === "book" && (
             <BookTab
               form={form}
+              selection={author}
               cover={
                 editing ? (
                   <CoverUpload book={book} />
@@ -657,15 +656,9 @@ export function BookFormDialog({
             />
           )}
 
-          {/* §D51 — the whole author: the picker, the biography, and the note
-              that says how far an edit to it reaches. */}
-          {tab === "author" && (
-            <AuthorTab
-              form={form}
-              authorName={authorName}
-              onNameChange={setAuthorName}
-            />
-          )}
+          {/* §D51 — the biography and the note that says how far an edit to it
+              reaches. The picker above it is the same one the Carte tab shows. */}
+          {tab === "author" && <AuthorTab form={form} selection={author} />}
 
           {tab === "description" && <DescriptionTab form={form} />}
 
