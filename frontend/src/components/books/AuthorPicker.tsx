@@ -3,6 +3,8 @@ import { sameAuthorName, type AuthorSuggestion } from "@bookcsi/shared";
 import { useAuthors } from "../../api/authors";
 import { useDebounced } from "../../lib/use-debounced";
 import { useT } from "../../i18n/locale-context";
+import { useAnchoredPosition } from "../../lib/use-anchored-position";
+import { AnchoredPanel } from "../AnchoredPanel";
 import { INPUT } from "./form/styles";
 
 /** The part of an author this control needs. The biography is the tab's business. */
@@ -197,6 +199,19 @@ export function AuthorPicker({
   };
 
   /**
+   * The list is drawn over the page rather than inside the field.
+   *
+   * An `absolute` list is clipped by any ancestor that scrolls, and in the book
+   * form this control sits in a tab panel with a fixed height and
+   * `overflow-y-auto`. `useAnchoredPosition` measures the field in viewport
+   * coordinates and `AnchoredPanel` portals the list out of everything that
+   * would cut it off; the hook's own note explains why a portal rather than a
+   * `position: fixed` list in place, and why every button below has
+   * `tabIndex={-1}`.
+   */
+  const { anchorRef, position } = useAnchoredPosition(open, 224, close);
+
+  /**
    * The rule, enforced in one place: leaving the field cannot leave a name in
    * it that is not an author. Whatever was being typed is discarded and the box
    * goes back to saying what the form actually holds.
@@ -281,7 +296,7 @@ export function AuthorPicker({
   };
 
   return (
-    <div className="relative">
+    <div ref={anchorRef}>
       <div className="flex items-center gap-2">
         <input
           id={inputId}
@@ -381,7 +396,8 @@ export function AuthorPicker({
       </p>
 
       {open && (
-        <ul className="absolute z-10 mt-1 max-h-56 w-full divide-y divide-line overflow-y-auto rounded-lg border border-line bg-surface-1 shadow-lg">
+        <AnchoredPanel position={position}>
+          <ul className="divide-y divide-line">
           {matches.map((author, index) => (
             <li key={author.id}>
               {confirming === author.id ? (
@@ -400,6 +416,7 @@ export function AuthorPicker({
                 >
                   <button
                     type="button"
+                    tabIndex={-1}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => select({ id: author.id, name: author.name })}
                     aria-current={author.id === value?.id}
@@ -427,6 +444,7 @@ export function AuthorPicker({
 
                   <button
                     type="button"
+                    tabIndex={-1}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                       // §D51 — nothing to warn about when no book points at
@@ -462,6 +480,7 @@ export function AuthorPicker({
               */}
               <button
                 type="button"
+                tabIndex={-1}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => void create()}
                 disabled={busy}
@@ -489,7 +508,8 @@ export function AuthorPicker({
               </p>
             </li>
           )}
-        </ul>
+          </ul>
+        </AnchoredPanel>
       )}
     </div>
   );
@@ -529,6 +549,7 @@ function DeleteConfirm({
 
       <button
         type="button"
+        tabIndex={-1}
         onMouseDown={(event) => event.preventDefault()}
         onClick={onCancel}
         className="shrink-0 rounded px-2 py-1 text-xs text-ink-3 transition-colors duration-150 hover:text-ink"
@@ -538,6 +559,7 @@ function DeleteConfirm({
 
       <button
         type="button"
+        tabIndex={-1}
         onMouseDown={(event) => event.preventDefault()}
         onClick={onConfirm}
         disabled={busy}

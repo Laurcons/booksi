@@ -231,6 +231,10 @@ export const en: Catalog<MessageKey> = {
   "search.noCategoryMatches": "No category matches.",
   "category.searchPlaceholder": "Search categories…",
   "category.remove": "Remove {label}",
+  "category.matchCount": {
+    one: "one category found",
+    other: "{count} categories found",
+  },
 
   "field.title": "Title",
   "field.author": "Author",

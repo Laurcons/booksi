@@ -1298,6 +1298,51 @@ pierd nimic.
 
 ---
 
+### D52 — Listele derulante se desenează peste pagină, nu în interiorul câmpului
+
+O listă `position: absolute` e tăiată de orice strămoș cu `overflow` diferit de `visible`. Panoul
+de tab al formularului de carte are înălțime fixă și `overflow-y-auto` (§D48), iar caseta de
+categorii stă pe ultimul rând al tabului „Carte" — deci lista se deschidea în vreo 40 de pixeli și
+era retezată. Aceeași expunere o avea și caseta de autor (§D51); acolo nu se vedea doar fiindcă
+stă sus, unde e loc.
+
+**Decizie: limitele listei sunt marginile paginii, nu ale dialogului.** Se desenează prin portal în
+`<body>`, poziționată în coordonate de viewport față de câmp, cu înălțimea tăiată la spațiul
+disponibil și cu deschidere în sus doar când în jos nu încape și sus e mai mult loc. Alternativele
+— să o întorci în sus sau să-i limitezi înălțimea la panou — o țineau într-o cutie de 432px pentru
+un overlay tranzitoriu, care n-are motiv să fie mobilat de containerul câmpului.
+
+**Portal, nu `position: fixed` pe loc.** `fixed` se rezolvă față de cel mai apropiat strămoș cu
+`transform`, `filter` sau `perspective`, nu față de viewport — iar panoul modalului primește
+`transform: scale()` la fiecare refuz de închidere (§D49). O listă rămasă în panou ar sări din loc
+în mijlocul animației. Portalul o scoate cu totul din subarborele modalului, deci problema nu
+există.
+
+**Consecința: rândurile nu sunt tabulabile, iar săgețile sunt drumul prin listă.** Portalul le
+scoate din capcana de focus a modalului, iar `trapTab` readuce focusul la primul control din panou
+când îl găsește în afara lui — deci un rând tabulabil ar însemna că următorul Tab te aruncă în capul
+dialogului. `tabIndex={-1}` peste tot, plus navigarea cu săgeți pe un index evidențiat pe care
+`AuthorPicker` o avea deja și `CategoryPicker` nu. Nu e un compromis: înainte Tab trecea prin toată
+taxonomia până la câmpul următor. Escape închide lista și se oprește acolo, fără să ajungă la
+dialog. Niciuna dintre liste nu e `role="listbox"`, pentru motivul din §D51 — un titlu de grup care
+nu se poate alege nu e un `option`.
+
+**Lista se închide când câmpul iese din containerul care-l derulează**, fiindcă nu mai are ce să
+ancoreze. Repoziționarea se face la `scroll` (cu `capture`, fiindcă scroll-ul nu se propagă), la
+`resize`, și la un `ResizeObserver` pe câmp — o casetă de categorii mai câștigă un rând când un chip
+îi trece pe linia următoare.
+
+**Poziționarea nu se poate testa în jsdom**, care n-are layout: orice `getBoundingClientRect` e
+zero, deci un test despre unde *stă* lista ar testa stub-ul. Testele acoperă ce e verificabil —
+golirea căutării, săgețile, `tabIndex`, portalul, Escape — iar plasarea se verifică în browser.
+
+**La alegerea unei categorii, caseta de căutare se golește.** Textul care a găsit raftul și-a făcut
+treaba; lăsat în casetă, ține lista filtrată la rândul abia bifat, deci a doua alegere cere mai
+întâi o ștergere manuală. Compromisul e asumat explicit: două rafturi din aceeași căutare („art" →
+teorie *și* istorie) cer acum retastare, dar trecerea la un raft nesuprapus e cazul mult mai
+frecvent. Golirea stă pe clicul de rând, nu în `toggle`, pe care-l apelează și `✕` de pe chip: să
+ștergi căutarea cuiva fiindcă a scos un chip nelegat de ea ar fi a doua surpriză în locul primei.
+
 ## Ce a fost eliminat din backlogul inițial
 
 - **Cele două story-uri „ca developer"** (cache pe Covers API, fallback Google Books). Primul

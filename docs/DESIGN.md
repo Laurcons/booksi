@@ -283,6 +283,31 @@ Pe telefon dialogul e o **foaie ancorată jos** (`94dvh`, colțuri rotunjite doa
 lipit unde ajunge degetul. Coperta e propriul buton — o insignă cu creion în colț deschide
 încărcarea, fără titlu de secțiune și fără control separat lângă ea.
 
+### Liste derulante (§D52)
+
+**Limitele unei liste sunt marginile paginii, nu ale dialogului în care stă câmpul.** O listă
+`absolute` e tăiată de orice strămoș care derulează, iar panoul de tab al formularului de carte are
+înălțime fixă și `overflow-y-auto` — deci lista de categorii, care stă pe ultimul rând, era retezată
+la câțiva pixeli sub casetă. Se desenează prin portal, poziționată în coordonate de viewport
+(`useAnchoredPosition` + `AnchoredPanel`), cu o margine de 8px față de marginea ecranului.
+
+- **În jos implicit, în sus doar când în jos nu încape** *și* sus e mai mult loc — o listă care sare
+  peste câmp mută privirea, deci se face numai când e nevoie. În sus se prinde de marginea de jos a
+  listei, ca o listă scurtă să stea lipită de casetă și nu la capătul spațiului permis.
+- **Înălțimea se taie la spațiul disponibil**, iar lista derulează în ea. Ce ar depăși ecranul nu se
+  desenează în afara lui.
+- **Rândurile nu sunt în ordinea de tabulare** (`tabIndex={-1}`). Portalul le scoate din capcana de
+  focus a modalului, unde un rând tabulabil ar trimite următorul Tab în capul dialogului. Tastatura
+  merge cu săgețile peste un index evidențiat, Enter alege, Escape închide lista (și nu dialogul).
+  E un câștig, nu un compromis: înainte Tab trecea prin toată taxonomia până la câmpul următor.
+- **Lista se închide când câmpul iese din containerul care-l derulează.** O listă rămasă suspendată
+  peste un câmp care nu se mai vede e mai rău decât niciuna.
+- `z-[45]`: peste modal (`z-40`), fiindcă asta e tot rostul, și sub toast-uri (`z-50`), fiindcă un
+  mesaj despre o salvare eșuată n-are ce căuta în spatele unei liste de rafturi.
+- **La alegerea unei categorii caseta de căutare se golește** (§D52). Textul care a găsit raftul
+  și-a făcut treaba; lăsat în casetă, ține lista filtrată la rândul abia bifat. Compromisul e
+  asumat: două rafturi din aceeași căutare cer retastare.
+
 ### Placeholderul de copertă (S5.5)
 
 Nu e o iconiță generică. E o „copertă" desenată de noi: fundal `--surface-3`, un chenar interior

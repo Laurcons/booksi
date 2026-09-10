@@ -281,6 +281,11 @@ export const ro = {
   "search.noCategoryMatches": "Nicio categorie nu se potrivește.",
   "category.searchPlaceholder": "Caută categorii…",
   "category.remove": "Elimină {label}",
+  "category.matchCount": {
+    one: "o categorie găsită",
+    few: "{count} categorii găsite",
+    other: "{count} de categorii găsite",
+  },
 
   "field.title": "Titlu",
   "field.author": "Autor",

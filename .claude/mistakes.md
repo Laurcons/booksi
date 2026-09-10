@@ -509,3 +509,41 @@ every book-query invalidation — including the one our own Save triggers.
 waiting for a remount. Ask what *event* made the new value true and write it
 there. And when a value in a form belongs to another entity, the form library's
 dirty tracking cannot help — it compares values, and identity is the question.
+
+### A dropdown inside a scroll container is clipped — and portalling it out breaks the keyboard
+
+The category list is `position: absolute` inside the book form's tab panel,
+which has a fixed height and `overflow-y-auto`. An overflow ancestor clips
+absolutely-positioned descendants, so the list opened into ~40px and was cut
+off. `AuthorPicker` had the identical markup and only escaped because it sits at
+the top of its tab where there is room — and I made the category case worse
+without noticing, by putting the author field back on the Carte tab and pushing
+categories down a row.
+
+Two traps in the fix, both worth knowing before reaching for a portal:
+
+**`position: fixed` is not enough.** It resolves against the nearest ancestor
+with a transform, filter or perspective rather than against the viewport, and
+`Modal`'s panel takes `transform: scale()` on every refused dismissal (§D49's
+nudge). A `fixed` list left inside the panel jumps out of place mid-animation.
+`Modal`'s own header comment already records this hazard; I nearly re-learned
+it. The portal is what actually solves it, by leaving the subtree entirely.
+
+**A portalled list falls outside the modal's focus trap, silently.** `trapTab`
+returns focus to the panel's first control whenever it finds the active element
+outside the panel, so a tabbable row means the next Tab throws the reader to the
+top of the dialog. Nothing errors and no test caught it — the rows are still
+clickable. The fix is `tabIndex={-1}` plus arrow-key navigation, which is what a
+combobox should have had anyway: before this, Tab walked every shelf in the
+taxonomy on the way to the next field.
+
+Also found in passing: `CategoryPicker` had the same `onFocus`-without-`onClick`
+bug this file already records against `AuthorPicker` — a pick returns focus to
+the input, so the next click on the already-focused field fires no `focus` event
+and the list stays shut. The lesson had been written down for one picker and not
+applied to its sibling.
+
+**Lesson:** before positioning an overlay `absolute`, check every ancestor's
+`overflow` — and when the same markup exists in a sibling component, fix both or
+neither. When a fix moves nodes out of a subtree, ask what that subtree was
+doing for them: here, holding focus.
